@@ -6,9 +6,10 @@ Make it simple for people to discover, reserve, and play board games together.
 
 ### Goals
 
+- Reserve a table for a time slot without friction (first player experience)
 - Browse available board games and see what is free to play
 - Reserve games for a time slot without friction
-- Help organizers and venues manage inventory and reservations
+- Help organizers and venues manage seating, inventory, and reservations
 
 ### Principles
 
