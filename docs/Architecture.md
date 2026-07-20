@@ -38,7 +38,7 @@ BoardGameReservationApp is split into a backend API, an admin client, and a play
 ## Later Flow (games)
 
 1. Admin adds games and copies to inventory
-2. Player browches catalog and checks game availability for a time range
+2. Player browses catalog and checks game availability for a time range
 3. Player creates a reservation against a free copy (optionally linked to a table reservation)
 4. Backend validates overlap rules and stores the reservation
 5. Admin can monitor and update reservation status (e.g. returned / completed)
