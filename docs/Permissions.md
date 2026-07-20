@@ -16,10 +16,10 @@ Aligned with `docs/Vision.md`: people who **create a table**, people who **reser
 
 - **`USER`** — base player rights only.
 - **`VENUE_USER`** — **does not** inherit from `USER` or from `ADMIN`. Separate, venue-scoped rights only.
-- **`ADMIN`** — has **all `USER` rights**, plus additional global superpowers (add / edit / delete everything).
+- **`ADMIN`** — has **all `USER` rights** **and all `VENUE_USER` rights** (across **every** venue, not just one), plus additional global superpowers (add / edit / delete **any part of the application**).
 
-This is **not** a ladder `USER < VENUE_USER < ADMIN`.  
-`VENUE_USER` is a parallel role for venue operations.
+`VENUE_USER` remains a **parallel**, venue-scoped role that does **not** inherit `USER`.  
+`ADMIN`, however, is a superset of **both** `USER` and `VENUE_USER`: it can do anything either of those roles can do, and adds global add/edit/delete on top. So while `USER < VENUE_USER < ADMIN` is **not** a strict ladder (`VENUE_USER` is not a superset of `USER`), `ADMIN` sits above **both** other roles.
 
 ## Registration and login
 
@@ -33,7 +33,7 @@ This is **not** a ladder `USER < VENUE_USER < ADMIN`.
 | Action | USER | VENUE_USER | ADMIN |
 |---|---|---|---|
 | Register / login | yes | yes | yes |
-| View all tables | yes | no — **own venue only** | yes (via USER rights + global) |
+| View all tables | yes | no — **own venue only** | yes (via USER + VENUE_USER rights + global) |
 | Filter tables | yes | own venue only | yes |
 | Create a table | yes | own venue only | yes |
 | Edit a table | **own tables only** | tables at own venue | **any** |
@@ -47,7 +47,7 @@ This is **not** a ladder `USER < VENUE_USER < ADMIN`.
 
 1. **Create table** vs **reserve a seat** are different actions (see Vision principles). A `USER` may create a table and may also reserve a seat at someone else’s table.
 2. **`VENUE_USER`** only sees and manages data for **their** restaurant/cafe — not the whole platform.
-3. **`ADMIN`** can do everything a `USER` can, and can also add, edit, and delete anything across the system.
+3. **`ADMIN`** can do everything a `USER` can **and everything a `VENUE_USER` can (for every venue, not a single one)**, and can also add, edit, and delete anything across the system.
 4. Backend must enforce these rules; hiding UI alone is not enough.
 
 ## Open points (to refine later)
