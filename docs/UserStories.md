@@ -62,14 +62,3 @@
 52. As admin, I want to see be notified of any bad review for a user or location so that i can timely verify it and react to it if needed 
 53. As admin, I want to be able to block any user or location that do not follow the rules of using the app so that everyone feels safe while using it
 54. As admin, I want to be able to mark locations or users as "super locations" or "super users" if i notice that reviews of those are very very good
-
-
-
-
-
-
-## Acceptance Notes
-
-- A reservation succeeds only when at least one matching copy is free for the full slot.
-- Cancelled or completed reservations free inventory immediately for new bookings.
-- users only see actionable statuses (e.g. available, reserved, overdue). orgale tot acee 
