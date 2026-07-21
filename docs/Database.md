@@ -102,6 +102,7 @@ The core booking unit — a hosted board game event. *(stories 1, 4, 33)*
 - `language` (`en` | `de` | `other`)
 - `language_other` (free text when `language = other`)
 - `status` (`waiting_for_venue_confirmation` | `waiting_for_players` | `confirmed` | `cancelled` | `completed`)
+- `seats_taken` (int; denormalized counter of active seats, used for the capacity guard — see `ADR-011`)
 - `created_at`
 - `updated_at`
 
@@ -249,6 +250,39 @@ In-app + email notifications, scoped to relevance. *(stories 21, 22, 24, 25, 28,
 - A blocked user (Block or VenueBlock) cannot join the relevant tables or message the blocker. *(stories 12, 42)*
 - Refund is triggered automatically when a Table or SeatReservation is cancelled. *(story 31)*
 - Table status transitions are owned by the backend (see `ADR-007`).
+
+## Keys, enums & constraints
+
+Concrete relational details for implementation. Datastore is PostgreSQL (see `ADR-010`).
+
+### Primary & foreign keys
+
+- Every entity has a surrogate `id` primary key (UUID or bigint).
+- Foreign keys as marked with `→` above (e.g. `SeatReservation.table_id → Table.id`, `Table.venue_id → Venue.id`).
+- `User.venue_id → Venue.id` is nullable and set only for `VENUE_USER`.
+
+### Enums
+
+- `User.role`: `USER` | `VENUE_USER` | `ADMIN`
+- `Table.status`: `waiting_for_venue_confirmation` | `waiting_for_players` | `confirmed` | `cancelled` | `completed`
+- `Table.language`: `en` | `de` | `other`
+- `SeatReservation.status`: `reserved` | `cancelled`
+- `VenueGameInventory.condition`: `new` | `like_new` | `good`
+- `Payment.provider`: `paypal` | `revolut`; `Payment.status`: `pending` | `succeeded` | `failed` | `refunded`
+- `Report.type`: `abuse` | `bug` | `feedback`; `Report.status`: `open` | `reviewing` | `resolved`
+
+### Unique constraints
+
+- `User(email)` unique.
+- `SeatReservation(table_id, user_id)` **partial unique WHERE `status = 'reserved'`** — a user cannot hold two active seats at the same table (duplicate join → `409`).
+- `VenueGameInventory(venue_id, game_id, language)` unique.
+- `Friendship(requester_id, addressee_id)` unique; `Block(blocker_id, blocked_id)` unique; `VenueBlock(venue_id, user_id)` unique.
+
+### Concurrency & integrity (see `ADR-011`)
+
+- **Seat capacity:** reserving a seat runs in a transaction that takes `SELECT ... FOR UPDATE` on the `Table` row, checks `seats_taken < max_players`, inserts the `SeatReservation`, and increments `seats_taken`. Over-capacity → `409`.
+- **Venue capacity:** when a venue confirms a table, count pending/confirmed `Table`s at that venue overlapping `[starts_at, starts_at + duration_minutes)` and require it to be `< venue_availability.tables_available`. Conflict → `409`.
+- **Refunds:** cancelling a `Table` or `SeatReservation` triggers `Payment` refund(s) in the same unit of work where possible.
 
 ## Indexes (suggested)
 

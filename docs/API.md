@@ -111,4 +111,14 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `401` unauthenticated
 - `403` forbidden (role/permission or block)
 - `404` not found
-- `409` conflict (e.g. table full, overlapping/duplicate seat, capacity exceeded)
+- `409` conflict (see below)
+
+### Conflict (`409`) conditions
+
+Backend-enforced invariants (see `ADR-011` and `docs/Database.md`):
+
+- `POST /tables/{id}/seats` — table is full (`seats_taken >= max_players`), or the user already holds an active seat at the table (partial unique on `SeatReservation(table_id, user_id)`).
+- `POST /requests/{id}/accept` — venue over capacity for the requested slot (overlapping tables `>= venue_availability.tables_available`).
+- `POST /tables/{id}/seats/cancel` — seat already cancelled, or a state that forbids cancellation.
+- `POST /tables` / `PATCH /tables/{id}` — requested slot outside the venue's published availability.
+- `POST /payments/{id}/refund` — payment not in a refundable state.
