@@ -64,3 +64,17 @@ Lightweight architecture decision records for BoardGameReservationApp.
 - **Context:** Users must feel safe; abusive behavior must be actionable (`stories 11, 12, 42, 48, 49, 53`).
 - **Decision:** Support user-to-user blocking, venue-to-user blocking, reporting (abuse/bug/feedback), admin content removal, and user/venue blocking. All moderation actions are auditable.
 - **Consequences:** Requires `Block`, `VenueBlock`, and `Report` entities and admin tooling; privacy rules limit public profile data (`NFR-1`).
+
+## ADR-010: PostgreSQL modular monolith
+
+- **Status:** Accepted
+- **Context:** The product needs strong booking invariants (capacity, no double-booking), rich filtering, and low operational overhead for a greenfield team (`docs/Architecture.md`, `docs/Vision.md`).
+- **Decision:** Build the backend as a single deployable **modular monolith** (modules: auth, venues, tables, payments, social, moderation, notifications) over **PostgreSQL**, with S3-compatible object storage for media. Clients start as one responsive web app with role-based views.
+- **Consequences:** Seat/payment invariants live in local DB transactions; no distributed-transaction complexity. Clear module boundaries leave room to extract services later if scale demands. Relational constraints back the trust requirements.
+
+## ADR-011: Seat-capacity concurrency via row lock + partial unique index
+
+- **Status:** Accepted
+- **Context:** Multiple users may try to reserve the last seat(s) simultaneously; availability must stay trustworthy (`docs/Vision.md`, `stories 2, 4`).
+- **Decision:** Reserve seats inside a transaction that takes `SELECT ... FOR UPDATE` on the `Table` row, checks a denormalized `seats_taken < max_players`, inserts the `SeatReservation`, and increments the counter. Enforce a **partial unique index** on `SeatReservation(table_id, user_id) WHERE status = 'reserved'` to prevent duplicate seats. Venue capacity is checked against `VenueAvailability.tables_available` for overlapping slots at confirmation time. Conflicts return `409`.
+- **Consequences:** Deterministic capacity behavior under concurrency without table-wide locking; the `seats_taken` counter must be maintained on every seat insert/cancel. Reinforces `ADR-002` (backend owns rules) and `ADR-007` (status lifecycle).
