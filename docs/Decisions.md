@@ -94,3 +94,20 @@ Lightweight architecture decision records for BoardGameReservationApp.
   - **Waitlist** — when a table is full, additional users join a **waitlist** (`SeatReservation.status = 'waitlisted'` with an ordered `waitlist_position`). When a `reserved` seat is cancelled, the **earliest waitlisted user is automatically promoted** to `reserved` (and notified).
   - **Late cancellation** — cancelling a seat **within 24h** of `starts_at` (i.e. after the free-cancellation window of `story 21`) is a *late cancellation*. It records a **late-cancellation mark** on the user's profile that is **visible to others for 30 days**, then expires.
 - **Consequences:** Adds a `LateCancellationMark` entity (with `expires_at = created_at + 30 days`) and a `waitlisted` seat status + `waitlist_position`. Promotion runs in the same transaction as the cancellation. Marks are shown on public profiles only while active (alongside `cancellations_count`).
+
+## ADR-014: Technology stack
+
+- **Status:** Accepted (owner decision)
+- **Context:** With the modular monolith (`ADR-010`), mobile-first web launch client (`ADR-012`), and PostgreSQL locked in, the team needs a concrete, agreed stack so Developer/Tester/Penetration-Tester can build and run consistently.
+- **Decision:**
+  - **Backend:** **Python + Django + Django REST Framework** (batteries-included: ORM, migrations, auth, permissions, and the Django admin site to jump-start the `ADMIN` console).
+  - **Database:** **PostgreSQL**; Django ORM + built-in migrations.
+  - **Frontend:** **React + Next.js** with **Tailwind CSS**, mobile-first; consumes the DRF API so a future native app can reuse it (`ADR-012`).
+  - **Repo layout:** **monorepo** — `/backend` (Django) and `/frontend` (Next.js).
+  - **Python tooling:** **uv** (dependencies), **ruff** (lint/format), **pytest + pytest-django** (tests).
+  - **Frontend tooling:** **pnpm**, **Vitest + React Testing Library**, **Playwright** for end-to-end (also used for mobile-viewport checks).
+  - **Local environment:** **Docker Compose** (Postgres + backend + frontend).
+  - **Staging/test environment:** a container PaaS (**Render** or **Fly.io**) — the environment Tester and Penetration-Tester use before production.
+  - **CI:** **GitHub Actions** (lint + tests on every PR).
+  - **Design:** **Figma** is the source of truth for UI design; exports/links are referenced from the repo docs.
+- **Consequences:** Developer builds against Django/DRF + Next.js; the DRF API stays client-agnostic for future native apps. Security tooling (Bandit, pip-audit, Semgrep, OWASP ZAP) targets this stack. The exact staging provider (Render vs. Fly.io) can be finalized when first deploying.

@@ -1,6 +1,6 @@
 ---
 name: designer
-description: UI/UX designer for BoardGameReservationApp. Drafts the user-facing screens (mobile-first responsive web) for the prioritized flows, grounded in docs/UserStories.md, docs/Requirements.md, and docs/Permissions.md. Produces wireframes/specs Developer can build from.
+description: UI/UX designer for BoardGameReservationApp. Drafts the user-facing screens (mobile-first responsive web) for the prioritized flows in Figma (source of truth, per ADR-014), grounded in docs/UserStories.md, docs/Requirements.md, and docs/Permissions.md, with an in-repo design index Developer can build from.
 model: inherit
 readonly: false
 ---
@@ -46,8 +46,9 @@ Ground every screen in:
 
 ## Deliverables
 
-- Wireframe/spec per screen (structure + components + states) in a form Developer can build from (e.g. Markdown specs, and/or mockup images when helpful).
-- A short flow summary linking each screen to its stories/FRs.
+- **Figma is the source of truth** for UI design (`ADR-014`): produce screens, flows, and a shared component library / design system there, designed mobile-first (phone frames first, then larger breakpoints).
+- In the repo, keep a lightweight **design index** (Markdown) that links each Figma screen/flow to the stories/FRs it serves, plus any exported assets Developer needs; when Figma access is unavailable, capture the intent as Markdown specs/mockups so work is not blocked.
+- Map screens to the Tailwind component set so Developer can implement directly from the designs.
 - Open questions where a story is ambiguous (raise to Consultant).
 
 ## Out of scope by default
