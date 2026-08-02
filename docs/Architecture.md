@@ -65,12 +65,12 @@ The launch client is a **single responsive web app** with role-based views (play
 
 ## High-Level Flow (create & confirm a table)
 
-1. Organizer creates a table at a venue (time, duration, min/max players, game or bring-own, language); a seat is reserved for them by default. *(1, 4)*
-2. The request goes to the venue; table status is `waiting for venue confirmation`. *(33)*
-3. Venue admin accepts (or rejects) the reservation request; on accept, status becomes `waiting for players`. *(24, 35)*
-4. Other users browse/filter, reserve seats, and (optionally) pay the reservation fee. *(2, 30)*
+1. A `USER` (host) creates a table at a venue (date, from/to time, min/max players, game with bring-own + language or a venue game); the host's seat is reserved by default. *(1, 4; decisions 4, 6)*
+2. The request goes to the venue; table status is `waiting for venue confirmation`. **No other user can book yet.** *(33; decision 2)*
+3. Venue admin accepts (confirming table availability, and the requested game if it is a venue game) or rejects; on accept, status becomes `waiting for players`. *(24, 35; decisions 2, 4)*
+4. Only now do other `USER`s browse/filter, reserve seats (or join the **waitlist** if full), and pay the fee (full-table by host, or per-seat). *(2, 30; decisions 1, 6, 7)*
 5. When enough seats fill, status becomes `confirmed`; relevant users are notified. *(28, 33)*
-6. Cancellations (by attendee up to 24h before, or by organizer/venue) trigger notifications and automatic refunds. *(21, 22, 25, 31)*
+6. Cancellations trigger notifications and automatic refunds; a within-24h cancellation is *late* (30-day profile mark) and a reserved-seat cancellation **promotes the next waitlisted user**. *(21, 22, 25, 31; decision 7)*
 7. After the event, participants can add photos and write reviews. *(5, 7)*
 
 ```mermaid
@@ -82,9 +82,9 @@ sequenceDiagram
     O->>API: POST /tables (venue,time,game,min/max)
     API->>API: create table (status=waiting_for_venue_confirmation), seat organizer
     API-->>VA: notify: reservation request
-    VA->>API: POST /requests/{id}/accept
+    VA->>API: POST /requests/{id}/accept (confirm table + venue game)
     API->>API: capacity check -> status=waiting_for_players
-    U->>API: POST /tables/{id}/seats (FOR UPDATE, capacity check)
+    U->>API: POST /tables/{id}/seats (FOR UPDATE; if full -> waitlisted)
     API->>PAY: start reservation-fee payment
     PAY-->>API: success -> Payment.succeeded
     API->>API: if seats>=min -> status=confirmed
@@ -109,10 +109,11 @@ stateDiagram-v2
 
 ## Concurrency & integrity
 
-Trustworthy availability (per `docs/Vision.md`) depends on two backend-enforced invariants (see `ADR-011` and `docs/Database.md`):
+Trustworthy availability (per `docs/Vision.md`) depends on backend-enforced invariants (see `ADR-011`, `ADR-013`, and `docs/Database.md`):
 
-- **No seat over-booking** — reserving a seat locks the `Table` row (`SELECT ... FOR UPDATE`), verifies `seats_taken < max_players`, inserts the `SeatReservation`, and increments the counter. A partial unique index on `SeatReservation(table_id, user_id)` blocks duplicate joins. Conflicts return `409`.
-- **No venue over-capacity** — venue confirmation checks overlapping tables against `VenueAvailability.tables_available` for the requested slot. Conflicts return `409`.
+- **No seat over-booking** — reserving a seat locks the `Table` row (`SELECT ... FOR UPDATE`), verifies `seats_taken < max_players`, inserts the `SeatReservation`, and increments the counter. A partial unique index on `SeatReservation(table_id, user_id)` blocks duplicate joins. When full, the user is **waitlisted** rather than rejected.
+- **No venue over-capacity + 15-min turnover** — venue confirmation counts tables whose `[starts_at, ends_at]` windows fall within **15 minutes** of the requested slot against `VenueAvailability.tables_available`; slots start ≥15 min apart. Conflicts return `409`. *(decision 3)*
+- **Waitlist promotion & late marks** — cancelling a reserved seat promotes the earliest waitlisted user in the same transaction; a within-24h cancellation records a 30-day `LateCancellationMark`. *(decision 7)*
 
 ## Design Notes
 

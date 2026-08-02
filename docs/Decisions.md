@@ -39,17 +39,17 @@ Lightweight architecture decision records for BoardGameReservationApp.
 
 ## ADR-006: Payments via hosted providers (PayPal / Revolut)
 
-- **Status:** Accepted
+- **Status:** Accepted (fee model decided)
 - **Context:** Users want quick reservation-fee payment and automatic refunds (`stories 30–32`).
-- **Decision:** Integrate hosted PayPal and Revolut flows; the app never stores card data. Refunds are triggered automatically on table/seat cancellation.
-- **Consequences:** Keeps card handling out of PCI scope; payment/refund state is tracked in `Payment` (`docs/Database.md`). Open question: fee model (per seat vs per table) and payee split.
+- **Decision:** Integrate hosted PayPal and Revolut flows; the app never stores card data. Refunds are triggered automatically on table/seat cancellation. **Fee model (owner decision):** the host may either **pay for the whole table at once** or the fee may be **split per seat**, chosen per table. In all cases **the payer is always a `USER`** (a `Payment` always references the paying user).
+- **Consequences:** Keeps card handling out of PCI scope; payment/refund state is tracked in `Payment` with a `scope` of `full_table` or `per_seat` (`docs/Database.md`). Full-table payment is made by the host; per-seat payments are made by each seated user.
 
 ## ADR-007: Backend-owned table status lifecycle
 
-- **Status:** Accepted
+- **Status:** Accepted (venue-confirmation-first decided)
 - **Context:** Table status must be consistent and visible to all parties (ADR-003).
-- **Decision:** The backend owns transitions: `waiting_for_venue_confirmation` → (venue accepts) `waiting_for_players` → (enough seats) `confirmed` → `completed`; any state may move to `cancelled` (by organizer, venue, or admin), triggering notifications and refunds.
-- **Consequences:** Predictable state machine; clients render status only. Open question: whether venue confirmation gates seat joining or runs in parallel.
+- **Decision:** The backend owns transitions: `waiting_for_venue_confirmation` → (venue accepts) `waiting_for_players` → (enough seats) `confirmed` → `completed`; any state may move to `cancelled` (by organizer, venue, or admin), triggering notifications and refunds. **Sequencing (owner decision):** after the host requests a table, **the venue must confirm availability first** before any remaining users can book seats. When the host requested a venue-provided game, the venue must also **confirm the requested game is available** as part of accepting (not just the table). Only the host's own seat exists during `waiting_for_venue_confirmation`.
+- **Consequences:** Predictable state machine; clients render status only. Seat-booking endpoints reject joins until status is `waiting_for_players` (`409`/`403`). Venue acceptance covers both table and (if applicable) game availability.
 
 ## ADR-008: Notifications are relevant-scoped, email + in-app
 
@@ -76,8 +76,8 @@ Lightweight architecture decision records for BoardGameReservationApp.
 
 - **Status:** Accepted
 - **Context:** Multiple users may try to reserve the last seat(s) simultaneously; availability must stay trustworthy (`docs/Vision.md`, `stories 2, 4`).
-- **Decision:** Reserve seats inside a transaction that takes `SELECT ... FOR UPDATE` on the `Table` row, checks a denormalized `seats_taken < max_players`, inserts the `SeatReservation`, and increments the counter. Enforce a **partial unique index** on `SeatReservation(table_id, user_id) WHERE status = 'reserved'` to prevent duplicate seats. Venue capacity is checked against `VenueAvailability.tables_available` for overlapping slots at confirmation time. Conflicts return `409`.
-- **Consequences:** Deterministic capacity behavior under concurrency without table-wide locking; the `seats_taken` counter must be maintained on every seat insert/cancel. Reinforces `ADR-002` (backend owns rules) and `ADR-007` (status lifecycle).
+- **Decision:** Reserve seats inside a transaction that takes `SELECT ... FOR UPDATE` on the `Table` row, checks a denormalized `seats_taken < max_players`, inserts the `SeatReservation`, and increments the counter. Enforce a **partial unique index** on `SeatReservation(table_id, user_id) WHERE status = 'reserved'` to prevent duplicate seats. Venue capacity is checked against `VenueAvailability.tables_available` at confirmation time. **Slot spacing (owner decision):** physical-table slots start **at least 15 minutes apart** to allow cleanup between reservations, so two tables at a venue conflict when `[starts_at, ends_at]` windows are within **15 minutes** of each other. Conflicts return `409`.
+- **Consequences:** Deterministic capacity behavior under concurrency without table-wide locking; the `seats_taken` counter must be maintained on every seat insert/cancel. The 15-minute turnover buffer is applied when counting overlapping tables against `VenueAvailability.tables_available`. Reinforces `ADR-002` (backend owns rules) and `ADR-007` (status lifecycle).
 
 ## ADR-012: Mobile-first responsive web is the launch client
 
@@ -85,3 +85,12 @@ Lightweight architecture decision records for BoardGameReservationApp.
 - **Context:** The owner wants the product to look and work perfectly on phones from launch day; a native app can come later.
 - **Decision:** Ship a **single responsive web app** with role-based views, designed **mobile-first** (phone viewport is the default; enhance upward to tablet/desktop). Native mobile apps are deferred and, if built, reuse the same backend API. No native app is required for launch.
 - **Consequences:** Front-end work prioritizes small-viewport layouts, touch targets, and fast first load (`NFR-6`). One codebase/client to maintain at launch; the API stays client-agnostic so native apps can be added without backend changes.
+
+## ADR-013: Waitlist promotion and late-cancellation marks
+
+- **Status:** Accepted (owner decision)
+- **Context:** Popular tables fill up, and late cancellations hurt other players' plans (`stories 21, 23`).
+- **Decision:**
+  - **Waitlist** — when a table is full, additional users join a **waitlist** (`SeatReservation.status = 'waitlisted'` with an ordered `waitlist_position`). When a `reserved` seat is cancelled, the **earliest waitlisted user is automatically promoted** to `reserved` (and notified).
+  - **Late cancellation** — cancelling a seat **within 24h** of `starts_at` (i.e. after the free-cancellation window of `story 21`) is a *late cancellation*. It records a **late-cancellation mark** on the user's profile that is **visible to others for 30 days**, then expires.
+- **Consequences:** Adds a `LateCancellationMark` entity (with `expires_at = created_at + 30 days`) and a `waitlisted` seat status + `waitlist_position`. Promotion runs in the same transaction as the cancellation. Marks are shown on public profiles only while active (alongside `cancellations_count`).

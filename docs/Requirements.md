@@ -25,20 +25,22 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 
 ### B. Tables / events (core)
 
-- **FR-B1 (Must)** A user creates a table specifying venue, date/time, duration, min/max player count, the game (own or one available at the venue), and event language (English, German, or Other free-text). The organizer is seated by default. *(1, 4, 6, 29)*
-- **FR-B2 (Must)** Users can browse all tables offered by other users and reserve a seat at one. *(2)*
+- **FR-B1 (Must)** A `USER` (host) creates a table confirming: **minimum capacity**, **maximum capacity**, **date**, **time from and to**, the **game name**, and whether the host **brings the game** (if yes, its language — **English or German**; `Other` retained per story 1) **or uses a venue game** (in which case the venue must also confirm that game's availability). The organizer is seated by default. Hosting is a `USER`-only action — a `VENUE_USER` cannot host. *(1, 4, 6, 29; decisions 4, 6)*
+- **FR-B2 (Must)** Users can browse all tables offered by other users and reserve a seat at one. Reserving is a `USER`-only action — a `VENUE_USER` cannot reserve. *(2; decision 6)*
 - **FR-B3 (Must)** Users can view table details, including the game description and picture. *(6)*
 - **FR-B4 (Must)** Users can filter events by date, time, past/future, board game name, min/max player count, and location. *(13)*
-- **FR-B5 (Must)** Each table exposes a clear status to all parties: `waiting for venue confirmation`, `waiting for players`, `confirmed`, `cancelled` (and `completed` after it ends). *(33, 24)*
-- **FR-B6 (Must)** An attendee can cancel their own seat up to 24h before the event; other attendees are notified automatically. *(21)*
+- **FR-B5 (Must)** Each table exposes a clear status to all parties: `waiting for venue confirmation`, `waiting for players`, `confirmed`, `cancelled` (and `completed` after it ends). **The venue must confirm availability first**; other users can only book seats once the status is `waiting for players`. *(33, 24; decision 2)*
+- **FR-B6 (Must)** An attendee can cancel their own seat; cancelling **more than 24h before** the event is free, and other attendees are notified automatically. Cancelling **within 24h** is a *late cancellation* (see FR-B11). *(21; decision 7)*
 - **FR-B7 (Must)** An organizer can cancel their table; all signed-up attendees receive a timely email notification. *(22)*
+- **FR-B10 (Must)** When a table is full, further users join a **waitlist**; when a reserved seat is cancelled, the earliest waitlisted user is **automatically promoted** and notified. *(decision 7)*
+- **FR-B11 (Should)** A late cancellation (within 24h) places a **late-cancellation mark** on the user's public profile, visible to others for **30 days**, then it expires. *(23; decision 7)*
 - **FR-B8 (Should)** After an event ends, participants can add pictures of the event. *(7)*
 - **FR-B9 (Could)** A user can share an external link to a table so friends outside the app can register and join. *(15)*
 
 ### C. Venues & capacity (VENUE_USER)
 
 - **FR-C1 (Must)** A venue admin defines the days, times, and number of tables available at their location. *(34)*
-- **FR-C2 (Must)** A venue admin accepts or rejects reservation requests (with or without a requested game), making the outcome visible to all parties. *(35)*
+- **FR-C2 (Must)** A venue admin accepts or rejects reservation requests, **confirming table availability first** and, when the host requested a **venue game**, also confirming that **game's availability** — making the outcome visible to all parties before other users may book seats. *(35; decisions 2, 4)*
 - **FR-C3 (Must)** A venue admin sees all events planned at their location on a single screen. *(41)*
 - **FR-C4 (Should)** A venue admin edits the venue description and pictures. *(36)*
 - **FR-C5 (Should)** A venue admin manages the venue's game inventory: number of copies, condition (new / like new / good), and language. *(38, 44, 29)*
@@ -49,7 +51,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 
 ### D. Payments & refunds
 
-- **FR-D1 (Should)** Users pay a reservation fee quickly via PayPal or Revolut. *(30)*
+- **FR-D1 (Should)** Reservation fees are paid via PayPal or Revolut. Per table, either the **host pays for the whole table at once** or the fee is **split per seat** (each seated user pays their own). **The payer is always a `USER`.** *(30; decision 1)*
 - **FR-D2 (Should)** Users receive a notification of successful or unsuccessful payment. *(32)*
 - **FR-D3 (Should)** Users are refunded automatically when a table or their seat is cancelled. *(31)*
 - **FR-D4 (Could)** The platform collects reservation fees; admin sees fee reporting per venue, per user, and per game. *(50, 51)*
