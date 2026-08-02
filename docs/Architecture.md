@@ -26,7 +26,13 @@ flowchart LR
     API --> NOTIF[Email + push/WebSocket]
 ```
 
-For the MVP, the three clients can be one responsive web app with role-based views; native mobile can follow.
+### Launch client: mobile-first responsive web (ADR-012)
+
+The launch client is a **single responsive web app** with role-based views (player/organizer, venue admin, admin). It is **mobile-first**: it must look and work excellently on phones from day one (the primary target), while scaling up gracefully to tablet/desktop. Native mobile apps may follow later and reuse the same backend API.
+
+- Design and build phone-first (small viewport as the default), then enhance for larger screens.
+- Touch-friendly targets, fast first load, and readable layouts on narrow screens are launch requirements (see `NFR-6`).
+- No native app is required for launch; the responsive website is the product on phones.
 
 ## Components
 

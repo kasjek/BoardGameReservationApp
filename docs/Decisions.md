@@ -67,9 +67,9 @@ Lightweight architecture decision records for BoardGameReservationApp.
 
 ## ADR-010: PostgreSQL modular monolith
 
-- **Status:** Accepted
+- **Status:** Accepted (confirmed by owner — structural Option A + PostgreSQL)
 - **Context:** The product needs strong booking invariants (capacity, no double-booking), rich filtering, and low operational overhead for a greenfield team (`docs/Architecture.md`, `docs/Vision.md`).
-- **Decision:** Build the backend as a single deployable **modular monolith** (modules: auth, venues, tables, payments, social, moderation, notifications) over **PostgreSQL**, with S3-compatible object storage for media. Clients start as one responsive web app with role-based views.
+- **Decision:** Build the backend as a single deployable **modular monolith** (modules: auth, venues, tables, payments, social, moderation, notifications) over **PostgreSQL**, with S3-compatible object storage for media. The launch client is a mobile-first responsive web app (see `ADR-012`).
 - **Consequences:** Seat/payment invariants live in local DB transactions; no distributed-transaction complexity. Clear module boundaries leave room to extract services later if scale demands. Relational constraints back the trust requirements.
 
 ## ADR-011: Seat-capacity concurrency via row lock + partial unique index
@@ -78,3 +78,10 @@ Lightweight architecture decision records for BoardGameReservationApp.
 - **Context:** Multiple users may try to reserve the last seat(s) simultaneously; availability must stay trustworthy (`docs/Vision.md`, `stories 2, 4`).
 - **Decision:** Reserve seats inside a transaction that takes `SELECT ... FOR UPDATE` on the `Table` row, checks a denormalized `seats_taken < max_players`, inserts the `SeatReservation`, and increments the counter. Enforce a **partial unique index** on `SeatReservation(table_id, user_id) WHERE status = 'reserved'` to prevent duplicate seats. Venue capacity is checked against `VenueAvailability.tables_available` for overlapping slots at confirmation time. Conflicts return `409`.
 - **Consequences:** Deterministic capacity behavior under concurrency without table-wide locking; the `seats_taken` counter must be maintained on every seat insert/cancel. Reinforces `ADR-002` (backend owns rules) and `ADR-007` (status lifecycle).
+
+## ADR-012: Mobile-first responsive web is the launch client
+
+- **Status:** Accepted (owner decision)
+- **Context:** The owner wants the product to look and work perfectly on phones from launch day; a native app can come later.
+- **Decision:** Ship a **single responsive web app** with role-based views, designed **mobile-first** (phone viewport is the default; enhance upward to tablet/desktop). Native mobile apps are deferred and, if built, reuse the same backend API. No native app is required for launch.
+- **Consequences:** Front-end work prioritizes small-viewport layouts, touch targets, and fast first load (`NFR-6`). One codebase/client to maintain at launch; the API stays client-agnostic so native apps can be added without backend changes.
