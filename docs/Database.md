@@ -31,17 +31,18 @@ Accounts and roles. *(stories 9, 10, 17, 23, 26, 53, 54)*
 | `allow_invites` | bool | Whether others may invite them to tables |
 | `rating_avg` | numeric(2,1) | Derived from received reviews |
 | `cancellations_count` | int | Derived; visible to others |
+| `late_cancel_marks_active` | int | Derived count of non-expired `LateCancellationMark`s; visible to others for 30 days each *(decision 7)* |
 | `is_super_user` | bool | Marked "super user" by admin |
 | `is_blocked` | bool | Platform-level block |
 | `created_at` | timestamptz | Registration time |
 
-| id | email | display_name | avatar_id | role | venue_id | allow_invites | rating_avg | cancellations_count | is_super_user | is_blocked |
-|---|---|---|---|---|---|---|---|---|---|---|
-| u_1 | alice@example.com | Alice | av_07 | USER | — | true | 4.8 | 0 | true | false |
-| u_2 | bob@example.com | Bob | av_12 | USER | — | true | 4.5 | 1 | false | false |
-| u_3 | carol@brew.example | Carol | av_03 | VENUE_USER | v_1 | false | 5.0 | 0 | false | false |
-| u_4 | dan@example.com | Dan | av_01 | ADMIN | — | true | 5.0 | 0 | false | false |
-| u_5 | erin@example.com | Erin | av_19 | USER | — | false | 3.9 | 4 | false | false |
+| id | email | display_name | avatar_id | role | venue_id | allow_invites | rating_avg | cancellations_count | late_cancel_marks_active | is_super_user | is_blocked |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| u_1 | alice@example.com | Alice | av_07 | USER | — | true | 4.8 | 0 | 0 | true | false |
+| u_2 | bob@example.com | Bob | av_12 | USER | — | true | 4.5 | 1 | 0 | false | false |
+| u_3 | carol@brew.example | Carol | av_03 | VENUE_USER | v_1 | false | 5.0 | 0 | 0 | false | false |
+| u_4 | dan@example.com | Dan | av_01 | ADMIN | — | true | 5.0 | 0 | 0 | false | false |
+| u_5 | erin@example.com | Erin | av_19 | USER | — | false | 3.9 | 4 | 1 | false | false |
 
 ### Venue
 
@@ -160,23 +161,24 @@ The core booking unit — a hosted board game event. *(stories 1, 4, 33)*
 | `id` | uuid (PK) | Table id |
 | `organizer_id` | uuid (FK→User) | Host |
 | `venue_id` | uuid (FK→Venue) | Location |
-| `game_id` | uuid (FK→Game, null) | Game played (null if bring-own) |
-| `bring_own_game` | bool | Organizer brings the game |
-| `starts_at` | timestamptz | Event start |
-| `duration_minutes` | int | Planned length |
-| `min_players` | int | Needed to confirm |
-| `max_players` | int | Seat capacity |
-| `language` | enum(`en`,`de`,`other`) | Event language |
-| `language_other` | text (null) | Free text when `language=other` |
+| `game_id` | uuid (FK→Game, null) | Game played (venue's game or the host's own; null only if not yet chosen) |
+| `bring_own_game` | bool | `true` = host brings the game; `false` = uses a venue game (venue must confirm it) *(decision 4)* |
+| `game_language` | enum(`en`,`de`,`other`) | Language of the game/event. For host-brought games the choice is English or German *(decision 4)*; `other` retained per story 1 |
+| `game_language_other` | text (null) | Free text when `game_language=other` |
+| `venue_game_confirmed` | bool | For `bring_own_game=false`: venue confirmed the requested game is available *(decision 4)* |
+| `starts_at` | timestamptz | Event start (from) |
+| `ends_at` | timestamptz | Event end (to) *(decision 4)* |
+| `min_players` | int | Minimum capacity needed to confirm |
+| `max_players` | int | Maximum seat capacity |
 | `status` | enum(`waiting_for_venue_confirmation`,`waiting_for_players`,`confirmed`,`cancelled`,`completed`) | Lifecycle state |
 | `seats_taken` | int | Active-seat counter (capacity guard — `ADR-011`) |
 | `created_at` | timestamptz | Created time |
 | `updated_at` | timestamptz | Last update |
 
-| id | organizer_id | venue_id | game_id | bring_own_game | starts_at | duration_minutes | min_players | max_players | language | status | seats_taken |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| t_1 | u_1 | v_1 | g_1 | false | 2026-08-15 19:00 | 90 | 2 | 4 | en | confirmed | 2 |
-| t_2 | u_5 | v_1 | — | true | 2026-08-16 18:00 | 120 | 3 | 5 | other | waiting_for_venue_confirmation | 1 |
+| id | organizer_id | venue_id | game_id | bring_own_game | game_language | venue_game_confirmed | starts_at | ends_at | min_players | max_players | status | seats_taken |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| t_1 | u_1 | v_1 | g_1 | true | en | — | 2026-08-15 19:00 | 2026-08-15 20:30 | 2 | 4 | confirmed | 2 |
+| t_2 | u_5 | v_1 | g_2 | false | de | false | 2026-08-16 18:00 | 2026-08-16 20:00 | 3 | 5 | waiting_for_venue_confirmation | 1 |
 
 ### SeatReservation
 
@@ -186,17 +188,39 @@ One user's seat at a table (organizer seated by default). *(stories 2, 4, 21)*
 |---|---|---|
 | `id` | uuid (PK) | Seat id |
 | `table_id` | uuid (FK→Table) | The table |
-| `user_id` | uuid (FK→User) | The attendee |
+| `user_id` | uuid (FK→User) | The attendee (always a `USER`) |
 | `is_organizer` | bool | True for the host's seat |
-| `status` | enum(`reserved`,`cancelled`) | Seat state |
-| `created_at` | timestamptz | Reserved time |
+| `status` | enum(`reserved`,`waitlisted`,`cancelled`) | Seat state *(decision 7)* |
+| `waitlist_position` | int (null) | Order in the waitlist when `status=waitlisted` *(decision 7)* |
+| `created_at` | timestamptz | Reserved/queued time |
 | `cancelled_at` | timestamptz (null) | Cancellation time |
 
-| id | table_id | user_id | is_organizer | status | created_at | cancelled_at |
-|---|---|---|---|---|---|---|
-| sr_1 | t_1 | u_1 | true | reserved | 2026-08-10 12:00 | — |
-| sr_2 | t_1 | u_2 | false | reserved | 2026-08-11 09:30 | — |
-| sr_3 | t_1 | u_5 | false | cancelled | 2026-08-11 10:00 | 2026-08-12 08:00 |
+| id | table_id | user_id | is_organizer | status | waitlist_position | created_at | cancelled_at |
+|---|---|---|---|---|---|---|---|
+| sr_1 | t_1 | u_1 | true | reserved | — | 2026-08-10 12:00 | — |
+| sr_2 | t_1 | u_2 | false | reserved | — | 2026-08-11 09:30 | — |
+| sr_3 | t_1 | u_5 | false | cancelled | — | 2026-08-11 10:00 | 2026-08-15 09:00 |
+| sr_4 | t_1 | u_4 | false | waitlisted | 1 | 2026-08-11 11:00 | — |
+
+> `sr_4` is illustrative of a full table: when a `reserved` seat is cancelled, the earliest `waitlisted` user (lowest `waitlist_position`) is auto-promoted to `reserved` and notified (`ADR-013`).
+
+### LateCancellationMark
+
+A mark placed on a user's profile for cancelling within 24h of the event; visible to others for 30 days, then expires. *(story 23, decision 7; see `ADR-013`)*
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid (PK) | Mark id |
+| `user_id` | uuid (FK→User) | User who cancelled late |
+| `table_id` | uuid (FK→Table) | Table cancelled from |
+| `created_at` | timestamptz | When the late cancellation happened |
+| `expires_at` | timestamptz | `created_at + 30 days`; mark hidden after this |
+
+| id | user_id | table_id | created_at | expires_at |
+|---|---|---|---|---|
+| lcm_1 | u_5 | t_1 | 2026-08-15 09:00 | 2026-09-14 09:00 |
+
+> A mark is "active" (shown on the public profile) while `now < expires_at`. Cancelling **more than 24h** before the event does **not** create a mark (`story 21`).
 
 ### EventPhoto
 
@@ -324,9 +348,10 @@ Reservation fee payment and refunds. *(stories 30, 31, 32, 50, 51)*
 | Column | Type | Description |
 |---|---|---|
 | `id` | uuid (PK) | Payment id |
-| `user_id` | uuid (FK→User) | Payer |
+| `user_id` | uuid (FK→User) | Payer — **always a `USER`** *(decision 1)* |
 | `table_id` | uuid (FK→Table) | Related table |
-| `seat_reservation_id` | uuid (FK→SeatReservation, null) | Related seat |
+| `scope` | enum(`full_table`,`per_seat`) | Whole-table payment (by host) or per-seat *(decision 1)* |
+| `seat_reservation_id` | uuid (FK→SeatReservation, null) | Related seat (for `per_seat`) |
 | `venue_id` | uuid (FK→Venue) | Venue (reporting) |
 | `game_id` | uuid (FK→Game, null) | Game (reporting) |
 | `provider` | enum(`paypal`,`revolut`) | Payment provider |
@@ -335,10 +360,13 @@ Reservation fee payment and refunds. *(stories 30, 31, 32, 50, 51)*
 | `status` | enum(`pending`,`succeeded`,`failed`,`refunded`) | Payment state |
 | `created_at` | timestamptz | Created time |
 
-| id | user_id | table_id | seat_reservation_id | venue_id | provider | amount | currency | status |
-|---|---|---|---|---|---|---|---|---|
-| pay_1 | u_2 | t_1 | sr_2 | v_1 | paypal | 5.00 | EUR | succeeded |
-| pay_2 | u_5 | t_1 | sr_3 | v_1 | revolut | 5.00 | EUR | refunded |
+| id | user_id | table_id | scope | seat_reservation_id | venue_id | provider | amount | currency | status |
+|---|---|---|---|---|---|---|---|---|---|
+| pay_1 | u_2 | t_1 | per_seat | sr_2 | v_1 | paypal | 5.00 | EUR | succeeded |
+| pay_2 | u_5 | t_1 | per_seat | sr_3 | v_1 | revolut | 5.00 | EUR | refunded |
+| pay_3 | u_1 | t_1 | full_table | — | v_1 | paypal | 20.00 | EUR | succeeded |
+
+> A table uses **exactly one** payment mode. The rows above illustrate both: with `per_seat`, each seated user pays for their own seat (`pay_1`, `pay_2`); with `full_table`, the host pays once for the whole table (`pay_3`). `pay_3` is shown as an illustrative alternative arrangement for `t_1`, not in addition to the per-seat rows.
 
 ### Report
 
@@ -402,8 +430,11 @@ Concrete relational details for implementation. Datastore is PostgreSQL (see `AD
 
 ### Concurrency & integrity (see `ADR-011`)
 
-- **Seat capacity:** reserving a seat runs in a transaction that takes `SELECT ... FOR UPDATE` on the `Table` row, checks `seats_taken < max_players`, inserts the `SeatReservation`, and increments `seats_taken`. Over-capacity → `409`.
-- **Venue capacity:** when a venue confirms a table, count pending/confirmed `Table`s at that venue overlapping `[starts_at, starts_at + duration_minutes)` and require it to be `< venue_availability.tables_available`. Conflict → `409`.
+- **Seat capacity:** reserving a seat runs in a transaction that takes `SELECT ... FOR UPDATE` on the `Table` row, checks `seats_taken < max_players`, inserts the `SeatReservation`, and increments `seats_taken`. When full, the user is added as `waitlisted` instead. Over-capacity errors → `409`.
+- **Venue capacity + 15-min turnover:** when a venue confirms a table, count pending/confirmed `Table`s at that venue whose `[starts_at, ends_at]` windows fall within **15 minutes** of the requested one, and require the total to be `< venue_availability.tables_available`. Slots therefore start at least 15 minutes apart *(decision 3)*. Conflict → `409`.
+- **Venue confirmation covers the game:** for `bring_own_game=false`, the venue confirms `venue_game_confirmed` (requested game available in `VenueGameInventory`) as part of accepting *(decision 4)*.
+- **Waitlist promotion:** cancelling a `reserved` seat promotes the lowest-`waitlist_position` `waitlisted` seat to `reserved` in the same transaction *(decision 7; `ADR-013`)*.
+- **Late cancellation:** cancelling within 24h of `starts_at` writes a `LateCancellationMark` (`expires_at = now + 30 days`) *(decision 7)*.
 - **Refunds:** cancelling a `Table` or `SeatReservation` triggers `Payment` refund(s) in the same unit of work where possible.
 
 ## Indexes (suggested)

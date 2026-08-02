@@ -11,10 +11,10 @@ Sequencing for the table/venue model. Phases roughly follow requirement priority
 
 ## Phase 2 — Tables & reservations (core)
 
-- Create a table (venue, time, duration, min/max, game or bring-own, language) *(1, 4, 6)*
+- Create a table (venue, date, from/to time, min/max, game with bring-own + language or venue game) *(1, 4, 6)*
 - Browse and filter tables; view details *(2, 13)*
-- Reserve and cancel seats (24h rule); organizer cancels table *(2, 21, 22)*
-- Venue availability/capacity and accept/reject reservation requests *(34, 35)*
+- Reserve and cancel seats (24h rule); waitlist + auto-promotion; late-cancellation marks; organizer cancels table *(2, 21, 22, 23)*
+- Venue availability/capacity (15-min turnover) and accept/reject requests (table + venue game) *(34, 35)*
 - Table status lifecycle visible to all parties *(24, 33)*
 - Relevant-only notifications (email + in-app) *(25, 28, 43)*
 
