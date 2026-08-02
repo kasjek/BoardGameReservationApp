@@ -24,17 +24,17 @@ Always ground implementation in:
 
 Treat accepted ADRs and the permission matrix as binding. If code would require breaking one, stop and raise an ADR change with Architect/Consultant instead of diverging silently.
 
-## Tech stack (confirm with owner before first build)
+## Tech stack (locked — see ADR-014)
 
-Locked by ADRs: **PostgreSQL** + **modular monolith** backend (`ADR-010`); **mobile-first responsive web** as the launch client (`ADR-012`); hosted **PayPal/Revolut** payments (`ADR-006`). Still to confirm with the owner (see the open questions the team raised):
+- **Backend:** Python + **Django + Django REST Framework** over **PostgreSQL** (Django ORM + built-in migrations); modular monolith (`ADR-010`).
+- **Frontend:** **React + Next.js** + **Tailwind CSS**, mobile-first, consuming the DRF API (`ADR-012`).
+- **Repo layout:** monorepo — `/backend` (Django), `/frontend` (Next.js).
+- **Python tooling:** **uv** (deps), **ruff** (lint/format), **pytest + pytest-django** (tests).
+- **Frontend tooling:** **pnpm**, **Vitest + React Testing Library**, **Playwright** (e2e).
+- **Local env:** **Docker Compose** (Postgres + backend + frontend). **CI:** **GitHub Actions**.
+- **Payments:** hosted **PayPal/Revolut**, no card data stored (`ADR-006`).
 
-- Backend language/framework (e.g. TypeScript/NestJS, Python/FastAPI or Django, Node/Express, Java/Spring).
-- Frontend framework for the responsive web app (e.g. React/Next.js, Vue/Nuxt, SvelteKit).
-- ORM + migration tool, package manager, and repo layout (monorepo vs. backend/frontend folders).
-- Test frameworks (unit, integration, API, and web e2e).
-- Test/staging environment and CI provider.
-
-Once confirmed, record the choices in `docs/Architecture.md` (or a new ADR) and follow them consistently.
+Follow these consistently; if a change is needed, propose an ADR update rather than diverging.
 
 ## When invoked
 

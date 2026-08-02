@@ -10,6 +10,17 @@ This reflects the table/venue model in `docs/Vision.md`, `docs/UserStories.md`, 
 
 The backend is a **modular monolith** (single deployable, clear internal modules: auth, venues, tables, payments, social, moderation, notifications) over **PostgreSQL**, with object storage for media (see `ADR-010`). This keeps seat/payment invariants inside local DB transactions and defers service decomposition until it is actually needed.
 
+### Technology stack (ADR-014)
+
+- **Backend:** Python + **Django + Django REST Framework** (ORM, migrations, auth, permissions, and the Django admin site to accelerate the `ADMIN` console).
+- **Database:** **PostgreSQL** via the Django ORM + built-in migrations.
+- **Frontend:** **React + Next.js** + **Tailwind CSS**, mobile-first, consuming the DRF API (client-agnostic so a native app can reuse it later).
+- **Monorepo:** `/backend` (Django) and `/frontend` (Next.js).
+- **Tooling:** Python — **uv**, **ruff**, **pytest**; Frontend — **pnpm**, **Vitest + React Testing Library**, **Playwright** (e2e).
+- **Environments:** **Docker Compose** locally; a container PaaS (**Render**/**Fly.io**) for staging/test.
+- **CI:** **GitHub Actions**.
+- **Design:** **Figma** is the source of truth for UI.
+
 ```mermaid
 flowchart LR
     subgraph Clients

@@ -42,6 +42,11 @@ See `docs/Vision.md`. Test against the written intent:
 
 For each defect: `title`, `severity` (blocker/major/minor), `FR/story`, `preconditions`, `steps`, `expected`, `actual`, `evidence`, `suggested fix`. Prefer filing as PR review comments or issues that link the failing FR/story.
 
+## Tools & environment (ADR-014)
+
+- Automated tests: **pytest + pytest-django** (backend/API) and **Playwright** (web e2e, incl. mobile-viewport emulation).
+- Run against the **Docker Compose** stack locally and the **staging** environment before production; never test production.
+
 ## Working style
 
 - Be adversarial about edge cases and authorization; assume nothing is enforced until proven.
