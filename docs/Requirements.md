@@ -93,7 +93,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 - **NFR-3 Payments compliance** — Payments use hosted PayPal/Revolut flows; the app never stores card data.
 - **NFR-4 Notifications** — Notifications are reliable across email and in-app, and scoped to relevance so users are not spammed.
 - **NFR-5 Internationalization** — Event language is first-class data (EN / DE / Other); the UI is expected to localize (at least EN/DE).
-- **NFR-6 Mobile-first & clear status** — The experience is mobile-friendly and reservation/event status is obvious at a glance (per `docs/Vision.md`).
+- **NFR-6 Mobile-first web at launch** — The launch product is a responsive **website that looks and works excellently on phones from day one** (the primary target), scaling up gracefully to tablet/desktop. Phone-first layouts, touch-friendly targets, and fast first load are required; a native app is deferred (see `ADR-012`). Reservation/event status stays obvious at a glance (per `docs/Vision.md`).
 - **NFR-7 Auditability** — Moderation actions, blocks, cancellations, and refunds are logged.
 
 ## Traceability
