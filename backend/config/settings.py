@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.venues",
     "apps.tables",
     "apps.reviews",
+    "apps.bgg",
 ]
 
 MIDDLEWARE = [
