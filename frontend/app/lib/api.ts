@@ -144,6 +144,7 @@ export const venueApi = {
 // --- Reviews ---
 export const reviewApi = {
   create: (payload: {
+    table: number;
     target_type: "user" | "venue";
     target_user?: number;
     target_venue?: number;
