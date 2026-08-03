@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, formatWhen, Shell, StatusChip } from "./components/ui";
+import { Banner, formatWhen, GameLink, Shell, StatusChip } from "./components/ui";
 import { errorMessage, tableApi, type Table } from "./lib/api";
 import { useAuth } from "./lib/auth";
 
@@ -63,16 +62,22 @@ export default function BrowsePage() {
       ) : (
         <div className="space-y-3">
           {tables.map((t) => (
-            <Link key={t.id} href={`/tables/${t.id}`} className="card block">
+            <div
+              key={t.id}
+              onClick={() => router.push(`/tables/${t.id}`)}
+              className="card block cursor-pointer"
+            >
               <div className="flex items-start justify-between">
-                <h4 className="font-semibold">{t.game_title}</h4>
+                <h4 className="font-semibold">
+                  <GameLink name={t.game_title} />
+                </h4>
                 <StatusChip status={t.status} />
               </div>
               <div className="mt-1 text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
               <div className="mt-2 text-xs text-slate-500">
                 {t.seats_taken}/{t.max_players} seats · {t.game_language.toUpperCase()}
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

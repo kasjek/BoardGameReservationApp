@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, formatWhen, Shell, StatusChip } from "../components/ui";
+import { Banner, formatWhen, GameLink, Shell, StatusChip } from "../components/ui";
 import { errorMessage, tableApi, type Table } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -78,7 +78,9 @@ export default function VenueAdminPage() {
         <div className="space-y-3">
           {pending.map((t) => (
             <div key={t.id} className="card">
-              <h4 className="font-semibold">{t.game_title}</h4>
+              <h4 className="font-semibold">
+                <GameLink name={t.game_title} />
+              </h4>
               <div className="text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
               <div className="mt-1 text-xs text-slate-500">
                 {t.bring_own_game ? "Host brings own game" : "Uses a venue game — needs game confirmation"}
@@ -112,7 +114,9 @@ export default function VenueAdminPage() {
           {upcoming.map((t) => (
             <div key={t.id} className="card">
               <div className="flex items-center justify-between">
-                <h4 className="font-semibold">{t.game_title}</h4>
+                <h4 className="font-semibold">
+                  <GameLink name={t.game_title} />
+                </h4>
                 <StatusChip status={t.status} />
               </div>
               <div className="text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>

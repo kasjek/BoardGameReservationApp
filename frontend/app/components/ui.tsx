@@ -19,6 +19,28 @@ export function StatusChip({ status }: { status: TableStatus }) {
   return <span className={`chip ${s.cls}`}>● {s.label}</span>;
 }
 
+/** Link a board game name to its BoardGameGeek search (opens in a new tab). */
+export function bggUrl(name: string): string {
+  return `https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=${encodeURIComponent(
+    name,
+  )}`;
+}
+
+export function GameLink({ name, className }: { name: string; className?: string }) {
+  return (
+    <a
+      href={bggUrl(name)}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title={`View "${name}" on BoardGameGeek`}
+      className={className ?? "text-brand underline decoration-dotted underline-offset-2"}
+    >
+      {name}
+    </a>
+  );
+}
+
 export function formatWhen(startsAt: string, endsAt?: string): string {
   const s = new Date(startsAt);
   const date = s.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
@@ -28,7 +50,7 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
   return `${date} · ${from}–${to}`;
 }
 
-export function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+export function Shell({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const path = usePathname();
