@@ -1,0 +1,33 @@
+[project]
+name = "boardgame-reservation-backend"
+version = "0.1.0"
+description = "BoardGameReservationApp backend (Django + DRF)"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.0,<6.0",
+    "djangorestframework>=3.15",
+    "dj-database-url>=2.1",
+    "psycopg[binary]>=3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-django>=4.8",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+# RUF012: DRF/Django views idiomatically use plain lists for class attributes
+# like `permission_classes = [...]`; annotating them all with ClassVar adds noise.
+ignore = ["RUF012"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+addopts = "-q"
