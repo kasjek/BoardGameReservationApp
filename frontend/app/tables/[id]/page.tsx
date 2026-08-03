@@ -1,0 +1,150 @@
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+
+import { Banner, formatWhen, Shell, StatusChip } from "../../components/ui";
+import { errorMessage, tableApi, type Table } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
+
+export default function TableDetailPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const id = Number(params.id);
+
+  const [table, setTable] = useState<Table | null>(null);
+  const [hasSeat, setHasSeat] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [loading, user, router]);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const t = await tableApi.get(id);
+      setTable(t);
+      if (user) {
+        const mine = await tableApi.list({ attendeeId: String(user.id) });
+        setHasSeat(mine.some((m) => m.id === id));
+      }
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }, [id, user]);
+
+  useEffect(() => {
+    if (user) load();
+  }, [user, load]);
+
+  if (loading || !user || !table) return null;
+
+  const canHost = user.role === "USER" || user.role === "ADMIN";
+  const isOrganizer = table.organizer === user.id;
+  const canManageVenue =
+    user.role === "ADMIN" || (user.role === "VENUE_USER" && user.venue === table.venue);
+  const bookable = table.status === "waiting_for_players" || table.status === "confirmed";
+  const full = table.seats_taken >= table.max_players;
+
+  async function act(fn: () => Promise<unknown>, ok: string) {
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await fn();
+      setInfo(ok);
+      await load();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell title={table.game_title}>
+      {error ? <Banner kind="error">{error}</Banner> : null}
+      {info ? <Banner kind="info">{info}</Banner> : null}
+
+      <div className="mb-3 h-28 rounded-2xl bg-gradient-to-br from-brand-light to-brand" />
+      <div className="text-sm text-slate-500">Venue #{table.venue}</div>
+      <h2 className="text-lg font-bold">{formatWhen(table.starts_at, table.ends_at)}</h2>
+      <div className="text-sm text-slate-500">
+        Language: {table.game_language.toUpperCase()}
+        {table.bring_own_game ? " · host brings game" : " · venue game"}
+      </div>
+
+      <div className="card mt-3 space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span>Status</span>
+          <StatusChip status={table.status} />
+        </div>
+        <div className="flex justify-between">
+          <span>Seats</span>
+          <span>
+            {table.seats_taken}/{table.max_players} (min {table.min_players})
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {table.status === "waiting_for_venue_confirmation" && !canManageVenue ? (
+          <Banner kind="info">Waiting for the venue to confirm before seats can be booked.</Banner>
+        ) : null}
+
+        {canManageVenue && table.status === "waiting_for_venue_confirmation" ? (
+          <div className="flex gap-2">
+            <button
+              className="btn-ghost"
+              disabled={busy}
+              onClick={() => act(() => tableApi.reject(id), "Table rejected.")}
+            >
+              Reject
+            </button>
+            <button
+              className="btn"
+              disabled={busy}
+              onClick={() => act(() => tableApi.confirm(id), "Table confirmed.")}
+            >
+              Confirm
+            </button>
+          </div>
+        ) : null}
+
+        {canHost && bookable && !hasSeat ? (
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={() => act(() => tableApi.reserve(id), full ? "Added to waitlist." : "Seat reserved!")}
+          >
+            {full ? "Join waitlist" : "Reserve a seat"}
+          </button>
+        ) : null}
+
+        {hasSeat && !isOrganizer ? (
+          <button
+            className="btn-ghost"
+            disabled={busy}
+            onClick={() => act(() => tableApi.cancelSeat(id), "Seat cancelled.")}
+          >
+            Cancel my seat
+          </button>
+        ) : null}
+
+        {isOrganizer && table.status !== "cancelled" && table.status !== "completed" ? (
+          <button
+            className="w-full rounded-xl border border-red-400 py-3 text-sm font-semibold text-red-500"
+            disabled={busy}
+            onClick={() => act(() => tableApi.cancel(id), "Table cancelled.")}
+          >
+            Cancel table
+          </button>
+        ) : null}
+      </div>
+    </Shell>
+  );
+}
