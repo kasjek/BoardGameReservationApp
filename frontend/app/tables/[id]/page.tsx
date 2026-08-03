@@ -52,6 +52,7 @@ export default function TableDetailPage() {
     user.role === "ADMIN" || (user.role === "VENUE_USER" && user.venue === table.venue);
   const bookable = table.status === "waiting_for_players" || table.status === "confirmed";
   const full = table.seats_taken >= table.max_players;
+  const eventEnded = new Date(table.ends_at).getTime() < Date.now();
 
   async function act(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
@@ -82,7 +83,10 @@ export default function TableDetailPage() {
       </div>
       <h2 className="text-lg font-bold">{formatWhen(table.starts_at, table.ends_at)}</h2>
       <div className="text-sm text-slate-500">
-        Language: {table.game_language.toUpperCase()}
+        Language:{" "}
+        {table.game_language === "other"
+          ? table.game_language_other || "Other"
+          : table.game_language.toUpperCase()}
         {table.bring_own_game ? " · host brings game" : " · venue game"}
       </div>
 
@@ -156,31 +160,45 @@ export default function TableDetailPage() {
 
       <div className="card mt-4">
         <div className="label">Rate this venue</div>
-        <div className="mt-1 flex items-center gap-2">
-          <select
-            className="input w-24"
-            value={rating}
-            onChange={(e) => setRating(Number(e.target.value))}
-          >
-            {[5, 4, 3, 2, 1].map((n) => (
-              <option key={n} value={n}>
-                {n} ★
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn"
-            disabled={busy}
-            onClick={() =>
-              act(
-                () => reviewApi.create({ target_type: "venue", target_venue: table.venue, rating }),
-                "Thanks for your review!",
-              )
-            }
-          >
-            Submit review
-          </button>
-        </div>
+        {eventEnded && table.status !== "cancelled" ? (
+          <div className="mt-1 flex items-center gap-2">
+            <select
+              className="input w-24"
+              value={rating}
+              onChange={(e) => setRating(Number(e.target.value))}
+            >
+              {[5, 4, 3, 2, 1].map((n) => (
+                <option key={n} value={n}>
+                  {n} ★
+                </option>
+              ))}
+            </select>
+            <button
+              className="btn"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  () =>
+                    reviewApi.create({
+                      table: table.id,
+                      target_type: "venue",
+                      target_venue: table.venue,
+                      rating,
+                    }),
+                  "Thanks for your review!",
+                )
+              }
+            >
+              Submit review
+            </button>
+          </div>
+        ) : (
+          <div className="mt-1 text-sm text-slate-500">
+            {table.status === "cancelled"
+              ? "This event was cancelled — reviews are not available."
+              : "You can review this venue after the event has ended."}
+          </div>
+        )}
       </div>
     </Shell>
   );

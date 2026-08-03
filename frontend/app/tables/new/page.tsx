@@ -7,6 +7,33 @@ import { Banner, Shell } from "../../components/ui";
 import { errorMessage, tableApi, venueApi, type Venue } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
+// Languages selectable when "Other" is chosen (English and German have their own options).
+const OTHER_LANGUAGES = [
+  "French",
+  "Spanish",
+  "Italian",
+  "Portuguese",
+  "Dutch",
+  "Polish",
+  "Czech",
+  "Hungarian",
+  "Romanian",
+  "Swedish",
+  "Norwegian",
+  "Danish",
+  "Finnish",
+  "Greek",
+  "Turkish",
+  "Russian",
+  "Ukrainian",
+  "Chinese",
+  "Japanese",
+  "Korean",
+  "Arabic",
+  "Hebrew",
+  "Hindi",
+];
+
 export default function CreateTablePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -23,6 +50,7 @@ export default function CreateTablePage() {
   const [game, setGame] = useState("");
   const [bringOwn, setBringOwn] = useState(true);
   const [language, setLanguage] = useState("en");
+  const [languageOther, setLanguageOther] = useState("French");
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -59,6 +87,7 @@ export default function CreateTablePage() {
         game_title: game,
         bring_own_game: bringOwn,
         game_language: language,
+        game_language_other: language === "other" ? languageOther : "",
         starts_at,
         ends_at,
         min_players: minPlayers,
@@ -131,11 +160,26 @@ export default function CreateTablePage() {
             <input type="radio" checked={bringOwn} onChange={() => setBringOwn(true)} /> I bring it
           </label>
           {bringOwn ? (
-            <select className="input" value={language} onChange={(e) => setLanguage(e.target.value)}>
-              <option value="en">English</option>
-              <option value="de">German</option>
-              <option value="other">Other</option>
-            </select>
+            <>
+              <select className="input" value={language} onChange={(e) => setLanguage(e.target.value)}>
+                <option value="en">English</option>
+                <option value="de">German</option>
+                <option value="other">Other…</option>
+              </select>
+              {language === "other" ? (
+                <select
+                  className="input mt-1"
+                  value={languageOther}
+                  onChange={(e) => setLanguageOther(e.target.value)}
+                >
+                  {OTHER_LANGUAGES.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+            </>
           ) : null}
           <label className="flex items-center gap-2">
             <input type="radio" checked={!bringOwn} onChange={() => setBringOwn(false)} /> Use a venue game

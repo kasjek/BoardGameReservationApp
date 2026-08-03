@@ -14,6 +14,11 @@ class Review(models.Model):
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="authored_reviews"
     )
+    # The event this review is about; reviews are only allowed after it ends and
+    # if it was not cancelled.
+    table = models.ForeignKey(
+        "tables.Table", on_delete=models.CASCADE, null=True, blank=True, related_name="reviews"
+    )
     target_type = models.CharField(max_length=8, choices=ReviewTarget.choices)
     target_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
