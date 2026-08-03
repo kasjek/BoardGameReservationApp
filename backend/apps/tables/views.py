@@ -17,17 +17,36 @@ class TableListCreateView(generics.ListCreateAPIView):
         return TableCreateSerializer if self.request.method == "POST" else TableSerializer
 
     def get_queryset(self):
-        qs = Table.objects.all().order_by("starts_at")
+        from rest_framework.exceptions import PermissionDenied
+
+        user = self.request.user
         params = self.request.query_params
+        qs = Table.objects.all().order_by("starts_at")
+
+        # Role scoping: a VENUE_USER may only see tables at their own venue
+        # (docs/Permissions.md). USER/anonymous may browse platform-wide; ADMIN unrestricted.
+        is_admin = user.is_authenticated and getattr(user, "role", None) == "ADMIN"
+        if user.is_authenticated and getattr(user, "role", None) == "VENUE_USER":
+            qs = qs.filter(venue_id=user.venue_id)
+
         if venue_id := params.get("venueId"):
             qs = qs.filter(venue_id=venue_id)
         if status_ := params.get("status"):
             qs = qs.filter(status=status_)
         if game := params.get("game"):
             qs = qs.filter(game_title__icontains=game)
+
+        # Personal filters expose another user's bookings — restrict to self (or ADMIN).
+        def owns(requested: str) -> bool:
+            return user.is_authenticated and (is_admin or str(user.id) == requested)
+
         if organizer_id := params.get("organizerId"):
+            if not owns(organizer_id):
+                raise PermissionDenied("You may only query your own tables.")
             qs = qs.filter(organizer_id=organizer_id)
         if attendee_id := params.get("attendeeId"):
+            if not owns(attendee_id):
+                raise PermissionDenied("You may only query your own bookings.")
             qs = qs.filter(
                 seats__user_id=attendee_id,
                 seats__status__in=("reserved", "waitlisted"),
