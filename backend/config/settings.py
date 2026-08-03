@@ -14,9 +14,16 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-key-change-me")
+from django.core.exceptions import ImproperlyConfigured
+
+_INSECURE_KEY = "dev-insecure-key-change-me"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", _INSECURE_KEY)
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
+
+# Fail fast rather than run in production with the insecure dev defaults.
+if not DEBUG and SECRET_KEY == _INSECURE_KEY:
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DEBUG is off.")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -30,6 +37,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.venues",
     "apps.tables",
+    "apps.reviews",
 ]
 
 MIDDLEWARE = [
@@ -90,4 +98,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ],
+    # Scoped throttles only affect views that set `throttle_scope` (login/register),
+    # mitigating credential stuffing / registration abuse without limiting other endpoints.
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {"login": "30/min", "register": "20/min"},
 }

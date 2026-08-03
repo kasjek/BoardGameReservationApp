@@ -72,6 +72,37 @@ def test_happy_path_reserve_via_api(db, client):
     assert resp.data["status"] == "reserved"
 
 
+def test_venue_user_list_scoped_to_own_venue(db, client):
+    v1 = Venue.objects.create(name="Board & Brew")
+    v2 = Venue.objects.create(name="Meeple Corner")
+    make_table(make_user("alice"), v1)
+    make_table(make_user("bob"), v2)
+    staff = make_user("carol", role=Role.VENUE_USER, venue=v1)
+    client.force_authenticate(user=staff)
+    resp = client.get("/api/tables")
+    assert resp.status_code == 200
+    assert {t["venue"] for t in resp.data} == {v1.id}
+
+
+def test_cross_user_personal_filter_forbidden(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    a = make_user("alice")
+    b = make_user("bob")
+    make_table(b, venue)
+    client.force_authenticate(user=a)
+    assert client.get(f"/api/tables?organizerId={b.id}").status_code == 403
+    assert client.get(f"/api/tables?attendeeId={b.id}").status_code == 403
+    # own id is allowed
+    assert client.get(f"/api/tables?organizerId={a.id}").status_code == 200
+
+
+def test_anonymous_personal_filter_forbidden(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    a = make_user("alice")
+    make_table(a, venue)
+    assert client.get(f"/api/tables?organizerId={a.id}").status_code == 403
+
+
 def test_venue_user_cannot_host_via_api_403(db, client):
     venue = Venue.objects.create(name="Board & Brew")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)

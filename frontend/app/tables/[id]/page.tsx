@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { Banner, formatWhen, Shell, StatusChip } from "../../components/ui";
-import { errorMessage, tableApi, type Table } from "../../lib/api";
+import { errorMessage, reviewApi, tableApi, type Table, venueApi, type Venue } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 export default function TableDetailPage() {
@@ -14,10 +14,12 @@ export default function TableDetailPage() {
   const id = Number(params.id);
 
   const [table, setTable] = useState<Table | null>(null);
+  const [venue, setVenue] = useState<Venue | null>(null);
   const [hasSeat, setHasSeat] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [rating, setRating] = useState(5);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -28,6 +30,7 @@ export default function TableDetailPage() {
     try {
       const t = await tableApi.get(id);
       setTable(t);
+      setVenue(await venueApi.get(t.venue));
       if (user) {
         const mine = await tableApi.list({ attendeeId: String(user.id) });
         setHasSeat(mine.some((m) => m.id === id));
@@ -71,7 +74,12 @@ export default function TableDetailPage() {
       {info ? <Banner kind="info">{info}</Banner> : null}
 
       <div className="mb-3 h-28 rounded-2xl bg-gradient-to-br from-brand-light to-brand" />
-      <div className="text-sm text-slate-500">Venue #{table.venue}</div>
+      <div className="text-sm text-slate-500">
+        {venue ? venue.name : `Venue #${table.venue}`}
+        {venue?.rating_avg != null ? (
+          <span className="text-yellow-600"> · ★ {venue.rating_avg.toFixed(1)}</span>
+        ) : null}
+      </div>
       <h2 className="text-lg font-bold">{formatWhen(table.starts_at, table.ends_at)}</h2>
       <div className="text-sm text-slate-500">
         Language: {table.game_language.toUpperCase()}
@@ -144,6 +152,35 @@ export default function TableDetailPage() {
             Cancel table
           </button>
         ) : null}
+      </div>
+
+      <div className="card mt-4">
+        <div className="label">Rate this venue</div>
+        <div className="mt-1 flex items-center gap-2">
+          <select
+            className="input w-24"
+            value={rating}
+            onChange={(e) => setRating(Number(e.target.value))}
+          >
+            {[5, 4, 3, 2, 1].map((n) => (
+              <option key={n} value={n}>
+                {n} ★
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={() =>
+              act(
+                () => reviewApi.create({ target_type: "venue", target_venue: table.venue, rating }),
+                "Thanks for your review!",
+              )
+            }
+          >
+            Submit review
+          </button>
+        </div>
       </div>
     </Shell>
   );
