@@ -58,7 +58,13 @@ export default function ProfilePage() {
       <div className="mb-4 text-center">
         <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-brand-light to-brand" />
         <div className="mt-2 text-lg font-bold">{user.username}</div>
-        <div className="text-sm text-slate-500">Role: {user.role}</div>
+        <div className="text-sm text-yellow-600">
+          ★ {user.rating_avg != null ? user.rating_avg.toFixed(1) : "—"}
+        </div>
+        <div className="text-xs text-slate-500">
+          Role: {user.role} · ⚑ {user.late_cancel_marks_active} late cancellation
+          {user.late_cancel_marks_active === 1 ? "" : "s"}
+        </div>
       </div>
       {error ? <Banner kind="error">{error}</Banner> : null}
       <div className="label">Upcoming (joined)</div>

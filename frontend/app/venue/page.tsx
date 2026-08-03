@@ -67,6 +67,10 @@ export default function VenueAdminPage() {
       {error ? <Banner kind="error">{error}</Banner> : null}
       {info ? <Banner kind="info">{info}</Banner> : null}
 
+      <a href="/venue/manage" className="mb-3 block text-sm font-semibold text-brand">
+        Manage venue &amp; availability ›
+      </a>
+
       <div className="label">Pending requests</div>
       {pending.length === 0 ? (
         <div className="text-sm text-slate-400">No pending requests.</div>
