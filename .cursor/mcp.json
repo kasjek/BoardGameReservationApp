@@ -1,7 +1,11 @@
 {
   "mcpServers": {
     "Figma": {
-      "url": "https://mcp.figma.com/mcp"
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp",
+      "auth": {
+        "CLIENT_ID": "${env:FIGMA_MCP_CLIENT_ID}"
+      }
     }
   }
 }
