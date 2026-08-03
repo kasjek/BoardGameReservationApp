@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, formatWhen, Shell, StatusChip } from "../../components/ui";
+import { Banner, formatWhen, GameLink, Shell, StatusChip } from "../../components/ui";
 import { errorMessage, reviewApi, tableApi, type Table, venueApi, type Venue } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
@@ -70,7 +70,7 @@ export default function TableDetailPage() {
   }
 
   return (
-    <Shell title={table.game_title}>
+    <Shell title={<GameLink name={table.game_title} />}>
       {error ? <Banner kind="error">{error}</Banner> : null}
       {info ? <Banner kind="info">{info}</Banner> : null}
 
