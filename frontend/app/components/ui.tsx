@@ -19,11 +19,13 @@ export function StatusChip({ status }: { status: TableStatus }) {
   return <span className={`chip ${s.cls}`}>● {s.label}</span>;
 }
 
-/** Link a board game name to its BoardGameGeek search (opens in a new tab). */
+/**
+ * Link a board game name to its BoardGameGeek page. The backend resolver
+ * (`/api/bgg/redirect`) looks up the exact BGG game id and redirects there,
+ * falling back to a BGG search when the game can't be resolved.
+ */
 export function bggUrl(name: string): string {
-  return `https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=${encodeURIComponent(
-    name,
-  )}`;
+  return `/api/bgg/redirect?q=${encodeURIComponent(name)}`;
 }
 
 export function GameLink({ name, className }: { name: string; className?: string }) {
