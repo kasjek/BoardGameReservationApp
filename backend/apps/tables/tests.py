@@ -196,6 +196,24 @@ def test_early_cancellation_creates_no_mark(db, venue):
     assert LateCancellationMark.objects.filter(user=bob).count() == 0
 
 
+# --- Organizer cancels table (FR-B7) ----------------------------------------
+
+def test_organizer_can_cancel_table(db, venue):
+    host = make_user("alice")
+    table = make_table(host, venue)
+    services.cancel_table(table=table, by_user=host)
+    table.refresh_from_db()
+    assert table.status == TableStatus.CANCELLED
+
+
+def test_non_organizer_cannot_cancel_table(db, venue):
+    host = make_user("alice")
+    bob = make_user("bob")
+    table = make_table(host, venue)
+    with pytest.raises(PermissionDenied):
+        services.cancel_table(table=table, by_user=bob)
+
+
 # --- Venue capacity + 15-minute turnover (decision 3) -----------------------
 
 def test_venue_capacity_turnover_blocks_too_close_table(db, venue):

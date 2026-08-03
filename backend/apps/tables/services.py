@@ -133,6 +133,18 @@ def reject_table(*, table: Table, by_user) -> Table:
     return table
 
 
+def cancel_table(*, table: Table, by_user) -> Table:
+    """Organizer (or admin) cancels their own table (FR-B7)."""
+    is_organizer = table.organizer_id == by_user.id
+    if not (is_organizer or by_user.is_admin_role):
+        raise PermissionDenied("Only the organizer (or an admin) can cancel this table.")
+    if table.status in (TableStatus.CANCELLED, TableStatus.COMPLETED):
+        raise Conflict("Table is already cancelled or completed.")
+    table.status = TableStatus.CANCELLED
+    table.save(update_fields=["status", "updated_at"])
+    return table
+
+
 @transaction.atomic
 def reserve_seat(*, table: Table, user) -> SeatReservation:
     if not user.can_host_or_reserve:

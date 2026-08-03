@@ -25,6 +25,13 @@ class TableListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(status=status_)
         if game := params.get("game"):
             qs = qs.filter(game_title__icontains=game)
+        if organizer_id := params.get("organizerId"):
+            qs = qs.filter(organizer_id=organizer_id)
+        if attendee_id := params.get("attendeeId"):
+            qs = qs.filter(
+                seats__user_id=attendee_id,
+                seats__status__in=("reserved", "waitlisted"),
+            ).distinct()
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -55,6 +62,15 @@ class TableRejectView(APIView):
     def post(self, request, pk):
         table = generics.get_object_or_404(Table, pk=pk)
         table = services.reject_table(table=table, by_user=request.user)
+        return Response(TableSerializer(table).data)
+
+
+class TableCancelView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        table = generics.get_object_or_404(Table, pk=pk)
+        table = services.cancel_table(table=table, by_user=request.user)
         return Response(TableSerializer(table).data)
 
 
