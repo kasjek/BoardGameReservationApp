@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BoardGameReservationApp — Priority-0 mockups</title>
+<style>
+  :root{
+    --bg:#0f1020; --panel:#ffffff; --ink:#1b1b2b; --muted:#6b7280; --line:#e6e6ef;
+    --brand:#6d28d9; --brand2:#8b5cf6; --brand-ink:#ffffff;
+    --ok:#16a34a; --okbg:#e7f7ec; --warn:#b45309; --warnbg:#fdf1de; --chip:#f3f4f6;
+    --danger:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#26264a,#0f1020);color:#e8e8f2;padding:32px 16px}
+  .head{max-width:1200px;margin:0 auto 22px;text-align:center}
+  .head h1{margin:0 0 6px;font-size:22px;letter-spacing:.2px}
+  .head p{margin:0;color:#b7b7cf;font-size:13px}
+  .grid{max-width:1200px;margin:0 auto;display:grid;gap:26px;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));justify-items:center}
+  .phone{width:320px;background:var(--panel);color:var(--ink);border-radius:34px;
+    box-shadow:0 18px 50px rgba(0,0,0,.45);overflow:hidden;border:8px solid #111;}
+  .notch{height:26px;background:#111;position:relative}
+  .notch:after{content:"";position:absolute;left:50%;top:6px;transform:translateX(-50%);
+    width:120px;height:14px;background:#000;border-radius:0 0 12px 12px}
+  .screen{height:600px;display:flex;flex-direction:column}
+  .caption{margin-top:10px;text-align:center;color:#cfcfe6;font-size:12.5px;font-weight:600}
+  /* app chrome */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .topbar .title{font-weight:700;font-size:15px}
+  .topbar .muted{color:var(--muted);font-size:13px}
+  .body{padding:14px;overflow:auto;flex:1}
+  .tabbar{display:flex;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+  .tabbar div{flex:1;text-align:center;padding:9px 0}
+  .tabbar .active{color:var(--brand);font-weight:700}
+  /* elements */
+  .brand{color:var(--brand)}
+  .h{font-weight:700;font-size:16px;margin:2px 0 10px}
+  .sub{color:var(--muted);font-size:12.5px}
+  .input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;margin:6px 0;font-size:13px;background:#fbfbfe}
+  .btn{display:block;width:100%;text-align:center;background:linear-gradient(180deg,var(--brand2),var(--brand));
+    color:#fff;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:14px;margin-top:8px}
+  .btn.ghost{background:#fff;color:var(--brand);border:1.5px solid var(--brand)}
+  .btn.mini{padding:9px;font-size:13px;border-radius:10px}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  .card{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px;background:#fff}
+  .card h4{margin:0 0 4px;font-size:14px}
+  .chip{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--chip);color:#374151}
+  .chip.ok{background:var(--okbg);color:var(--ok)}
+  .chip.warn{background:var(--warnbg);color:var(--warn)}
+  .seats{letter-spacing:3px;font-size:14px}
+  .fab{position:absolute}
+  .avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--brand2),var(--brand));margin:6px auto;display:block}
+  .center{text-align:center}
+  .label{font-size:12px;color:var(--muted);margin-top:8px;display:block}
+  .radio{display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0}
+  .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--brand);display:inline-block}
+  .dot.fill{background:var(--brand)}
+  .stars{color:#eab308;font-weight:700}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:6px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px;font-size:12px}
+  .seg div{flex:1;text-align:center;padding:8px 0}
+  .seg .on{background:var(--brand);color:#fff;font-weight:700}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>BoardGameReservationApp — <span style="color:#c4b5fd">Priority‑0 screens</span></h1>
+    <p>Mobile‑first HTML mockups (self‑contained). Maps to docs/design/priority0-screens.md and the DRF API.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- 1. Login -->
+    <div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+          <div class="center">
+            <div style="font-size:26px;font-weight:800" class="brand">BoardGame<span style="color:#111">App</span></div>
+            <div class="sub" style="margin:6px 0 18px">Find a table. Play.</div>
+          </div>
+          <input class="input" placeholder="Email" value="alice@example.com" />
+          <input class="input" placeholder="Password" value="••••••••" />
+          <button class="btn">Log in</button>
+          <div class="center sub" style="margin-top:14px">New here? <b class="brand">Sign up ›</b></div>
+        </div>
+      </div></div>
+      <div class="caption">1 · Sign up / Log in</div>
+    </div>
+
+    <!-- 2. Browse -->
+    <div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="topbar"><div class="title">Tables</div><div class="muted">⌕  ☰ Filter</div></div>
+        <div class="body" style="position:relative">
+          <div class="card">
+            <h4>Catan · Board &amp; Brew</h4>
+            <div class="sub">Sat 7 Aug · 18:00–20:00 · Berlin</div>
+            <div style="margin-top:8px"><span class="chip ok">● Confirmed</span> <span class="sub">2/4 seats</span></div>
+          </div>
+          <div class="card">
+            <h4>Carcassonne · Meeple Corner</h4>
+            <div class="sub">Sun 8 Aug · 18:00–20:00 · Munich</div>
+            <div style="margin-top:8px"><span class="chip warn">● Waiting for players</span> <span class="sub">1/5 seats</span></div>
+          </div>
+          <div class="card">
+            <h4>Wingspan · Board &amp; Brew</h4>
+            <div class="sub">Sat 7 Aug · 15:00–17:00</div>
+            <div style="margin-top:8px"><span class="chip">● Waiting for venue</span></div>
+          </div>
+          <button class="btn" style="position:sticky;bottom:6px">+ Create table</button>
+        </div>
+        <div class="tabbar"><div class="active">Browse</div><div>My games</div><div>Me</div></div>
+      </div></div>
+      <div class="caption">2 · Browse &amp; filter tables</div>
+    </div>
+
+    <!-- 3. Table detail -->
+    <div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="topbar"><div class="muted">‹ back</div><div class="title">Catan</div><div class="muted">•••</div></div>
+        <div class="body">
+          <div style="height:110px;border-radius:14px;background:linear-gradient(135deg,#c4b5fd,#6d28d9);margin-bottom:10px"></div>
+          <div class="sub">Board &amp; Brew · Berlin</div>
+          <div class="h" style="margin:2px 0">Sat 7 Aug · 18:00–20:00</div>
+          <div class="sub">Language: EN · Host: Alice</div>
+          <div class="card" style="margin-top:12px">
+            <div>Status <span class="chip ok" style="float:right">● Confirmed</span></div>
+            <div style="margin-top:10px">Seats <span style="float:right"><span class="seats">●●○○</span> 2/4</span></div>
+            <div style="margin-top:10px">Waitlist <span style="float:right">1 waiting</span></div>
+          </div>
+          <div class="sub">Players: Alice (host), Bob</div>
+          <button class="btn">Reserve a seat</button>
+          <div class="hint">Full? You’ll join the waitlist and get promoted automatically if a seat frees up.</div>
+        </div>
+      </div></div>
+      <div class="caption">3 · Table detail · reserve / waitlist</div>
+    </div>
+
+    <!-- 4. Create table -->
+    <div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="topbar"><div class="muted">‹ back</div><div class="title">Create table</div><div></div></div>
+        <div class="body">
+          <span class="label">Venue</span>
+          <input class="input" value="Board & Brew ▾" />
+          <div class="row"><div><span class="label">Date</span><input class="input" value="Sat 7 Aug ▾"/></div></div>
+          <div class="row">
+            <div><span class="label">From</span><input class="input" value="18:00"/></div>
+            <div><span class="label">To</span><input class="input" value="20:00"/></div>
+          </div>
+          <div class="row">
+            <div><span class="label">Min players</span><input class="input" value="2"/></div>
+            <div><span class="label">Max players</span><input class="input" value="4"/></div>
+          </div>
+          <span class="label">Game</span>
+          <input class="input" value="Catan"/>
+          <span class="label">Who brings the game?</span>
+          <div class="radio"><span class="dot fill"></span> I bring it — Language <b>&nbsp;EN ▾</b></div>
+          <div class="radio"><span class="dot"></span> Use a venue game <span class="sub">(venue confirms)</span></div>
+          <button class="btn">Request table</button>
+        </div>
+      </div></div>
+      <div class="caption">4 · Create a table (host)</div>
+    </div>
+
+    <!-- 5. Profile -->
+    <div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="topbar"><div class="title">Me</div><div class="muted">•••</div></div>
+        <div class="body center">
+          <span class="avatar"></span>
+          <div class="h" style="margin:4px 0">Alice</div>
+          <div class="stars">★ 4.8</div>
+          <div class="sub">⚑ 0 late cancellations</div>
+          <button class="btn ghost" style="margin-top:12px">Change avatar</button>
+          <div style="text-align:left;margin-top:16px">
+            <div class="label">Upcoming</div>
+            <div class="card"><h4>Catan</h4><div class="sub">Sat 7 Aug · Board &amp; Brew · reserved</div></div>
+            <div class="label">Organized</div>
+            <div class="card"><h4>Wingspan</h4><div class="sub">Sat 7 Aug · waiting for venue</div></div>
+          </div>
+        </div>
+        <div class="tabbar"><div>Browse</div><div>My games</div><div class="active">Me</div></div>
+      </div></div>
+      <div class="caption">5 · My profile (privacy‑limited)</div>
+    </div>
+
+    <!-- 6. Venue admin -->
+    <div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="topbar"><div class="title">Board &amp; Brew</div><div class="muted">Venue</div></div>
+        <div class="body">
+          <div class="seg"><div class="on">Requests</div><div>Calendar</div><div>Availability</div></div>
+          <div class="label">Pending requests</div>
+          <div class="card">
+            <h4>Catan · Sat 7 · 18–20</h4>
+            <div class="sub">Host: Alice · brings own game</div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn ghost mini" style="color:var(--danger);border-color:var(--danger)">Reject</button>
+              <button class="btn mini">Confirm</button>
+            </div>
+          </div>
+          <div class="card">
+            <h4>Carcassonne · Sun 8 · 18–20</h4>
+            <div class="sub">Uses a <b>venue game</b> — needs game confirmation</div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn ghost mini" style="color:var(--danger);border-color:var(--danger)">Reject</button>
+              <button class="btn mini">Confirm</button>
+            </div>
+          </div>
+          <div class="hint">Confirm checks table + game availability and the 15‑min turnover before players can book.</div>
+        </div>
+      </div></div>
+      <div class="caption">6 · Venue admin · confirm / reject</div>
+    </div>
+
+  </div>
+</body>
+</html>
