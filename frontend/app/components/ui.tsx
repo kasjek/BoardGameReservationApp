@@ -36,13 +36,22 @@ export function bggUrl(name: string): string {
 export function Cover({ name, size = 44 }: { name: string; size?: number }) {
   const [failed, setFailed] = useState(false);
   const dim = { width: size, height: size, minWidth: size };
+  const big = size >= 96;
   if (failed) {
+    // No cover available (e.g. BGG token not configured): show the game name.
     return (
       <div
         style={dim}
-        className="flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-light to-brand font-bold text-white"
+        className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-gradient-to-br from-brand-light to-brand p-2 text-center font-bold text-white"
       >
-        {name.trim().slice(0, 1).toUpperCase() || "?"}
+        {big ? (
+          <>
+            <span className="text-2xl">🎲</span>
+            <span className="text-sm leading-tight">{name}</span>
+          </>
+        ) : (
+          <span>{name.trim().slice(0, 1).toUpperCase() || "?"}</span>
+        )}
       </div>
     );
   }

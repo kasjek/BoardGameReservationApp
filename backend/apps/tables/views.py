@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from .models import Table
+from .models import SeatStatus, Table
 from .serializers import SeatReservationSerializer, TableCreateSerializer, TableSerializer
 
 
@@ -94,7 +94,18 @@ class TableCancelView(APIView):
 
 
 class SeatReserveView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    # GET (attendee list) is public so all users can see who reserved seats;
+    # POST (reserve) still requires authentication.
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get(self, request, pk):
+        table = generics.get_object_or_404(Table, pk=pk)
+        seats = (
+            table.seats.filter(status__in=(SeatStatus.RESERVED, SeatStatus.WAITLISTED))
+            .select_related("user")
+            .order_by("-is_organizer", "status", "waitlist_position", "created_at")
+        )
+        return Response(SeatReservationSerializer(seats, many=True).data)
 
     def post(self, request, pk):
         table = generics.get_object_or_404(Table, pk=pk)

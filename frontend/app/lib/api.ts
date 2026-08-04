@@ -53,6 +53,7 @@ export interface Seat {
   id: number;
   table: number;
   user: number;
+  username: string;
   is_organizer: boolean;
   status: "reserved" | "waitlisted" | "cancelled";
   waitlist_position: number | null;
@@ -171,6 +172,7 @@ export const tableApi = {
   confirm: (id: number) => request<Table>(`/tables/${id}/confirm`, { method: "POST" }),
   reject: (id: number) => request<Table>(`/tables/${id}/reject`, { method: "POST" }),
   cancel: (id: number) => request<Table>(`/tables/${id}/cancel`, { method: "POST" }),
+  seats: (id: number) => request<Seat[]>(`/tables/${id}/seats`),
   reserve: (id: number) => request<Seat>(`/tables/${id}/seats`, { method: "POST" }),
   cancelSeat: (id: number) => request<Seat>(`/tables/${id}/seats/cancel`, { method: "POST" }),
 };

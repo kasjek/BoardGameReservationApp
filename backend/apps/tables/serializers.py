@@ -43,12 +43,15 @@ class TableCreateSerializer(serializers.ModelSerializer):
 
 
 class SeatReservationSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+
     class Meta:
         model = SeatReservation
         fields = [
             "id",
             "table",
             "user",
+            "username",
             "is_organizer",
             "status",
             "waitlist_position",
