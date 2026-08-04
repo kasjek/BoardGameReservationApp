@@ -72,6 +72,28 @@ def test_happy_path_reserve_via_api(db, client):
     assert resp.data["status"] == "reserved"
 
 
+def test_available_filter_shows_only_bookable(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    host = make_user("alice")
+
+    def tbl(status):
+        t = make_table(host, venue)
+        t.status = status
+        t.save()
+        return t
+
+    tbl(TableStatus.WAITING_FOR_VENUE_CONFIRMATION)
+    wp = tbl(TableStatus.WAITING_FOR_PLAYERS)
+    cf = tbl(TableStatus.CONFIRMED)
+    tbl(TableStatus.CANCELLED)
+    tbl(TableStatus.COMPLETED)
+
+    resp = client.get("/api/tables?status=available")
+    assert resp.status_code == 200
+    ids = {t["id"] for t in resp.data}
+    assert ids == {wp.id, cf.id}
+
+
 def test_venue_user_list_scoped_to_own_venue(db, client):
     v1 = Venue.objects.create(name="Board & Brew")
     v2 = Venue.objects.create(name="Meeple Corner")
@@ -113,9 +135,13 @@ def test_list_table_seats_shows_usernames(db, client):
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
     table = make_table(host, venue)
     services.confirm_table(table=table, by_user=staff)
-    services.reserve_seat(table=table, user=make_user("bob"))
+    bob = make_user("bob")
+    services.reserve_seat(table=table, user=bob)
 
-    resp = client.get(f"/api/tables/{table.id}/seats")  # unauthenticated -> allowed (public)
+    # Anonymous cannot see attendee usernames; authenticated users can.
+    assert client.get(f"/api/tables/{table.id}/seats").status_code in (401, 403)
+    client.force_authenticate(user=bob)
+    resp = client.get(f"/api/tables/{table.id}/seats")
     assert resp.status_code == 200
     by_name = {s["username"]: s for s in resp.data}
     assert set(by_name) == {"alice", "bob"}

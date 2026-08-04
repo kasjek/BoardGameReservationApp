@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from .models import SeatStatus, Table
+from .models import SeatStatus, Table, TableStatus
 from .serializers import SeatReservationSerializer, TableCreateSerializer, TableSerializer
 
 
@@ -32,7 +32,11 @@ class TableListCreateView(generics.ListCreateAPIView):
         if venue_id := params.get("venueId"):
             qs = qs.filter(venue_id=venue_id)
         if status_ := params.get("status"):
-            qs = qs.filter(status=status_)
+            if status_ == "available":
+                # Tables a user can still join (browse default).
+                qs = qs.filter(status__in=[TableStatus.WAITING_FOR_PLAYERS, TableStatus.CONFIRMED])
+            else:
+                qs = qs.filter(status=status_)
         if game := params.get("game"):
             qs = qs.filter(game_title__icontains=game)
 
@@ -94,9 +98,9 @@ class TableCancelView(APIView):
 
 
 class SeatReserveView(APIView):
-    # GET (attendee list) is public so all users can see who reserved seats;
-    # POST (reserve) still requires authentication.
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # GET lists attendees (usernames) — all logged-in users may see it, but not
+    # anonymous clients (privacy, NFR-1). POST (reserve) also requires auth.
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
         table = generics.get_object_or_404(Table, pk=pk)

@@ -10,6 +10,7 @@ class BggRedirectView(APIView):
     """Redirect to the exact BoardGameGeek page for a game title (falls back to search)."""
 
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "bgg"
 
     def get(self, request):
         name = request.query_params.get("q", "").strip()
@@ -25,6 +26,7 @@ class BggCoverView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "bgg"
 
     def get(self, request):
         name = request.query_params.get("q", "").strip()

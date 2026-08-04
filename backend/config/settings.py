@@ -102,5 +102,5 @@ REST_FRAMEWORK = {
     # Scoped throttles only affect views that set `throttle_scope` (login/register),
     # mitigating credential stuffing / registration abuse without limiting other endpoints.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"login": "30/min", "register": "20/min"},
+    "DEFAULT_THROTTLE_RATES": {"login": "30/min", "register": "20/min", "bgg": "90/min"},
 }
