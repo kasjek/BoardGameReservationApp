@@ -88,7 +88,7 @@ export default function TableDetailPage() {
       {info ? <Banner kind="info">{info}</Banner> : null}
 
       <div className="mb-3 flex justify-center">
-        <Cover name={table.game_title} size={128} />
+        <Cover name={table.game_title} size={200} />
       </div>
       <div className="text-sm text-slate-500">
         {venue ? venue.name : `Venue #${table.venue}`}
