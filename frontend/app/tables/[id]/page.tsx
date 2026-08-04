@@ -4,7 +4,15 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../../components/ui";
-import { errorMessage, reviewApi, tableApi, type Table, venueApi, type Venue } from "../../lib/api";
+import {
+  errorMessage,
+  reviewApi,
+  type Seat,
+  tableApi,
+  type Table,
+  venueApi,
+  type Venue,
+} from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 export default function TableDetailPage() {
@@ -15,6 +23,7 @@ export default function TableDetailPage() {
 
   const [table, setTable] = useState<Table | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
+  const [seats, setSeats] = useState<Seat[]>([]);
   const [hasSeat, setHasSeat] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -31,6 +40,7 @@ export default function TableDetailPage() {
       const t = await tableApi.get(id);
       setTable(t);
       setVenue(await venueApi.get(t.venue));
+      setSeats(await tableApi.seats(id));
       if (user) {
         const mine = await tableApi.list({ attendeeId: String(user.id) });
         setHasSeat(mine.some((m) => m.id === id));
@@ -53,6 +63,9 @@ export default function TableDetailPage() {
   const bookable = table.status === "waiting_for_players" || table.status === "confirmed";
   const full = table.seats_taken >= table.max_players;
   const eventEnded = new Date(table.ends_at).getTime() < Date.now();
+  const reservedSeats = seats.filter((s) => s.status === "reserved");
+  const waitlistSeats = seats.filter((s) => s.status === "waitlisted");
+  const openSeats = Math.max(0, table.max_players - reservedSeats.length);
 
   async function act(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
@@ -103,6 +116,40 @@ export default function TableDetailPage() {
             {table.seats_taken}/{table.max_players} (min {table.min_players})
           </span>
         </div>
+      </div>
+
+      <div className="card mt-3">
+        <div className="label">Who&apos;s at the table</div>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {reservedSeats.map((s) => (
+            <div
+              key={s.id}
+              className="flex flex-col items-center rounded-xl border border-slate-200 p-2 text-center"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-light to-brand text-xs font-bold text-white">
+                {s.username.slice(0, 1).toUpperCase()}
+              </div>
+              <div className="mt-1 w-full truncate text-xs font-medium">{s.username}</div>
+              {s.is_organizer ? <div className="text-[10px] font-semibold text-brand">host</div> : null}
+            </div>
+          ))}
+          {Array.from({ length: openSeats }).map((_, i) => (
+            <div
+              key={`open-${i}`}
+              className="flex flex-col items-center rounded-xl border border-dashed border-slate-300 p-2 text-center text-slate-400"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-slate-300 text-sm">
+                +
+              </div>
+              <div className="mt-1 text-xs">Open</div>
+            </div>
+          ))}
+        </div>
+        {waitlistSeats.length > 0 ? (
+          <div className="mt-2 text-xs text-slate-500">
+            Waitlist: {waitlistSeats.map((s) => s.username).join(", ")}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 space-y-2">

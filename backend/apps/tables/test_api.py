@@ -103,6 +103,28 @@ def test_anonymous_personal_filter_forbidden(db, client):
     assert client.get(f"/api/tables?organizerId={a.id}").status_code == 403
 
 
+def test_list_table_seats_shows_usernames(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    VenueAvailability.objects.create(
+        venue=venue, date=future_dt().date(),
+        start_time=time(0, 0), end_time=time(23, 59, 59), tables_available=5,
+    )
+    host = make_user("alice")
+    staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
+    table = make_table(host, venue)
+    services.confirm_table(table=table, by_user=staff)
+    services.reserve_seat(table=table, user=make_user("bob"))
+
+    resp = client.get(f"/api/tables/{table.id}/seats")  # unauthenticated -> allowed (public)
+    assert resp.status_code == 200
+    by_name = {s["username"]: s for s in resp.data}
+    assert set(by_name) == {"alice", "bob"}
+    assert by_name["alice"]["is_organizer"] is True
+    assert by_name["bob"]["is_organizer"] is False
+    # organizer sorted first
+    assert resp.data[0]["username"] == "alice"
+
+
 def test_venue_user_cannot_host_via_api_403(db, client):
     venue = Venue.objects.create(name="Board & Brew")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
