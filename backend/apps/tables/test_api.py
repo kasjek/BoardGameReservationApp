@@ -135,9 +135,13 @@ def test_list_table_seats_shows_usernames(db, client):
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
     table = make_table(host, venue)
     services.confirm_table(table=table, by_user=staff)
-    services.reserve_seat(table=table, user=make_user("bob"))
+    bob = make_user("bob")
+    services.reserve_seat(table=table, user=bob)
 
-    resp = client.get(f"/api/tables/{table.id}/seats")  # unauthenticated -> allowed (public)
+    # Anonymous cannot see attendee usernames; authenticated users can.
+    assert client.get(f"/api/tables/{table.id}/seats").status_code in (401, 403)
+    client.force_authenticate(user=bob)
+    resp = client.get(f"/api/tables/{table.id}/seats")
     assert resp.status_code == 200
     by_name = {s["username"]: s for s in resp.data}
     assert set(by_name) == {"alice", "bob"}

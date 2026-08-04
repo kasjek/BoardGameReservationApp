@@ -98,9 +98,9 @@ class TableCancelView(APIView):
 
 
 class SeatReserveView(APIView):
-    # GET (attendee list) is public so all users can see who reserved seats;
-    # POST (reserve) still requires authentication.
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    # GET lists attendees (usernames) — all logged-in users may see it, but not
+    # anonymous clients (privacy, NFR-1). POST (reserve) also requires auth.
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
         table = generics.get_object_or_404(Table, pk=pk)
