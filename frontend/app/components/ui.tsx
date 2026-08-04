@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { type TableStatus } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -26,6 +27,36 @@ export function StatusChip({ status }: { status: TableStatus }) {
  */
 export function bggUrl(name: string): string {
   return `/api/bgg/redirect?q=${encodeURIComponent(name)}`;
+}
+
+/**
+ * The board game's cover thumbnail from BoardGameGeek (resolved via the backend,
+ * which needs a BGG API token). Falls back to a lettered tile when unavailable.
+ */
+export function Cover({ name, size = 44 }: { name: string; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  const dim = { width: size, height: size, minWidth: size };
+  if (failed) {
+    return (
+      <div
+        style={dim}
+        className="flex shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-light to-brand font-bold text-white"
+      >
+        {name.trim().slice(0, 1).toUpperCase() || "?"}
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/bgg/cover?q=${encodeURIComponent(name)}`}
+      alt={name}
+      style={dim}
+      onError={() => setFailed(true)}
+      className="shrink-0 rounded-lg object-cover"
+      loading="lazy"
+    />
+  );
 }
 
 export function GameLink({ name, className }: { name: string; className?: string }) {

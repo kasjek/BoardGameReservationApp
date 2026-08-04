@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, formatWhen, GameLink, Shell, StatusChip } from "../components/ui";
+import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../components/ui";
 import { errorMessage, tableApi, type Table } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -77,7 +77,9 @@ export default function VenueAdminPage() {
       ) : (
         <div className="space-y-3">
           {pending.map((t) => (
-            <div key={t.id} className="card">
+            <div key={t.id} className="card flex gap-3">
+              <Cover name={t.game_title} size={48} />
+              <div className="min-w-0 flex-1">
               <h4 className="font-semibold">
                 <GameLink name={t.game_title} />
               </h4>
@@ -101,6 +103,7 @@ export default function VenueAdminPage() {
                   Confirm
                 </button>
               </div>
+              </div>
             </div>
           ))}
         </div>
@@ -112,14 +115,17 @@ export default function VenueAdminPage() {
       ) : (
         <div className="space-y-2">
           {upcoming.map((t) => (
-            <div key={t.id} className="card">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">
-                  <GameLink name={t.game_title} />
-                </h4>
-                <StatusChip status={t.status} />
+            <div key={t.id} className="card flex gap-3">
+              <Cover name={t.game_title} size={44} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-semibold">
+                    <GameLink name={t.game_title} />
+                  </h4>
+                  <StatusChip status={t.status} />
+                </div>
+                <div className="text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
               </div>
-              <div className="text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
             </div>
           ))}
         </div>

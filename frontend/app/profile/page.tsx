@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, formatWhen, GameLink, Shell, StatusChip } from "../components/ui";
+import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../components/ui";
 import { errorMessage, tableApi, type Table } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -44,15 +44,18 @@ export default function ProfilePage() {
           <div
             key={t.id}
             onClick={() => router.push(`/tables/${t.id}`)}
-            className="card block cursor-pointer"
+            className="card flex cursor-pointer gap-3"
           >
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold">
-                <GameLink name={t.game_title} />
-              </h4>
-              <StatusChip status={t.status} />
+            <Cover name={t.game_title} size={48} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-semibold">
+                  <GameLink name={t.game_title} />
+                </h4>
+                <StatusChip status={t.status} />
+              </div>
+              <div className="mt-1 text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
             </div>
-            <div className="mt-1 text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
           </div>
         ))}
       </div>
