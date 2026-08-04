@@ -11,31 +11,56 @@ export default function BrowsePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [tables, setTables] = useState<Table[]>([]);
+  const [myIds, setMyIds] = useState<Set<number>>(new Set());
   const [game, setGame] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ kind: "error" | "info"; msg: string } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
   const load = useCallback(async () => {
+    if (!user) return;
     setError(null);
     try {
       const params: Record<string, string> = {};
       if (game) params.game = game;
       if (status) params.status = status;
       setTables(await tableApi.list(params));
+      const mine = await tableApi.list({ attendeeId: String(user.id) });
+      setMyIds(new Set(mine.map((m) => m.id)));
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [game, status]);
+  }, [game, status, user]);
 
   useEffect(() => {
     if (user) load();
   }, [user, load]);
 
+  async function reserve(t: Table) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const seat = await tableApi.reserve(t.id);
+      setNotice({
+        kind: "info",
+        msg: seat.status === "waitlisted" ? "Added to the waitlist." : "Seat reserved!",
+      });
+      await load();
+    } catch (e) {
+      setNotice({ kind: "error", msg: errorMessage(e) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading || !user) return null;
+
+  const canReserve = user.role === "USER" || user.role === "ADMIN";
 
   return (
     <Shell title="Tables">
@@ -56,34 +81,57 @@ export default function BrowsePage() {
       </div>
 
       {error ? <Banner kind="error">{error}</Banner> : null}
+      {notice ? <Banner kind={notice.kind}>{notice.msg}</Banner> : null}
 
       {tables.length === 0 ? (
         <div className="mt-10 text-center text-sm text-slate-400">No tables yet. Create one!</div>
       ) : (
         <div className="space-y-3">
-          {tables.map((t) => (
-            <div
-              key={t.id}
-              onClick={() => router.push(`/tables/${t.id}`)}
-              className="card flex cursor-pointer gap-3"
-            >
-              <Cover name={t.game_title} size={56} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="font-semibold">
-                    <GameLink name={t.game_title} />
-                  </h4>
-                  <StatusChip status={t.status} />
+          {tables.map((t) => {
+            const bookable = t.status === "waiting_for_players" || t.status === "confirmed";
+            const full = t.seats_taken >= t.max_players;
+            const mine = myIds.has(t.id);
+            return (
+              <div key={t.id} className="card">
+                <div
+                  className="flex cursor-pointer gap-3"
+                  onClick={() => router.push(`/tables/${t.id}`)}
+                >
+                  <Cover name={t.game_title} size={56} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-semibold">
+                        <GameLink name={t.game_title} />
+                      </h4>
+                      <StatusChip status={t.status} />
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      {formatWhen(t.starts_at, t.ends_at)}
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      {t.seats_taken}/{t.max_players} seats · {t.game_language.toUpperCase()}
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {formatWhen(t.starts_at, t.ends_at)}
-                </div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {t.seats_taken}/{t.max_players} seats · {t.game_language.toUpperCase()}
-                </div>
+                {mine ? (
+                  <div className="mt-3 text-center text-sm font-semibold text-green-700">
+                    ✓ You&apos;re in this table
+                  </div>
+                ) : canReserve && bookable ? (
+                  <button
+                    className="btn mt-3"
+                    disabled={busy}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      reserve(t);
+                    }}
+                  >
+                    {full ? "Join waitlist" : "Reserve a seat"}
+                  </button>
+                ) : null}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Shell>
