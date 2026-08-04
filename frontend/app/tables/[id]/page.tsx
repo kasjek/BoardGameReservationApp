@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, formatWhen, GameLink, Shell, StatusChip } from "../../components/ui";
+import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../../components/ui";
 import { errorMessage, reviewApi, tableApi, type Table, venueApi, type Venue } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
@@ -74,7 +74,9 @@ export default function TableDetailPage() {
       {error ? <Banner kind="error">{error}</Banner> : null}
       {info ? <Banner kind="info">{info}</Banner> : null}
 
-      <div className="mb-3 h-28 rounded-2xl bg-gradient-to-br from-brand-light to-brand" />
+      <div className="mb-3 flex justify-center">
+        <Cover name={table.game_title} size={128} />
+      </div>
       <div className="text-sm text-slate-500">
         {venue ? venue.name : `Venue #${table.venue}`}
         {venue?.rating_avg != null ? (

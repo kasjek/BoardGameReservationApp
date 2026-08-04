@@ -11,6 +11,7 @@ class BggResolution(models.Model):
     query_norm = models.CharField(max_length=255, unique=True)
     bgg_id = models.PositiveIntegerField()
     matched_name = models.CharField(max_length=255, blank=True)
+    thumbnail_url = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
