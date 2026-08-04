@@ -13,7 +13,7 @@ export default function BrowsePage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [myIds, setMyIds] = useState<Set<number>>(new Set());
   const [game, setGame] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("available");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -73,10 +73,13 @@ export default function BrowsePage() {
           onKeyDown={(e) => e.key === "Enter" && load()}
         />
         <select className="input w-40" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="available">Available</option>
           <option value="">All statuses</option>
           <option value="waiting_for_venue_confirmation">Waiting for venue</option>
           <option value="waiting_for_players">Waiting for players</option>
           <option value="confirmed">Confirmed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="completed">Completed</option>
         </select>
       </div>
 
@@ -84,7 +87,11 @@ export default function BrowsePage() {
       {notice ? <Banner kind={notice.kind}>{notice.msg}</Banner> : null}
 
       {tables.length === 0 ? (
-        <div className="mt-10 text-center text-sm text-slate-400">No tables yet. Create one!</div>
+        <div className="mt-10 text-center text-sm text-slate-400">
+          {status === "available"
+            ? "No available tables right now. Try 'All statuses', or create one!"
+            : "No tables match this filter."}
+        </div>
       ) : (
         <div className="space-y-3">
           {tables.map((t) => {

@@ -72,6 +72,28 @@ def test_happy_path_reserve_via_api(db, client):
     assert resp.data["status"] == "reserved"
 
 
+def test_available_filter_shows_only_bookable(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    host = make_user("alice")
+
+    def tbl(status):
+        t = make_table(host, venue)
+        t.status = status
+        t.save()
+        return t
+
+    tbl(TableStatus.WAITING_FOR_VENUE_CONFIRMATION)
+    wp = tbl(TableStatus.WAITING_FOR_PLAYERS)
+    cf = tbl(TableStatus.CONFIRMED)
+    tbl(TableStatus.CANCELLED)
+    tbl(TableStatus.COMPLETED)
+
+    resp = client.get("/api/tables?status=available")
+    assert resp.status_code == 200
+    ids = {t["id"] for t in resp.data}
+    assert ids == {wp.id, cf.id}
+
+
 def test_venue_user_list_scoped_to_own_venue(db, client):
     v1 = Venue.objects.create(name="Board & Brew")
     v2 = Venue.objects.create(name="Meeple Corner")
