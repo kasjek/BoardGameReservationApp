@@ -40,3 +40,17 @@ Sequencing for the table/venue model. Phases roughly follow requirement priority
 - Event photos and richer history *(7, 23)*
 - Internationalization (EN/DE) and mobile UX hardening *(NFR-5, NFR-6)*
 - Performance, reliability, and analytics
+
+## Backlog / Blocked
+
+- **BoardGameGeek real cover images & exact game-page links** — **blocked on BGG approval.**
+  BGG closed its free XML API in mid-2025; the search/`thing` endpoints now require a
+  registered application token (`Authorization: Bearer`). An application has been submitted
+  to BGG and is awaiting review/approval.
+  - The feature is **already implemented and token-ready**: set the `BGG_API_TOKEN`
+    env var and real covers/exact pages resolve automatically (see `apps/bgg`).
+  - Until a token is available, the app **falls back gracefully**: game names show a
+    lettered placeholder tile and link to a BGG search (no broken UI).
+  - **Next step (when approved):** obtain the token, set `BGG_API_TOKEN` as a secret,
+    and verify live covers/links; consider persisting resolved BGG ids/covers in a
+    proper game catalog to avoid per-request lookups.
