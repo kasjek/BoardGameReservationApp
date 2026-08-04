@@ -150,6 +150,30 @@ def test_duplicate_reserve_conflicts(db, venue, wide_availability):
         services.reserve_seat(table=table, user=bob)
 
 
+def test_overlapping_reservation_rejected(db, venue):
+    player = make_user("player")
+    a = make_table(make_user("hostA"), venue, starts_at=future_dt(hour=18), ends_at=future_dt(hour=20))
+    b = make_table(make_user("hostB"), venue, starts_at=future_dt(hour=19), ends_at=future_dt(hour=21))
+    for t in (a, b):
+        t.status = TableStatus.WAITING_FOR_PLAYERS
+        t.save()
+    services.reserve_seat(table=a, user=player)
+    with pytest.raises(services.Conflict):
+        services.reserve_seat(table=b, user=player)  # overlaps a
+
+
+def test_non_overlapping_reservation_ok(db, venue):
+    player = make_user("player")
+    a = make_table(make_user("hostA"), venue, starts_at=future_dt(hour=18), ends_at=future_dt(hour=20))
+    c = make_table(make_user("hostC"), venue, starts_at=future_dt(hour=21), ends_at=future_dt(hour=23))
+    for t in (a, c):
+        t.status = TableStatus.WAITING_FOR_PLAYERS
+        t.save()
+    services.reserve_seat(table=a, user=player)
+    seat = services.reserve_seat(table=c, user=player)  # no overlap
+    assert seat.status == SeatStatus.RESERVED
+
+
 def test_cancel_promotes_earliest_waitlisted(db, venue, wide_availability):
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)

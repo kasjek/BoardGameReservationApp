@@ -161,6 +161,20 @@ def reserve_seat(*, table: Table, user) -> SeatReservation:
     if existing is not None:
         raise Conflict("You already hold a seat or waitlist spot at this table.")
 
+    # A user cannot hold a seat at two events whose times overlap.
+    overlapping = (
+        SeatReservation.objects.filter(user=user, status=SeatStatus.RESERVED)
+        .exclude(table=table)
+        .exclude(table__status=TableStatus.CANCELLED)
+        .filter(table__starts_at__lt=table.ends_at, table__ends_at__gt=table.starts_at)
+        .exists()
+    )
+    if overlapping:
+        raise Conflict(
+            "You already have a seat at another event during this time. "
+            "You can't be at two overlapping tables."
+        )
+
     if table.seats_taken < table.max_players:
         seat = SeatReservation.objects.create(
             table=table, user=user, status=SeatStatus.RESERVED
