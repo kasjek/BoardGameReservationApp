@@ -209,7 +209,7 @@ export default function TableDetailPage() {
 
       <div className="card mt-4">
         <div className="label">Rate this venue</div>
-        {eventEnded && table.status !== "cancelled" ? (
+        {eventEnded && table.status !== "cancelled" && (hasSeat || isOrganizer) ? (
           <div className="mt-1 flex items-center gap-2">
             <select
               className="input w-24"
@@ -245,7 +245,9 @@ export default function TableDetailPage() {
           <div className="mt-1 text-sm text-slate-500">
             {table.status === "cancelled"
               ? "This event was cancelled — reviews are not available."
-              : "You can review this venue after the event has ended."}
+              : !eventEnded
+                ? "You can review this venue after the event has ended."
+                : "Only people who attended this table can review it."}
           </div>
         )}
       </div>

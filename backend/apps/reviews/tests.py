@@ -6,12 +6,16 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Role, User
 from apps.reviews.models import average_rating_for_user, average_rating_for_venue
-from apps.tables.models import Table, TableStatus
+from apps.tables.models import SeatReservation, SeatStatus, Table, TableStatus
 from apps.venues.models import Venue
 
 
 def mk(username, role=Role.USER):
     return User.objects.create_user(username=username, password="pw-testing-123", role=role)
+
+
+def seat(table, user):
+    return SeatReservation.objects.create(table=table, user=user, status=SeatStatus.RESERVED)
 
 
 def make_table(organizer, venue, *, ended=True, status=TableStatus.CONFIRMED):
@@ -70,7 +74,8 @@ def test_create_venue_review_and_aggregate(db, client):
 def test_create_user_review(db, client):
     venue = Venue.objects.create(name="Board & Brew")
     alice, bob = mk("alice"), mk("bob")
-    t = make_table(alice, venue)
+    t = make_table(alice, venue)  # alice is organizer (participated)
+    seat(t, bob)  # bob attended
     client.force_authenticate(user=alice)
     resp = client.post(
         "/api/reviews",
@@ -79,6 +84,53 @@ def test_create_user_review(db, client):
     )
     assert resp.status_code == 201
     assert average_rating_for_user(bob.id) == 4.0
+
+
+def test_review_requires_participation(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    alice, outsider = mk("alice"), mk("outsider")
+    t = make_table(alice, venue)  # outsider has no seat here
+    client.force_authenticate(user=outsider)
+    resp = client.post(
+        "/api/reviews", {"target_type": "venue", "table": t.id, "rating": 1}, format="json"
+    )
+    assert resp.status_code == 400
+
+
+def test_cannot_review_non_participant_user(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    alice, stranger = mk("alice"), mk("stranger")
+    t = make_table(alice, venue)  # stranger never attended
+    client.force_authenticate(user=alice)
+    resp = client.post(
+        "/api/reviews",
+        {"target_type": "user", "target_user": stranger.id, "table": t.id, "rating": 1},
+        format="json",
+    )
+    assert resp.status_code == 400
+
+
+def test_no_self_review(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    alice = mk("alice")
+    t = make_table(alice, venue)
+    client.force_authenticate(user=alice)
+    resp = client.post(
+        "/api/reviews",
+        {"target_type": "user", "target_user": alice.id, "table": t.id, "rating": 5},
+        format="json",
+    )
+    assert resp.status_code == 400
+
+
+def test_no_duplicate_review(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    alice = mk("alice")
+    t = make_table(alice, venue)
+    client.force_authenticate(user=alice)
+    payload = {"target_type": "venue", "table": t.id, "rating": 5}
+    assert client.post("/api/reviews", payload, format="json").status_code == 201
+    assert client.post("/api/reviews", payload, format="json").status_code == 400
 
 
 def test_review_before_event_ends_rejected(db, client):
