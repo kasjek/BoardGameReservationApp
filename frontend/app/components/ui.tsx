@@ -163,16 +163,14 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
  * Rendered top-left on every view; all other content sits below it.
  */
 export function BrandBanner() {
-  // Orange underline accents under specific letters, matching the wordmark.
-  const accent = "underline decoration-fun-orange decoration-[4px] underline-offset-[5px]";
   return (
-    <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+    <div className="sticky top-0 z-30 flex items-center border-b border-slate-200 bg-white px-4 py-2 shadow-sm">
+      {/*
+        The banner is a single image, rendered as-is (only resized by height).
+        To use different artwork, just replace public/banner.png — no code changes.
+      */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt="Too Many Games logo" width={44} height={44} className="shrink-0" />
-      <span className="text-xl font-black uppercase leading-none tracking-tight text-slate-900">
-        T<span className={accent}>OO</span> M<span className={accent}>A</span>NY G
-        <span className={accent}>A</span>MES
-      </span>
+      <img src="/banner.png" alt="Too Many Games" className="h-12 w-auto" />
     </div>
   );
 }
