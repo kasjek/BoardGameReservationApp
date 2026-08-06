@@ -151,6 +151,47 @@ def test_list_table_seats_shows_usernames(db, client):
     assert resp.data[0]["username"] == "alice"
 
 
+def _post_table(client, venue, start):
+    return client.post(
+        "/api/tables",
+        {
+            "venue": venue.id,
+            "game_title": "Catan",
+            "starts_at": start.isoformat(),
+            "ends_at": (start + timedelta(hours=2)).isoformat(),
+            "min_players": 2,
+            "max_players": 4,
+        },
+        format="json",
+    )
+
+
+def test_create_table_within_window_returns_201(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    client.force_authenticate(user=make_user("alice"))
+    start = (timezone.now() + timedelta(days=10)).replace(hour=15, minute=0, second=0, microsecond=0)
+    resp = _post_table(client, venue, start)
+    assert resp.status_code == 201
+
+
+def test_create_table_outside_window_returns_400(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    client.force_authenticate(user=make_user("alice"))
+    start = (timezone.now() + timedelta(days=10)).replace(hour=20, minute=0, second=0, microsecond=0)
+    resp = _post_table(client, venue, start)
+    assert resp.status_code == 400
+    assert "3 PM" in resp.data["detail"]
+
+
+def test_create_second_table_same_day_same_venue_returns_409(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    client.force_authenticate(user=make_user("alice"))
+    day = (timezone.now() + timedelta(days=10)).replace(minute=0, second=0, microsecond=0)
+    assert _post_table(client, venue, day.replace(hour=15)).status_code == 201
+    resp = _post_table(client, venue, day.replace(hour=17))
+    assert resp.status_code == 409
+
+
 def test_venue_user_cannot_host_via_api_403(db, client):
     venue = Venue.objects.create(name="Board & Brew")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)

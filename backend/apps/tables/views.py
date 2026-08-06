@@ -60,7 +60,9 @@ class TableListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = TableCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        table = services.create_table(organizer=request.user, **serializer.validated_data)
+        table = services.create_table(
+            organizer=request.user, enforce_booking_window=True, **serializer.validated_data
+        )
         return Response(TableSerializer(table).data, status=status.HTTP_201_CREATED)
 
 

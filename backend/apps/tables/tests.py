@@ -259,6 +259,69 @@ def test_venue_capacity_turnover_blocks_too_close_table(db, venue):
         services.confirm_table(table=b, by_user=staff)
 
 
+# --- Booking window: 3 PM–7 PM, 1–3 hours, one per day per venue --------------
+
+def _in_window(hour, minute=0):
+    """A future datetime on a fixed date at the given local (UTC) time."""
+    base = timezone.now() + timedelta(days=10)
+    return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+
+def test_booking_within_window_ok(db, venue):
+    host = make_user("alice")
+    table = make_table(
+        host, venue, starts_at=_in_window(15), ends_at=_in_window(17),
+        enforce_booking_window=True,
+    )
+    assert table.status == TableStatus.WAITING_FOR_VENUE_CONFIRMATION
+
+
+@pytest.mark.parametrize(
+    "start_h,start_m,end_h,end_m",
+    [
+        (14, 0, 16, 0),   # starts before 3 PM
+        (17, 0, 19, 30),  # ends after 7 PM
+        (15, 0, 15, 30),  # shorter than 1 hour
+        (15, 0, 19, 0),   # longer than 3 hours
+    ],
+)
+def test_booking_outside_rules_rejected(db, venue, start_h, start_m, end_h, end_m):
+    host = make_user("alice")
+    with pytest.raises(services.BookingError):
+        make_table(
+            host, venue,
+            starts_at=_in_window(start_h, start_m), ends_at=_in_window(end_h, end_m),
+            enforce_booking_window=True,
+        )
+
+
+def test_one_booking_per_user_per_day_per_venue(db, venue):
+    host = make_user("alice")
+    make_table(
+        host, venue, starts_at=_in_window(15), ends_at=_in_window(17),
+        enforce_booking_window=True,
+    )
+    with pytest.raises(services.Conflict):
+        make_table(
+            host, venue, starts_at=_in_window(17, 30), ends_at=_in_window(19),
+            enforce_booking_window=True,
+        )
+
+
+def test_second_booking_allowed_on_a_different_day(db, venue):
+    host = make_user("alice")
+    make_table(
+        host, venue, starts_at=_in_window(15), ends_at=_in_window(17),
+        enforce_booking_window=True,
+    )
+    next_day = _in_window(15) + timedelta(days=1)
+    table = make_table(
+        host, venue, starts_at=next_day, ends_at=next_day + timedelta(hours=2),
+        enforce_booking_window=True,
+    )
+    assert table.status == TableStatus.WAITING_FOR_VENUE_CONFIRMATION
+
+
 def test_venue_capacity_allows_when_capacity_available(db, venue):
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)

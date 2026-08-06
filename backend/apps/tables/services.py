@@ -8,6 +8,7 @@ over-booking and duplicate seats.
 
 from __future__ import annotations
 
+from datetime import time as dtime
 from datetime import timedelta
 
 from django.db import transaction
@@ -19,6 +20,13 @@ from .models import LateCancellationMark, SeatReservation, SeatStatus, Table, Ta
 TURNOVER = timedelta(minutes=15)
 LATE_CANCEL_WINDOW = timedelta(hours=24)
 MARK_VALIDITY = timedelta(days=30)
+
+# Booking window rules for the venue (local time): tables run 3 PM–7 PM and last
+# between 1 and 3 hours. A user may only book one table per day at a given venue.
+BOOKING_OPEN = dtime(15, 0)
+BOOKING_CLOSE = dtime(19, 0)
+MIN_BOOKING = timedelta(hours=1)
+MAX_BOOKING = timedelta(hours=3)
 
 ACTIVE_TABLE_STATUSES = (
     TableStatus.WAITING_FOR_VENUE_CONFIRMATION,
@@ -32,6 +40,42 @@ class Conflict(APIException):
     status_code = 409
     default_detail = "Conflict."
     default_code = "conflict"
+
+
+class BookingError(APIException):
+    status_code = 400
+    default_detail = "Invalid booking."
+    default_code = "booking_error"
+
+
+def _local(dt):
+    return timezone.localtime(dt) if timezone.is_aware(dt) else dt
+
+
+def check_booking_window(*, organizer, venue, starts_at, ends_at) -> None:
+    """Venue booking policy: 3 PM–7 PM, 1–3 hours, one table per user/day/venue."""
+    start_local = _local(starts_at)
+    end_local = _local(ends_at)
+
+    if start_local.date() != end_local.date():
+        raise BookingError("A table must start and end on the same day.")
+    if start_local.time() < BOOKING_OPEN or end_local.time() > BOOKING_CLOSE:
+        raise BookingError("Tables can only be booked between 3 PM and 7 PM.")
+
+    duration = ends_at - starts_at
+    if duration < MIN_BOOKING:
+        raise BookingError("The minimum booking length is 1 hour.")
+    if duration > MAX_BOOKING:
+        raise BookingError("The maximum booking length is 3 hours.")
+
+    same_day = any(
+        _local(t.starts_at).date() == start_local.date()
+        for t in Table.objects.filter(
+            organizer=organizer, venue=venue, status__in=ACTIVE_TABLE_STATUSES
+        )
+    )
+    if same_day:
+        raise Conflict("You already have a table booked at this venue on that day.")
 
 
 def _windows_conflict(s1, e1, s2, e2, buffer=TURNOVER) -> bool:
@@ -51,6 +95,7 @@ def create_table(
     bring_own_game=True,
     game_language="en",
     game_language_other="",
+    enforce_booking_window=False,
 ):
     if not organizer.can_host_or_reserve:
         raise PermissionDenied("Only a USER may host a table.")
@@ -58,6 +103,10 @@ def create_table(
         raise ValidationError("ends_at must be after starts_at.")
     if min_players < 1 or max_players < min_players:
         raise ValidationError("Require 1 <= min_players <= max_players.")
+    if enforce_booking_window:
+        check_booking_window(
+            organizer=organizer, venue=venue, starts_at=starts_at, ends_at=ends_at
+        )
 
     table = Table.objects.create(
         organizer=organizer,

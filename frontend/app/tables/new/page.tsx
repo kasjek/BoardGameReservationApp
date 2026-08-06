@@ -34,12 +34,23 @@ const OTHER_LANGUAGES = [
   "Hindi",
 ];
 
-// Start/end times are restricted to full hour and half-hour slots.
-const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
-  const h = String(Math.floor(i / 2)).padStart(2, "0");
-  const m = i % 2 === 0 ? "00" : "30";
-  return `${h}:${m}`;
-});
+// Booking window: tables run 3 PM–7 PM, in 30-minute slots.
+const TIME_SLOTS = [
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
+  "18:00",
+  "18:30",
+  "19:00",
+];
+
+const toMinutes = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+};
 
 export default function CreateTablePage() {
   const { user, loading } = useAuth();
@@ -50,8 +61,8 @@ export default function CreateTablePage() {
 
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState("");
-  const [from, setFrom] = useState("18:00");
-  const [to, setTo] = useState("20:00");
+  const [from, setFrom] = useState("15:00");
+  const [to, setTo] = useState("16:00");
   const [minPlayers, setMinPlayers] = useState(2);
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [game, setGame] = useState("");
@@ -84,8 +95,17 @@ export default function CreateTablePage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setError(null);
+    const duration = toMinutes(to) - toMinutes(from);
+    if (duration < 60) {
+      setError("The minimum booking length is 1 hour.");
+      return;
+    }
+    if (duration > 180) {
+      setError("The maximum booking length is 3 hours.");
+      return;
+    }
+    setBusy(true);
     try {
       const starts_at = new Date(`${date}T${from}:00`).toISOString();
       const ends_at = new Date(`${date}T${to}:00`).toISOString();
@@ -146,6 +166,9 @@ export default function CreateTablePage() {
             </select>
           </div>
         </div>
+        <p className="mt-1 text-xs text-slate-500">
+          Bookings run 3 PM–7 PM · 1–3 hours · one table per day per venue.
+        </p>
 
         <div className="flex gap-2">
           <div className="flex-1">
