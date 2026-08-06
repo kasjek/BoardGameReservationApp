@@ -113,6 +113,27 @@ export function Avatar({
   );
 }
 
+/** Small chair icon (inherits text color) shown next to "Take a Seat". */
+export function ChairIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M6 8V5.5A1.5 1.5 0 0 1 7.5 4h9A1.5 1.5 0 0 1 18 5.5V8" />
+      <path d="M6 8h12v5H6z" />
+      <path d="M7 13v6" />
+      <path d="M17 13v6" />
+    </svg>
+  );
+}
+
 export function GameLink({ name, className }: { name: string; className?: string }) {
   return (
     <a

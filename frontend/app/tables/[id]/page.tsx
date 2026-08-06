@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Avatar,
   Banner,
+  ChairIcon,
   Cover,
   dicebearUrl,
   formatWhen,
@@ -200,7 +201,13 @@ export default function TableDetailPage() {
             disabled={busy}
             onClick={() => act(() => tableApi.reserve(id), full ? "Added to waitlist." : "Seat reserved!")}
           >
-            {full ? "Join waitlist" : "Take a Seat"}
+            {full ? (
+              "Join waitlist"
+            ) : (
+              <span className="inline-flex items-center justify-center gap-2">
+                <ChairIcon /> Take a Seat
+              </span>
+            )}
           </button>
         ) : null}
 

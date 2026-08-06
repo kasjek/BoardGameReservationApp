@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "./components/ui";
+import { Banner, ChairIcon, Cover, formatWhen, GameLink, Shell, StatusChip } from "./components/ui";
 import { errorMessage, tableApi, type Table } from "./lib/api";
 import { useAuth } from "./lib/auth";
 
@@ -136,7 +136,13 @@ export default function BrowsePage() {
                       reserve(t);
                     }}
                   >
-                    {full ? "Join waitlist" : "Take a Seat"}
+                    {full ? (
+                      "Join waitlist"
+                    ) : (
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <ChairIcon /> Take a Seat
+                      </span>
+                    )}
                   </button>
                 ) : null}
               </div>
