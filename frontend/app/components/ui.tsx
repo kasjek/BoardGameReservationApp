@@ -143,16 +143,20 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
  */
 export function BrandBanner() {
   return (
-    <div className="flex items-center gap-2.5 border-b border-slate-200 bg-white px-4 py-2.5">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/logo.png"
-        alt="Too Many Games logo"
-        width={36}
-        height={36}
-        className="shrink-0 rounded-md"
-      />
-      <span className="text-lg font-extrabold tracking-tight text-slate-900">Too Many Games</span>
+    <div>
+      <div className="flex items-center gap-2.5 bg-white px-4 py-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.png"
+          alt="Too Many Games logo"
+          width={38}
+          height={38}
+          className="shrink-0 rounded-lg shadow-sm"
+        />
+        <span className="wordmark text-lg font-extrabold tracking-tight">Too Many Games</span>
+      </div>
+      {/* Playful accent strip echoing the logo's colors. */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-fun-pink via-fun-purple to-fun-blue" />
     </div>
   );
 }
@@ -167,16 +171,19 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   const tab = (href: string, label: string, active: boolean) => (
     <Link
       href={href}
-      className={`flex-1 py-2 text-center text-xs ${active ? "font-bold text-brand" : "text-slate-500"}`}
+      className={`relative flex-1 py-2.5 text-center text-xs ${active ? "font-bold text-brand" : "text-slate-500"}`}
     >
+      {active ? (
+        <span className="absolute inset-x-5 top-0 h-1 rounded-full bg-gradient-to-r from-fun-pink via-fun-purple to-fun-blue" />
+      ) : null}
       {label}
     </Link>
   );
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col">
       <BrandBanner />
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
         {user ? (
           <button
@@ -191,7 +198,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
         ) : null}
       </header>
       <main className="flex-1 overflow-auto p-4">{children}</main>
-      <nav className="flex border-t border-slate-200">
+      <nav className="flex border-t border-slate-200 bg-white">
         {tab("/", "All Tables", path === "/")}
         {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
         {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
