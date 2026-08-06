@@ -164,7 +164,7 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
  */
 export function BrandBanner() {
   return (
-    <div className="sticky top-0 z-30 flex items-center border-b border-slate-200 bg-white px-4 py-2 shadow-sm">
+    <div className="sticky top-0 z-30 flex items-center justify-center border-b border-slate-200 bg-white px-4 py-2 shadow-sm">
       {/*
         The banner is a single image, rendered as-is (only resized by height).
         To use different artwork, just replace public/banner.png — no code changes.
