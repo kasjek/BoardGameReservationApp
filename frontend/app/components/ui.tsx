@@ -190,7 +190,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
       className={`relative flex-1 py-2.5 text-center text-xs ${active ? "font-bold text-brand" : "text-slate-500"}`}
     >
       {active ? (
-        <span className="absolute inset-x-5 top-0 h-1 rounded-full bg-gradient-to-r from-fun-pink via-fun-purple to-fun-blue" />
+        <span className="absolute inset-x-5 bottom-0 h-1 rounded-full bg-gradient-to-r from-fun-pink via-fun-purple to-fun-blue" />
       ) : null}
       {label}
     </Link>
@@ -199,6 +199,12 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   return (
     <div className="mx-auto flex h-[100dvh] max-w-md flex-col">
       <BrandBanner />
+      <nav className="flex border-b border-slate-200 bg-white">
+        {tab("/", "All Tables", path === "/")}
+        {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
+        {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
+        {tab("/profile", "My Bookings", path.startsWith("/profile"))}
+      </nav>
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
         {user ? (
@@ -214,12 +220,6 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
         ) : null}
       </header>
       <main className="min-h-0 flex-1 overflow-y-auto p-4">{children}</main>
-      <nav className="flex border-t border-slate-200 bg-white">
-        {tab("/", "All Tables", path === "/")}
-        {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
-        {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
-        {tab("/profile", "My Bookings", path.startsWith("/profile"))}
-      </nav>
     </div>
   );
 }
