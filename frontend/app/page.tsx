@@ -125,7 +125,7 @@ export default function BrowsePage() {
                 </div>
                 {mine ? (
                   <div className="mt-3 text-center text-sm font-semibold text-green-700">
-                    ✓ You&apos;re in this table
+                    ✓ Your seat is reserved
                   </div>
                 ) : canReserve && bookable ? (
                   <button
