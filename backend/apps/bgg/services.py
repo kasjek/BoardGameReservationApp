@@ -1,29 +1,34 @@
-"""Resolve a board game title to its BoardGameGeek game page.
+"""Resolve a board game title to its BoardGameGeek page and cover image.
 
-Uses the BGG XML API2 search endpoint, preferring an exact-name match. Successful
-resolutions are cached in the DB. When BGG is unreachable (e.g. restricted egress),
-callers fall back to a BGG search URL so the link still works.
+Links use the BGG XML API2 search endpoint (always the first result). Covers use the
+BGG cover when a token is configured, otherwise fall back to a Wikipedia box image
+(no token required). Successful resolutions are cached in the DB.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 # BGG requires requests to boardgamegeek.com (no www) and, since mid-2025, an
 # approved application token via an Authorization: Bearer header. Set BGG_API_TOKEN
-# to enable live resolution; without it the API returns 401 and callers fall back.
+# to enable live resolution; without it the API returns 401 and we fall back to
+# Wikipedia box-cover images (no token needed).
 BGG_SEARCH_API = "https://boardgamegeek.com/xmlapi2/search"
 BGG_THING_API = "https://boardgamegeek.com/xmlapi2/thing"
 BGG_GAME_URL = "https://boardgamegeek.com/boardgame/{id}"
+WIKI_SEARCH_API = "https://en.wikipedia.org/w/api.php"
+WIKI_SUMMARY_API = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+_UA = {"User-Agent": "BoardGameReservationApp/0.1"}
 _TIMEOUT = 6
 
 
 def _auth_headers() -> dict[str, str]:
-    headers = {"User-Agent": "BoardGameReservationApp/0.1"}
+    headers = dict(_UA)
     token = os.environ.get("BGG_API_TOKEN")
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -46,9 +51,9 @@ def search_url(name: str) -> str:
     )
 
 
-def _http_get(url: str) -> bytes | None:
+def _http_get(url: str, headers: dict[str, str] | None = None) -> bytes | None:
     try:
-        req = urllib.request.Request(url, headers=_auth_headers())
+        req = urllib.request.Request(url, headers=headers or _UA)
         with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
             return resp.read()
     except (urllib.error.URLError, OSError, ValueError):
@@ -73,7 +78,7 @@ def _bgg_search(name: str) -> int | None:
     """Always take the first (top-ranked) BGG search result — no exact-match preference,
     no user selection. Returns its id, or None if unreachable / no match."""
     query = f"{BGG_SEARCH_API}?query={quote_plus(name)}&type=boardgame"
-    body = _http_get(query)
+    body = _http_get(query, _auth_headers())
     if body is None:
         return None  # network/egress failure -> let caller fall back
     return _first_id(body)
@@ -105,7 +110,7 @@ def resolve_url(name: str) -> str:
 
 
 def _bgg_thumbnail(bgg_id: int) -> str | None:
-    body = _http_get(f"{BGG_THING_API}?id={bgg_id}")
+    body = _http_get(f"{BGG_THING_API}?id={bgg_id}", _auth_headers())
     if body is None:
         return None
     try:
@@ -121,8 +126,45 @@ def _bgg_thumbnail(bgg_id: int) -> str | None:
     return None
 
 
+def _wikipedia_cover(name: str) -> str | None:
+    """Box-cover image for a game via Wikipedia (no token required).
+
+    Searches for "<name> board game" to land on the right article (handles
+    disambiguation), then reads that article's lead image.
+    """
+    search = (
+        f"{WIKI_SEARCH_API}?action=query&list=search&srlimit=1&format=json"
+        f"&srsearch={quote_plus(name + ' board game')}"
+    )
+    body = _http_get(search)
+    if body is None:
+        return None
+    try:
+        results = json.loads(body).get("query", {}).get("search", [])
+    except (ValueError, AttributeError):
+        return None
+    if not results:
+        return None
+    title = results[0].get("title")
+    if not title:
+        return None
+
+    body = _http_get(f"{WIKI_SUMMARY_API}{quote(title)}")
+    if body is None:
+        return None
+    try:
+        data = json.loads(body)
+    except ValueError:
+        return None
+    thumb = (data.get("thumbnail") or {}).get("source")
+    return thumb or (data.get("originalimage") or {}).get("source")
+
+
 def resolve_cover_url(name: str) -> str | None:
-    """Resolve (and cache) a game title to its BGG cover thumbnail URL, or None."""
+    """Resolve (and cache) a game title to a cover thumbnail URL, or None.
+
+    Prefers the BGG cover (needs a token), then falls back to a Wikipedia box image.
+    """
     from .models import BggResolution
 
     norm = normalize(name)
@@ -133,14 +175,16 @@ def resolve_cover_url(name: str) -> str | None:
     if cached is not None and cached.thumbnail_url:
         return cached.thumbnail_url
 
-    bgg_id = cached.bgg_id if cached is not None else resolve_bgg_id(name)
-    if bgg_id is None:
-        return None
+    bgg_id = cached.bgg_id if (cached is not None and cached.bgg_id) else resolve_bgg_id(name)
+    thumb = _bgg_thumbnail(bgg_id) if bgg_id else None
 
-    thumb = _bgg_thumbnail(bgg_id)
+    # Fall back to a Wikipedia box cover (works without a BGG token).
+    if not thumb:
+        thumb = _wikipedia_cover(name)
+
     if thumb:
-        BggResolution.objects.update_or_create(
-            query_norm=norm,
-            defaults={"bgg_id": bgg_id, "thumbnail_url": thumb, "matched_name": name},
-        )
+        defaults = {"thumbnail_url": thumb, "matched_name": name}
+        if bgg_id:
+            defaults["bgg_id"] = bgg_id
+        BggResolution.objects.update_or_create(query_norm=norm, defaults=defaults)
     return thumb

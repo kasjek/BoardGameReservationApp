@@ -55,7 +55,7 @@ def test_first_id_handles_non_xml():
 def test_bgg_search_takes_first_result_single_query(monkeypatch):
     calls = []
 
-    def fake(url):
+    def fake(url, headers=None):
         calls.append(url)
         return _SEARCH_XML
 
@@ -76,8 +76,8 @@ _THING_XML = (
 
 
 def _fake_http(monkeypatch):
-    def fake(url):
-        if "search" in url:
+    def fake(url, headers=None):
+        if "xmlapi2/search" in url:
             return _SEARCH_XML
         if "thing" in url:
             return _THING_XML
@@ -93,8 +93,27 @@ def test_cover_redirects_to_thumbnail(db, client, monkeypatch):
     assert resp["Location"] == "https://cf.geekdo-images.com/abc__thumb/img/catan.jpg"
 
 
+def test_cover_falls_back_to_wikipedia_without_bgg(db, client, monkeypatch):
+    wiki_search = b'{"query":{"search":[{"title":"Wingspan (board game)"}]}}'
+    wiki_summary = b'{"thumbnail":{"source":"https://upload.wikimedia.org/x/wingspan.jpg"}}'
+
+    def fake(url, headers=None):
+        if "boardgamegeek.com" in url:
+            return None  # BGG blocked (no token)
+        if "list=search" in url:
+            return wiki_search
+        if "page/summary" in url:
+            return wiki_summary
+        return None
+
+    monkeypatch.setattr(services, "_http_get", fake)
+    resp = client.get("/api/bgg/cover?q=Wingspan")
+    assert resp.status_code == 302
+    assert resp["Location"] == "https://upload.wikimedia.org/x/wingspan.jpg"
+
+
 def test_cover_404_when_unresolved(db, client, monkeypatch):
-    monkeypatch.setattr(services, "_http_get", lambda url: None)
+    monkeypatch.setattr(services, "_http_get", lambda url, headers=None: None)
     assert client.get("/api/bgg/cover?q=Nope").status_code == 404
 
 
@@ -102,7 +121,7 @@ def test_cover_is_cached(db, monkeypatch):
     _fake_http(monkeypatch)
     assert services.resolve_cover_url("Catan").endswith("catan.jpg")
     # Second call should read from the cached thumbnail_url (no HTTP needed).
-    monkeypatch.setattr(services, "_http_get", lambda url: pytest.fail("should be cached"))
+    monkeypatch.setattr(services, "_http_get", lambda url, headers=None: pytest.fail("cached"))
     assert services.resolve_cover_url("catan").endswith("catan.jpg")
 
 
