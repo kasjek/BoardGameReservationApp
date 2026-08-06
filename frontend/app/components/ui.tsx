@@ -163,14 +163,25 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
  * Rendered top-left on every view; all other content sits below it.
  */
 export function BrandBanner() {
+  // The banner is your own image file at public/banner.png, rendered as-is (only
+  // resized by height). Drop the real artwork in at that path — no code changes.
+  // Until the file exists we show a plain neutral placeholder (no imposed style).
+  const [failed, setFailed] = useState(false);
   return (
     <div className="sticky top-0 z-30 flex items-center justify-center border-b border-slate-200 bg-white px-4 py-2 shadow-sm">
-      {/*
-        The banner is a single image, rendered as-is (only resized by height).
-        To use different artwork, just replace public/banner.png — no code changes.
-      */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/banner.png" alt="Too Many Games" className="h-12 w-auto" />
+      {failed ? (
+        <span className="text-lg font-extrabold uppercase tracking-tight text-slate-900">
+          Too Many Games
+        </span>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/banner.png"
+          alt="Too Many Games"
+          className="h-12 w-auto"
+          onError={() => setFailed(true)}
+        />
+      )}
     </div>
   );
 }
