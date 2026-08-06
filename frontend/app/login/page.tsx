@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Banner } from "../components/ui";
+import { Banner, BrandBanner } from "../components/ui";
 import { errorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -31,11 +31,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center bg-white p-6">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">
+      <BrandBanner />
+      <div className="flex flex-1 flex-col justify-center p-6">
       <div className="mb-6 text-center">
-        <div className="text-2xl font-extrabold text-brand">
-          BoardGame<span className="text-slate-900">App</span>
-        </div>
+        <div className="text-2xl font-extrabold text-brand">Welcome back</div>
         <div className="mt-1 text-sm text-slate-500">Find a table. Play.</div>
       </div>
       {error ? <Banner kind="error">{error}</Banner> : null}
@@ -63,6 +63,7 @@ export default function LoginPage() {
         <Link href="/register" className="font-semibold text-brand">
           Sign up ›
         </Link>
+      </div>
       </div>
     </div>
   );
