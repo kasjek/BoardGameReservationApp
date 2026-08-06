@@ -143,7 +143,7 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
  */
 export function BrandBanner() {
   // Orange underline accents under specific letters, matching the wordmark.
-  const accent = "underline decoration-fun-orange decoration-[3px] underline-offset-[5px]";
+  const accent = "underline decoration-fun-orange decoration-[4px] underline-offset-[5px]";
   return (
     <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
       {/* eslint-disable-next-line @next/next/no-img-element */}
