@@ -126,10 +126,10 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
       </header>
       <main className="flex-1 overflow-auto p-4">{children}</main>
       <nav className="flex border-t border-slate-200">
-        {tab("/", "Browse", path === "/")}
-        {canHost ? tab("/tables/new", "Create", path.startsWith("/tables/new")) : null}
+        {tab("/", "All Tables", path === "/")}
+        {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
         {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
-        {tab("/profile", "Me", path.startsWith("/profile"))}
+        {tab("/profile", "My Bookings", path.startsWith("/profile"))}
       </nav>
     </div>
   );

@@ -84,6 +84,13 @@ export default function TableDetailPage() {
 
   return (
     <Shell title={<GameLink name={table.game_title} />}>
+      <button
+        onClick={() => router.push("/")}
+        className="mb-3 flex items-center gap-1 text-sm font-semibold text-brand"
+      >
+        <span aria-hidden>←</span> All Tables
+      </button>
+
       {error ? <Banner kind="error">{error}</Banner> : null}
       {info ? <Banner kind="info">{info}</Banner> : null}
 
@@ -182,7 +189,7 @@ export default function TableDetailPage() {
             disabled={busy}
             onClick={() => act(() => tableApi.reserve(id), full ? "Added to waitlist." : "Seat reserved!")}
           >
-            {full ? "Join waitlist" : "Reserve a seat"}
+            {full ? "Join waitlist" : "Take a Seat"}
           </button>
         ) : null}
 

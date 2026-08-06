@@ -63,7 +63,7 @@ export default function BrowsePage() {
   const canReserve = user.role === "USER" || user.role === "ADMIN";
 
   return (
-    <Shell title="Tables">
+    <Shell title="All Tables">
       <div className="mb-3 flex gap-2">
         <input
           className="input"
@@ -74,7 +74,7 @@ export default function BrowsePage() {
         />
         <select className="input w-40" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="available">Available</option>
-          <option value="">All statuses</option>
+          <option value="">All tables</option>
           <option value="waiting_for_venue_confirmation">Waiting for venue</option>
           <option value="waiting_for_players">Waiting for players</option>
           <option value="confirmed">Confirmed</option>
@@ -89,7 +89,7 @@ export default function BrowsePage() {
       {tables.length === 0 ? (
         <div className="mt-10 text-center text-sm text-slate-400">
           {status === "available"
-            ? "No available tables right now. Try 'All statuses', or create one!"
+            ? "No available tables right now. Try 'All tables', or create one!"
             : "No tables match this filter."}
         </div>
       ) : (
@@ -118,6 +118,9 @@ export default function BrowsePage() {
                     <div className="mt-2 text-xs text-slate-500">
                       {t.seats_taken}/{t.max_players} seats · {t.game_language.toUpperCase()}
                     </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      Min {t.min_players} · Max {t.max_players} players to start
+                    </div>
                   </div>
                 </div>
                 {mine ? (
@@ -133,7 +136,7 @@ export default function BrowsePage() {
                       reserve(t);
                     }}
                   >
-                    {full ? "Join waitlist" : "Reserve a seat"}
+                    {full ? "Join waitlist" : "Take a Seat"}
                   </button>
                 ) : null}
               </div>
