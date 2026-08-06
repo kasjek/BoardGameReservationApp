@@ -176,7 +176,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   );
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col">
+    <div className="mx-auto flex h-[100dvh] max-w-md flex-col">
       <BrandBanner />
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
@@ -192,7 +192,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
           </button>
         ) : null}
       </header>
-      <main className="flex-1 overflow-auto p-4">{children}</main>
+      <main className="min-h-0 flex-1 overflow-y-auto p-4">{children}</main>
       <nav className="flex border-t border-slate-200 bg-white">
         {tab("/", "All Tables", path === "/")}
         {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
