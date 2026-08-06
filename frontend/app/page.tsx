@@ -119,7 +119,7 @@ export default function BrowsePage() {
                       {t.seats_taken}/{t.max_players} seats · {t.game_language.toUpperCase()}
                     </div>
                     <div className="mt-1 text-xs text-slate-500">
-                      Min {t.min_players} · Max {t.max_players} players to start
+                      Min {t.min_players} · Max {t.max_players} players
                     </div>
                   </div>
                 </div>
