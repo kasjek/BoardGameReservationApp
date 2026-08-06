@@ -70,20 +70,13 @@ def _first_id(xml_bytes: bytes) -> int | None:
 
 
 def _bgg_search(name: str) -> int | None:
-    """Return the best BGG id for a name, or None if unreachable / no match."""
-    encoded = quote_plus(name)
-    # Prefer an exact-name match, then fall back to the top general result.
-    for query in (
-        f"{BGG_SEARCH_API}?query={encoded}&type=boardgame&exact=1",
-        f"{BGG_SEARCH_API}?query={encoded}&type=boardgame",
-    ):
-        body = _http_get(query)
-        if body is None:
-            return None  # network/egress failure -> let caller fall back
-        found = _first_id(body)
-        if found is not None:
-            return found
-    return None
+    """Always take the first (top-ranked) BGG search result — no exact-match preference,
+    no user selection. Returns its id, or None if unreachable / no match."""
+    query = f"{BGG_SEARCH_API}?query={quote_plus(name)}&type=boardgame"
+    body = _http_get(query)
+    if body is None:
+        return None  # network/egress failure -> let caller fall back
+    return _first_id(body)
 
 
 def resolve_bgg_id(name: str) -> int | None:

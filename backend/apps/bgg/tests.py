@@ -52,6 +52,19 @@ def test_first_id_handles_non_xml():
     assert services._first_id(b"Unauthorized. See ...") is None
 
 
+def test_bgg_search_takes_first_result_single_query(monkeypatch):
+    calls = []
+
+    def fake(url):
+        calls.append(url)
+        return _SEARCH_XML
+
+    monkeypatch.setattr(services, "_http_get", fake)
+    assert services._bgg_search("Catan") == 13  # first result
+    assert len(calls) == 1  # single search, no exact-match pre-check
+    assert "exact=1" not in calls[0]
+
+
 # --- Cover images ---------------------------------------------------------
 
 _SEARCH_XML = b'<items><item type="boardgame" id="13"><name type="primary" value="Catan"/></item></items>'
