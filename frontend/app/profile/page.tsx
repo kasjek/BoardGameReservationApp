@@ -3,8 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../components/ui";
-import { errorMessage, tableApi, type Table } from "../lib/api";
+import {
+  Avatar,
+  Banner,
+  Cover,
+  dicebearUrl,
+  formatWhen,
+  GameLink,
+  Shell,
+  StatusChip,
+} from "../components/ui";
+import { authApi, errorMessage, tableApi, type Table } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
 interface Booking {
@@ -16,13 +25,27 @@ type RoleFilter = "all" | "organized" | "joined";
 type TimeFilter = "all" | "upcoming" | "past";
 
 export default function ProfilePage() {
-  const { user, loading } = useAuth();
+  const { user, loading, refresh } = useAuth();
   const router = useRouter();
   const [organized, setOrganized] = useState<Table[]>([]);
   const [joined, setJoined] = useState<Table[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [rolling, setRolling] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+
+  async function rollAvatar() {
+    setRolling(true);
+    setError(null);
+    try {
+      await authApi.rollAvatar();
+      await refresh();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setRolling(false);
+    }
+  }
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -79,8 +102,20 @@ export default function ProfilePage() {
 
   return (
     <Shell title="My Bookings">
-      <div className="mb-4 text-center">
-        <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-brand-light to-brand" />
+      <div className="mb-4 flex flex-col items-center text-center">
+        <Avatar
+          userId={user.id}
+          customAvatarUrl={user.avatar_seed ? dicebearUrl(user.avatar_seed) : undefined}
+          size={80}
+        />
+        <button
+          onClick={rollAvatar}
+          disabled={rolling}
+          className="mt-2 flex items-center gap-1 rounded-full border border-brand px-3 py-1 text-xs font-semibold text-brand disabled:opacity-50"
+          title="Roll the dice to change your avatar"
+        >
+          <span aria-hidden>🎲</span> {rolling ? "Rolling…" : "Roll the dice to change the avatar"}
+        </button>
         <div className="mt-2 text-lg font-bold">{user.username}</div>
         <div className="text-sm text-yellow-600">
           ★ {user.rating_avg != null ? user.rating_avg.toFixed(1) : "—"}

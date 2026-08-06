@@ -7,6 +7,7 @@ export interface User {
   role: Role;
   venue: number | null;
   allow_invites: boolean;
+  avatar_seed: string;
   rating_avg: number | null;
   cancellations_count: number;
   late_cancel_marks_active: number;
@@ -54,6 +55,7 @@ export interface Seat {
   table: number;
   user: number;
   username: string;
+  avatar_seed: string;
   is_organizer: boolean;
   status: "reserved" | "waitlisted" | "cancelled";
   waitlist_position: number | null;
@@ -123,6 +125,7 @@ export const authApi = {
       body: JSON.stringify({ username, password }),
     }),
   me: () => request<User>("/auth/me"),
+  rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),
 };
 
 // --- Venues ---

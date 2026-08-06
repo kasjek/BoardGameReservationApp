@@ -1,8 +1,11 @@
+import secrets
+
 from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .serializers import PublicUserSerializer, RegisterSerializer, UserSerializer
 
@@ -40,3 +43,15 @@ class PublicUserView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = PublicUserSerializer
     permission_classes = [permissions.AllowAny]
+
+
+class RollAvatarView(APIView):
+    """Re-roll the user's DiceBear avatar seed ("roll the dice")."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        user.avatar_seed = secrets.token_hex(6)
+        user.save(update_fields=["avatar_seed"])
+        return Response(UserSerializer(user).data)

@@ -3,7 +3,16 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../../components/ui";
+import {
+  Avatar,
+  Banner,
+  Cover,
+  dicebearUrl,
+  formatWhen,
+  GameLink,
+  Shell,
+  StatusChip,
+} from "../../components/ui";
 import {
   errorMessage,
   reviewApi,
@@ -133,9 +142,11 @@ export default function TableDetailPage() {
               key={s.id}
               className="flex flex-col items-center rounded-xl border border-slate-200 p-2 text-center"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-light to-brand text-xs font-bold text-white">
-                {s.username.slice(0, 1).toUpperCase()}
-              </div>
+              <Avatar
+                userId={s.user}
+                customAvatarUrl={s.avatar_seed ? dicebearUrl(s.avatar_seed) : undefined}
+                size={36}
+              />
               <div className="mt-1 w-full truncate text-xs font-medium">{s.username}</div>
               {s.is_organizer ? <div className="text-[10px] font-semibold text-brand">host</div> : null}
             </div>

@@ -36,11 +36,12 @@ class UserSerializer(serializers.ModelSerializer):
             "role",
             "venue",
             "allow_invites",
+            "avatar_seed",
             "rating_avg",
             "cancellations_count",
             "late_cancel_marks_active",
         ]
-        read_only_fields = ["id", "role", "venue"]
+        read_only_fields = ["id", "role", "venue", "avatar_seed"]
 
     def get_rating_avg(self, obj):
         return _derived(obj)["rating_avg"]
@@ -64,6 +65,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "username",
+            "avatar_seed",
             "rating_avg",
             "cancellations_count",
             "late_cancel_marks_active",
