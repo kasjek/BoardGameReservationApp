@@ -42,7 +42,7 @@ export function Cover({ name, size = 44 }: { name: string; size?: number }) {
     return (
       <div
         style={dim}
-        className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-gradient-to-br from-brand-light to-brand p-2 text-center font-bold text-white"
+        className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-brand p-2 text-center font-bold text-white"
       >
         {big ? (
           <>
@@ -187,10 +187,10 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   const tab = (href: string, label: string, active: boolean) => (
     <Link
       href={href}
-      className={`relative flex-1 py-2.5 text-center text-xs ${active ? "font-bold text-brand" : "text-slate-500"}`}
+      className={`relative flex-1 py-2.5 text-center text-xs ${active ? "font-bold text-orange-600" : "text-slate-500"}`}
     >
       {active ? (
-        <span className="absolute inset-x-5 bottom-0 h-1 rounded-full bg-gradient-to-r from-fun-pink via-fun-purple to-fun-blue" />
+        <span className="absolute inset-x-5 bottom-0 h-1 rounded-full bg-orange-500" />
       ) : null}
       {label}
     </Link>
