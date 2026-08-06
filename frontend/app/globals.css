@@ -7,27 +7,36 @@
 }
 
 body {
-  background: #f5f5fb;
+  background: linear-gradient(180deg, #fdf4ff 0%, #f3f0ff 45%, #eef4ff 100%);
+  background-attachment: fixed;
   color: #1b1b2b;
 }
 
 @layer components {
   .input {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand;
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30;
   }
   .btn {
-    @apply w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-white active:opacity-90 disabled:opacity-50;
+    @apply w-full rounded-full py-3 text-center text-sm font-bold text-white shadow-fun transition active:scale-[0.98] active:opacity-90 disabled:opacity-50;
+    background-image: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
   }
   .btn-ghost {
-    @apply w-full rounded-xl border border-brand bg-white py-3 text-center text-sm font-semibold text-brand active:opacity-90 disabled:opacity-50;
+    @apply w-full rounded-full border-2 border-brand bg-white py-3 text-center text-sm font-bold text-brand transition active:scale-[0.98] active:opacity-90 disabled:opacity-50;
   }
   .card {
-    @apply rounded-2xl border border-slate-200 bg-white p-4;
+    @apply rounded-2xl border border-slate-100 bg-white p-4 shadow-sm;
   }
   .chip {
-    @apply inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    @apply inline-block rounded-full px-2.5 py-0.5 text-xs font-bold;
   }
   .label {
     @apply mt-2 block text-xs text-slate-500;
+  }
+  /* Colorful gradient wordmark that ties text to the logo. */
+  .wordmark {
+    background-image: linear-gradient(90deg, #ec4899, #8b5cf6, #3b82f6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }
