@@ -137,6 +137,26 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
   return `${date} · ${from}–${to}`;
 }
 
+/**
+ * App brand banner: the dice-cube logo with the "Too Many Games" name.
+ * Rendered top-left on every view; all other content sits below it.
+ */
+export function BrandBanner() {
+  return (
+    <div className="flex items-center gap-2.5 border-b border-slate-200 bg-white px-4 py-2.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo.png"
+        alt="Too Many Games logo"
+        width={36}
+        height={36}
+        className="shrink-0 rounded-md"
+      />
+      <span className="text-lg font-extrabold tracking-tight text-slate-900">Too Many Games</span>
+    </div>
+  );
+}
+
 export function Shell({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -155,6 +175,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">
+      <BrandBanner />
       <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div className="font-bold">{title}</div>
         {user ? (

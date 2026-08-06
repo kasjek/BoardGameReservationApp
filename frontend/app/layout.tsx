@@ -4,7 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "./lib/auth";
 
 export const metadata: Metadata = {
-  title: "BoardGameReservationApp",
+  title: "Too Many Games",
   description: "Find a table. Play.",
 };
 

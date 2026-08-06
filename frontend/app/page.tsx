@@ -13,7 +13,7 @@ export default function BrowsePage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [myIds, setMyIds] = useState<Set<number>>(new Set());
   const [game, setGame] = useState("");
-  const [status, setStatus] = useState("available");
+  const [status, setStatus] = useState("waiting_for_players");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -88,8 +88,8 @@ export default function BrowsePage() {
 
       {tables.length === 0 ? (
         <div className="mt-10 text-center text-sm text-slate-400">
-          {status === "available"
-            ? "No available tables right now. Try 'All tables', or create one!"
+          {status === "waiting_for_players"
+            ? "No tables are waiting for players right now. Try 'All tables', or create one!"
             : "No tables match this filter."}
         </div>
       ) : (
