@@ -13,19 +13,20 @@ body {
 
 @layer components {
   .input {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand;
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30;
   }
   .btn {
-    @apply w-full rounded-xl bg-brand py-3 text-center text-sm font-semibold text-white active:opacity-90 disabled:opacity-50;
+    @apply w-full rounded-full bg-orange-500 py-3 text-center text-sm font-bold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-50;
+    box-shadow: 0 8px 20px -10px rgba(249, 115, 22, 0.55);
   }
   .btn-ghost {
-    @apply w-full rounded-xl border border-brand bg-white py-3 text-center text-sm font-semibold text-brand active:opacity-90 disabled:opacity-50;
+    @apply w-full rounded-full border-2 border-orange-500 bg-white py-3 text-center text-sm font-bold text-orange-600 transition active:scale-[0.98] active:opacity-90 disabled:opacity-50;
   }
   .card {
-    @apply rounded-2xl border border-slate-200 bg-white p-4;
+    @apply rounded-2xl border border-slate-100 bg-white p-4 shadow-sm;
   }
   .chip {
-    @apply inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    @apply inline-block rounded-full px-2.5 py-0.5 text-xs font-bold;
   }
   .label {
     @apply mt-2 block text-xs text-slate-500;

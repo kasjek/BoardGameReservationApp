@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "./components/ui";
+import { Banner, ChairIcon, Cover, formatWhen, GameLink, Shell, StatusChip } from "./components/ui";
 import { errorMessage, tableApi, type Table } from "./lib/api";
 import { useAuth } from "./lib/auth";
 
@@ -119,13 +119,13 @@ export default function BrowsePage() {
                       {t.seats_taken}/{t.max_players} seats · {t.game_language.toUpperCase()}
                     </div>
                     <div className="mt-1 text-xs text-slate-500">
-                      Min {t.min_players} · Max {t.max_players} players to start
+                      Min {t.min_players} · Max {t.max_players} players
                     </div>
                   </div>
                 </div>
                 {mine ? (
                   <div className="mt-3 text-center text-sm font-semibold text-green-700">
-                    ✓ You&apos;re in this table
+                    ✓ Your seat is reserved
                   </div>
                 ) : canReserve && bookable ? (
                   <button
@@ -136,7 +136,13 @@ export default function BrowsePage() {
                       reserve(t);
                     }}
                   >
-                    {full ? "Join waitlist" : "Take a Seat"}
+                    {full ? (
+                      "Join waitlist"
+                    ) : (
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <ChairIcon /> Take a Seat
+                      </span>
+                    )}
                   </button>
                 ) : null}
               </div>

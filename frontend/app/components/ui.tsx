@@ -42,7 +42,7 @@ export function Cover({ name, size = 44 }: { name: string; size?: number }) {
     return (
       <div
         style={dim}
-        className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-gradient-to-br from-brand-light to-brand p-2 text-center font-bold text-white"
+        className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-lg bg-brand p-2 text-center font-bold text-white"
       >
         {big ? (
           <>
@@ -113,6 +113,27 @@ export function Avatar({
   );
 }
 
+/** Small chair icon (inherits text color) shown next to "Take a Seat". */
+export function ChairIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M6 8V5.5A1.5 1.5 0 0 1 7.5 4h9A1.5 1.5 0 0 1 18 5.5V8" />
+      <path d="M6 8h12v5H6z" />
+      <path d="M7 13v6" />
+      <path d="M17 13v6" />
+    </svg>
+  );
+}
+
 export function GameLink({ name, className }: { name: string; className?: string }) {
   return (
     <a
@@ -142,17 +163,16 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
  * Rendered top-left on every view; all other content sits below it.
  */
 export function BrandBanner() {
+  // Orange underline accents under specific letters, matching the wordmark.
+  const accent = "underline decoration-fun-orange decoration-[4px] underline-offset-[5px]";
   return (
-    <div className="flex items-center gap-2.5 border-b border-slate-200 bg-white px-4 py-2.5">
+    <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/logo.png"
-        alt="Too Many Games logo"
-        width={36}
-        height={36}
-        className="shrink-0 rounded-md"
-      />
-      <span className="text-lg font-extrabold tracking-tight text-slate-900">Too Many Games</span>
+      <img src="/logo.png" alt="Too Many Games logo" width={44} height={44} className="shrink-0" />
+      <span className="text-xl font-black uppercase leading-none tracking-tight text-slate-900">
+        T<span className={accent}>OO</span> M<span className={accent}>A</span>NY G
+        <span className={accent}>A</span>MES
+      </span>
     </div>
   );
 }
@@ -167,16 +187,25 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   const tab = (href: string, label: string, active: boolean) => (
     <Link
       href={href}
-      className={`flex-1 py-2 text-center text-xs ${active ? "font-bold text-brand" : "text-slate-500"}`}
+      className={`relative flex-1 py-2.5 text-center text-xs ${active ? "font-bold text-orange-600" : "text-slate-500"}`}
     >
+      {active ? (
+        <span className="absolute inset-x-5 bottom-0 h-1 rounded-full bg-orange-500" />
+      ) : null}
       {label}
     </Link>
   );
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">
+    <div className="mx-auto flex h-[100dvh] max-w-md flex-col">
       <BrandBanner />
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <nav className="flex border-b border-slate-200 bg-white">
+        {tab("/", "All Tables", path === "/")}
+        {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
+        {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
+        {tab("/profile", "My Bookings", path.startsWith("/profile"))}
+      </nav>
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
         {user ? (
           <button
@@ -190,13 +219,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
           </button>
         ) : null}
       </header>
-      <main className="flex-1 overflow-auto p-4">{children}</main>
-      <nav className="flex border-t border-slate-200">
-        {tab("/", "All Tables", path === "/")}
-        {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
-        {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
-        {tab("/profile", "My Bookings", path.startsWith("/profile"))}
-      </nav>
+      <main className="min-h-0 flex-1 overflow-y-auto p-4">{children}</main>
     </div>
   );
 }
