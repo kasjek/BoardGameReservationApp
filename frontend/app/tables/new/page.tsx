@@ -34,6 +34,13 @@ const OTHER_LANGUAGES = [
   "Hindi",
 ];
 
+// Start/end times are restricted to full hour and half-hour slots.
+const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
+
 export default function CreateTablePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -69,7 +76,7 @@ export default function CreateTablePage() {
   if (loading || !user) return null;
   if (user.role === "VENUE_USER") {
     return (
-      <Shell title="Create table">
+      <Shell title="New Table">
         <Banner kind="info">Venue accounts cannot host tables. Use a standard user account.</Banner>
       </Shell>
     );
@@ -102,7 +109,7 @@ export default function CreateTablePage() {
   }
 
   return (
-    <Shell title="Create table">
+    <Shell title="New Table">
       {error ? <Banner kind="error">{error}</Banner> : null}
       <form onSubmit={submit}>
         <span className="label">Venue</span>
@@ -120,11 +127,23 @@ export default function CreateTablePage() {
         <div className="flex gap-2">
           <div className="flex-1">
             <span className="label">From</span>
-            <input className="input" type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <select className="input" value={from} onChange={(e) => setFrom(e.target.value)}>
+              {TIME_SLOTS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex-1">
             <span className="label">To</span>
-            <input className="input" type="time" value={to} onChange={(e) => setTo(e.target.value)} />
+            <select className="input" value={to} onChange={(e) => setTo(e.target.value)}>
+              {TIME_SLOTS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

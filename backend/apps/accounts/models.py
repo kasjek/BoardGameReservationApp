@@ -25,6 +25,9 @@ class User(AbstractUser):
         related_name="staff",
     )
     allow_invites = models.BooleanField(default=True)
+    # Seed for the user's DiceBear "adventurer" avatar. Empty => seed with the user id.
+    # Re-rolling generates a new random seed (users cannot upload their own picture).
+    avatar_seed = models.CharField(max_length=64, blank=True, default="")
 
     @property
     def is_admin_role(self) -> bool:

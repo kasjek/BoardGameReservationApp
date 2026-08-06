@@ -68,6 +68,51 @@ export function Cover({ name, size = 44 }: { name: string; size?: number }) {
   );
 }
 
+/** DiceBear "adventurer" avatar URL for a seed (per the avatar spec). */
+export function dicebearUrl(seed: string | number): string {
+  return `https://api.dicebear.com/10.x/adventurer/png?seed=${encodeURIComponent(String(seed))}`;
+}
+
+/**
+ * Reusable circular user avatar.
+ * - shows `customAvatarUrl` if provided, otherwise a DiceBear avatar seeded from `userId`
+ * - browser HTTP-caches the image; on load error it falls back to a placeholder
+ */
+export function Avatar({
+  userId,
+  customAvatarUrl,
+  size = 40,
+}: {
+  userId: string | number;
+  customAvatarUrl?: string;
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  const dim = { width: size, height: size, minWidth: size };
+  if (failed) {
+    return (
+      <div
+        style={dim}
+        className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500"
+        aria-label="avatar placeholder"
+      >
+        <span style={{ fontSize: size * 0.5 }}>🙂</span>
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={customAvatarUrl || dicebearUrl(userId)}
+      alt="User avatar"
+      style={dim}
+      onError={() => setFailed(true)}
+      className="shrink-0 rounded-full bg-slate-100 object-cover"
+      loading="lazy"
+    />
+  );
+}
+
 export function GameLink({ name, className }: { name: string; className?: string }) {
   return (
     <a
@@ -126,10 +171,10 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
       </header>
       <main className="flex-1 overflow-auto p-4">{children}</main>
       <nav className="flex border-t border-slate-200">
-        {tab("/", "Browse", path === "/")}
-        {canHost ? tab("/tables/new", "Create", path.startsWith("/tables/new")) : null}
+        {tab("/", "All Tables", path === "/")}
+        {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
         {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
-        {tab("/profile", "Me", path.startsWith("/profile"))}
+        {tab("/profile", "My Bookings", path.startsWith("/profile"))}
       </nav>
     </div>
   );
