@@ -122,6 +122,13 @@ export default function TableDetailPage() {
         {table.bring_own_game ? " · host brings game" : " · venue game"}
       </div>
 
+      {table.host_comment ? (
+        <div className="card mt-3 border-orange-200 bg-orange-50">
+          <div className="label mt-0 text-orange-700">Note from the host</div>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{table.host_comment}</p>
+        </div>
+      ) : null}
+
       <div className="card mt-3 space-y-2 text-sm">
         <div className="flex justify-between">
           <span>Status</span>

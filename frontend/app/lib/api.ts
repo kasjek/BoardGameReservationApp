@@ -37,6 +37,7 @@ export interface Table {
   organizer: number;
   venue: number;
   game_title: string;
+  host_comment: string;
   bring_own_game: boolean;
   game_language: "en" | "de" | "other";
   game_language_other: string;
@@ -161,6 +162,11 @@ export const reviewApi = {
 
 export const userApi = {
   public: (id: number) => request<Omit<User, "email" | "role" | "venue" | "allow_invites">>(`/users/${id}`),
+};
+
+// --- BGG ---
+export const bggApi = {
+  games: () => request<string[]>("/bgg/games"),
 };
 
 // --- Tables ---

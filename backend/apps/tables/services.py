@@ -95,6 +95,7 @@ def create_table(
     bring_own_game=True,
     game_language="en",
     game_language_other="",
+    host_comment="",
     enforce_booking_window=False,
 ):
     if not organizer.can_host_or_reserve:
@@ -112,6 +113,7 @@ def create_table(
         organizer=organizer,
         venue=venue,
         game_title=game_title,
+        host_comment=host_comment,
         bring_own_game=bring_own_game,
         game_language=game_language,
         game_language_other=game_language_other,

@@ -11,6 +11,7 @@ class TableSerializer(serializers.ModelSerializer):
             "organizer",
             "venue",
             "game_title",
+            "host_comment",
             "bring_own_game",
             "game_language",
             "game_language_other",
@@ -32,6 +33,7 @@ class TableCreateSerializer(serializers.ModelSerializer):
         fields = [
             "venue",
             "game_title",
+            "host_comment",
             "bring_own_game",
             "game_language",
             "game_language_other",
@@ -40,6 +42,7 @@ class TableCreateSerializer(serializers.ModelSerializer):
             "min_players",
             "max_players",
         ]
+        extra_kwargs = {"host_comment": {"required": False}}
 
 
 class SeatReservationSerializer(serializers.ModelSerializer):

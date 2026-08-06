@@ -1,9 +1,20 @@
 from django.http import HttpResponse, HttpResponseRedirect
 from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
+from .games import MAIN_TITLES
+
+
+class BggGamesView(APIView):
+    """Alphabetical list of BGG main game titles (base games) for the create form."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response(sorted(MAIN_TITLES))
 
 
 class BggRedirectView(APIView):

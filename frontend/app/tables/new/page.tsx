@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Banner, Shell } from "../../components/ui";
-import { errorMessage, tableApi, venueApi, type Venue } from "../../lib/api";
+import { bggApi, errorMessage, tableApi, venueApi, type Venue } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 // Languages selectable when "Other" is chosen (English and German have their own options).
@@ -56,6 +56,7 @@ export default function CreateTablePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [games, setGames] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -66,6 +67,7 @@ export default function CreateTablePage() {
   const [minPlayers, setMinPlayers] = useState(2);
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [game, setGame] = useState("");
+  const [comment, setComment] = useState("");
   const [bringOwn, setBringOwn] = useState(true);
   const [language, setLanguage] = useState("en");
   const [languageOther, setLanguageOther] = useState("French");
@@ -80,6 +82,13 @@ export default function CreateTablePage() {
       .then((v) => {
         setVenues(v);
         if (v[0]) setVenue(String(v[0].id));
+      })
+      .catch((e) => setError(errorMessage(e)));
+    bggApi
+      .games()
+      .then((g) => {
+        setGames(g);
+        if (g[0]) setGame(g[0]);
       })
       .catch((e) => setError(errorMessage(e)));
   }, []);
@@ -112,6 +121,7 @@ export default function CreateTablePage() {
       const t = await tableApi.create({
         venue: Number(venue),
         game_title: game,
+        host_comment: comment.trim(),
         bring_own_game: bringOwn,
         game_language: language,
         game_language_other: language === "other" ? languageOther : "",
@@ -194,7 +204,23 @@ export default function CreateTablePage() {
         </div>
 
         <span className="label">Game</span>
-        <input className="input" value={game} onChange={(e) => setGame(e.target.value)} required placeholder="e.g. Catan" />
+        <select className="input" value={game} onChange={(e) => setGame(e.target.value)} required>
+          {games.length === 0 ? <option value="">Loading games…</option> : null}
+          {games.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+
+        <span className="label">Comment for players (optional)</span>
+        <textarea
+          className="input"
+          rows={3}
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="e.g. Beginners welcome — I'll teach the rules!"
+        />
 
         <span className="label">Who brings the game?</span>
         <div className="mt-1 space-y-1 text-sm">

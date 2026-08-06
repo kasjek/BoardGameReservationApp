@@ -192,6 +192,35 @@ def test_create_second_table_same_day_same_venue_returns_409(db, client):
     assert resp.status_code == 409
 
 
+def test_bgg_games_list_returns_sorted_main_titles(db, client):
+    resp = client.get("/api/bgg/games")
+    assert resp.status_code == 200
+    assert isinstance(resp.data, list) and len(resp.data) > 20
+    assert "Catan" in resp.data and "Wingspan" in resp.data
+    assert resp.data == sorted(resp.data)
+
+
+def test_create_table_stores_host_comment(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    client.force_authenticate(user=make_user("alice"))
+    start = (timezone.now() + timedelta(days=10)).replace(hour=15, minute=0, second=0, microsecond=0)
+    resp = client.post(
+        "/api/tables",
+        {
+            "venue": venue.id,
+            "game_title": "Catan",
+            "host_comment": "Beginners welcome!",
+            "starts_at": start.isoformat(),
+            "ends_at": (start + timedelta(hours=2)).isoformat(),
+            "min_players": 2,
+            "max_players": 4,
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert resp.data["host_comment"] == "Beginners welcome!"
+
+
 def test_venue_user_cannot_host_via_api_403(db, client):
     venue = Venue.objects.create(name="Board & Brew")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
