@@ -9,7 +9,8 @@ class BggResolution(models.Model):
     """
 
     query_norm = models.CharField(max_length=255, unique=True)
-    bgg_id = models.PositiveIntegerField()
+    # Null when the cover came from a non-BGG source (e.g. Wikipedia) without a BGG id.
+    bgg_id = models.PositiveIntegerField(null=True, blank=True)
     matched_name = models.CharField(max_length=255, blank=True)
     thumbnail_url = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
