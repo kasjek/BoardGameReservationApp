@@ -138,27 +138,35 @@ export default function TableDetailPage() {
       <div className="card mt-3">
         <div className="label">Who&apos;s at the table</div>
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {reservedSeats.map((s) => (
-            <div
-              key={s.id}
-              className="flex flex-col items-center rounded-xl border border-slate-200 p-2 text-center"
-            >
-              <Avatar
-                userId={s.user}
-                customAvatarUrl={s.avatar_seed ? dicebearUrl(s.avatar_seed) : undefined}
-                size={36}
-              />
-              <div className="mt-1 w-full truncate text-xs font-medium">{s.username}</div>
-              {s.is_organizer ? <div className="text-[10px] font-semibold text-brand">host</div> : null}
-            </div>
-          ))}
+          {reservedSeats.map((s) => {
+            const isMe = s.user === user.id;
+            return (
+              <div
+                key={s.id}
+                className={`flex flex-col items-center rounded-xl border p-2 text-center ${
+                  isMe ? "border-brand bg-brand/5 ring-1 ring-brand" : "border-slate-200"
+                }`}
+              >
+                <Avatar
+                  userId={s.user}
+                  customAvatarUrl={s.avatar_seed ? dicebearUrl(s.avatar_seed) : undefined}
+                  size={40}
+                />
+                <div className="mt-1 w-full truncate text-xs font-semibold">{s.username}</div>
+                <div className="flex gap-1 text-[10px] font-bold uppercase tracking-wide">
+                  {s.is_organizer ? <span className="text-brand">host</span> : null}
+                  {isMe ? <span className="text-fun-pink">you</span> : null}
+                </div>
+              </div>
+            );
+          })}
           {Array.from({ length: openSeats }).map((_, i) => (
             <div
               key={`open-${i}`}
               className="flex flex-col items-center rounded-xl border border-dashed border-slate-300 p-2 text-center text-slate-400"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-slate-300 text-sm">
-                +
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-slate-300">
+                <ChairIcon className="h-4 w-4" />
               </div>
               <div className="mt-1 text-xs">Open</div>
             </div>
