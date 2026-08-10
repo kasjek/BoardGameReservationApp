@@ -17,7 +17,8 @@ from urllib.parse import quote, quote_plus
 # BGG requires requests to boardgamegeek.com (no www) and, since mid-2025, an
 # approved application token via an Authorization: Bearer header. Set BGG_API_TOKEN
 # to enable live resolution; without it the API returns 401 and we fall back to
-# Wikipedia box-cover images (no token needed).
+# Wikipedia box-cover images (no token needed). Public-facing UIs must show the
+# official "Powered by BGG" logo (see frontend Shell footer).
 BGG_SEARCH_API = "https://boardgamegeek.com/xmlapi2/search"
 BGG_THING_API = "https://boardgamegeek.com/xmlapi2/thing"
 BGG_GAME_URL = "https://boardgamegeek.com/boardgame/{id}"

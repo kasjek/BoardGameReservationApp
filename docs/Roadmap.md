@@ -41,16 +41,16 @@ Sequencing for the table/venue model. Phases roughly follow requirement priority
 - Internationalization (EN/DE) and mobile UX hardening *(NFR-5, NFR-6)*
 - Performance, reliability, and analytics
 
-## Backlog / Blocked
+## Backlog
 
-- **BoardGameGeek real cover images & exact game-page links** — **blocked on BGG approval.**
-  BGG closed its free XML API in mid-2025; the search/`thing` endpoints now require a
-  registered application token (`Authorization: Bearer`). An application has been submitted
-  to BGG and is awaiting review/approval.
-  - The feature is **already implemented and token-ready**: set the `BGG_API_TOKEN`
-    env var and real covers/exact pages resolve automatically (see `apps/bgg`).
-  - Until a token is available, the app **falls back gracefully**: game names show a
-    lettered placeholder tile and link to a BGG search (no broken UI).
-  - **Next step (when approved):** obtain the token, set `BGG_API_TOKEN` as a secret,
-    and verify live covers/links; consider persisting resolved BGG ids/covers in a
+- **BoardGameGeek real cover images & exact game-page links** — **API access approved.**
+  BGG closed its free XML API in mid-2025; the search/`thing` endpoints require a
+  registered application token (`Authorization: Bearer`). Our application is approved.
+  - Implementation lives in `apps/bgg`; set `BGG_API_TOKEN` as a secret so real covers
+    and exact game pages resolve. Without the token the UI falls back to a lettered
+    placeholder tile and a BGG search link.
+  - Public-facing attribution: the app shell footer shows the official
+    “Powered by BGG” logo linking to https://boardgamegeek.com (XML API Terms of Use).
+  - **Next step:** ensure `BGG_API_TOKEN` is set in each deployed environment and
+    verify live covers/links; consider persisting resolved BGG ids/covers in a
     proper game catalog to avoid per-request lookups.

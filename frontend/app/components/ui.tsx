@@ -197,15 +197,15 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   );
 
   return (
-    <div className="mx-auto flex h-[100dvh] max-w-md flex-col">
+    <div className="mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-white">
       <BrandBanner />
-      <nav className="flex border-b border-slate-200 bg-white">
+      <nav className="flex shrink-0 border-b border-slate-200 bg-white">
         {tab("/", "All Tables", path === "/")}
         {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
         {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
         {tab("/profile", "My Bookings", path.startsWith("/profile"))}
       </nav>
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+      <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
         {user ? (
           <button
@@ -220,7 +220,32 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
         ) : null}
       </header>
       <main className="min-h-0 flex-1 overflow-y-auto p-4">{children}</main>
+      <BggAttribution />
     </div>
+  );
+}
+
+/** Required BoardGameGeek XML API attribution (Terms of Use). */
+export function BggAttribution() {
+  return (
+    <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-1.5">
+      <a
+        href="https://boardgamegeek.com"
+        target="_blank"
+        rel="noreferrer noopener"
+        className="mx-auto flex w-fit items-center justify-center opacity-80 transition hover:opacity-100"
+        title="Game data from BoardGameGeek"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/powered-by-bgg.png"
+          alt="Powered by BoardGameGeek"
+          width={110}
+          height={32}
+          className="h-6 w-auto"
+        />
+      </a>
+    </footer>
   );
 }
 
