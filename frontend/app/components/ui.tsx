@@ -197,15 +197,15 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   );
 
   return (
-    <div className="mx-auto flex h-[100dvh] max-w-md flex-col">
+    <div className="mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-white">
       <BrandBanner />
-      <nav className="flex border-b border-slate-200 bg-white">
+      <nav className="flex shrink-0 border-b border-slate-200 bg-white">
         {tab("/", "All Tables", path === "/")}
         {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
         {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
         {tab("/profile", "My Bookings", path.startsWith("/profile"))}
       </nav>
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+      <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
         {user ? (
           <button
@@ -228,7 +228,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
 /** Required BoardGameGeek XML API attribution (Terms of Use). */
 export function BggAttribution() {
   return (
-    <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-2">
+    <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-1.5">
       <a
         href="https://boardgamegeek.com"
         target="_blank"
@@ -240,9 +240,9 @@ export function BggAttribution() {
         <img
           src="/powered-by-bgg.png"
           alt="Powered by BoardGameGeek"
-          width={120}
-          height={35}
-          className="h-7 w-auto"
+          width={110}
+          height={32}
+          className="h-6 w-auto"
         />
       </a>
     </footer>
