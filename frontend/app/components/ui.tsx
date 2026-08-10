@@ -220,7 +220,32 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
         ) : null}
       </header>
       <main className="min-h-0 flex-1 overflow-y-auto p-4">{children}</main>
+      <BggAttribution />
     </div>
+  );
+}
+
+/** Required BoardGameGeek XML API attribution (Terms of Use). */
+export function BggAttribution() {
+  return (
+    <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-2">
+      <a
+        href="https://boardgamegeek.com"
+        target="_blank"
+        rel="noreferrer noopener"
+        className="mx-auto flex w-fit items-center justify-center opacity-80 transition hover:opacity-100"
+        title="Game data from BoardGameGeek"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/powered-by-bgg.png"
+          alt="Powered by BoardGameGeek"
+          width={120}
+          height={35}
+          className="h-7 w-auto"
+        />
+      </a>
+    </footer>
   );
 }
 
