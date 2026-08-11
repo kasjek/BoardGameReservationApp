@@ -383,3 +383,26 @@ def test_manager_can_remove_venue_game(db, client):
     resp = client.delete(f"/api/venues/{venue.id}/games/{game.id}")
     assert resp.status_code == 204
     assert not VenueGame.objects.filter(id=game.id).exists()
+
+
+def test_venue_game_bgg_url_is_game_page_not_search(db, client):
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Game Shelf")
+    VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    resp = client.get(f"/api/venues/{venue.id}/games")
+    assert resp.status_code == 200
+    assert resp.data[0]["bgg_url"] == "https://boardgamegeek.com/boardgame/13"
+    assert "geeksearch" not in (resp.data[0]["bgg_url"] or "")
+
+
+def test_bgg_redirect_uses_venue_game_bgg_id_when_api_unavailable(db, client, monkeypatch):
+    from apps.bgg import services as bgg
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Game Shelf")
+    VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    monkeypatch.setattr(bgg, "_bgg_search", lambda name: None)
+    resp = client.get("/api/bgg/redirect?q=Catan")
+    assert resp.status_code == 302
+    assert resp["Location"] == "https://boardgamegeek.com/boardgame/13"

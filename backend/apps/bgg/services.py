@@ -168,9 +168,31 @@ def resolve_bgg_id(name: str) -> int | None:
 
 
 def resolve_url(name: str) -> str:
-    """Exact game page when resolvable, else the BGG search page."""
+    """Exact game page when resolvable, else the BGG search page.
+
+    Also checks venue game inventory for a stored bgg_id so titles from the
+    venue shelf still deep-link to the game page when the live BGG API is
+    unavailable.
+    """
     bgg_id = resolve_bgg_id(name)
-    return game_page_url(bgg_id) if bgg_id else search_url(name)
+    if bgg_id:
+        return game_page_url(bgg_id)
+    title = name.strip()
+    if title:
+        try:
+            from apps.venues.models import VenueGame
+
+            vg = (
+                VenueGame.objects.filter(title__iexact=title, bgg_id__isnull=False)
+                .order_by("id")
+                .first()
+            )
+            if vg and vg.bgg_id:
+                return game_page_url(vg.bgg_id)
+        except Exception:
+            # Venues app / table may be unavailable during early migrations.
+            pass
+    return search_url(name)
 
 
 def _bgg_thumbnail(bgg_id: int) -> str | None:

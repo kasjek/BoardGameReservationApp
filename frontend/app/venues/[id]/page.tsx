@@ -181,7 +181,7 @@ export default function VenueDetailPage() {
               >
                 <Cover name={g.title} imageUrl={g.cover_url} size={56} />
                 <div className="min-w-0 flex-1 font-semibold">
-                  <GameLink name={g.title} />
+                  <GameLink name={g.title} bggId={g.bgg_id} href={g.bgg_url} />
                 </div>
               </div>
             ))}

@@ -24,9 +24,15 @@ export function StatusChip({ status }: { status: TableStatus }) {
  * Link a board game name to its BoardGameGeek page. The backend resolver
  * (`/api/bgg/redirect`) looks up the exact BGG game id and redirects there,
  * falling back to a BGG search when the game can't be resolved.
+ * Prefer `bggGameUrl(id)` / passing `bggId` when the id is already known.
  */
 export function bggUrl(name: string): string {
   return `/api/bgg/redirect?q=${encodeURIComponent(name)}`;
+}
+
+/** Direct BoardGameGeek page for a known game id (never a search results page). */
+export function bggGameUrl(bggId: number): string {
+  return `https://boardgamegeek.com/boardgame/${bggId}`;
 }
 
 /**
@@ -144,10 +150,26 @@ export function ChairIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-export function GameLink({ name, className }: { name: string; className?: string }) {
+export function GameLink({
+  name,
+  bggId,
+  href,
+  className,
+}: {
+  name: string;
+  /** When set, links straight to that BGG game page (not search). */
+  bggId?: number | null;
+  /** Explicit URL (e.g. venue game `bgg_url`); wins over `bggId`. */
+  href?: string | null;
+  className?: string;
+}) {
+  const link =
+    href ||
+    (bggId != null && bggId > 0 ? bggGameUrl(bggId) : null) ||
+    bggUrl(name);
   return (
     <a
-      href={bggUrl(name)}
+      href={link}
       target="_blank"
       rel="noreferrer"
       onClick={(e) => e.stopPropagation()}

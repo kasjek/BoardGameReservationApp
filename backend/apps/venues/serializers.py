@@ -108,11 +108,12 @@ class VenueGameSerializer(serializers.ModelSerializer):
         return obj.thumbnail_url or None
 
     def get_bgg_url(self, obj):
-        from apps.bgg.services import game_page_url, search_url
+        from apps.bgg.services import game_page_url
 
+        # Only the concrete game page — never a BGG search-results URL.
         if obj.bgg_id:
             return game_page_url(obj.bgg_id)
-        return search_url(obj.title) if obj.title else None
+        return None
 
 
 class VenueGameWriteSerializer(serializers.Serializer):

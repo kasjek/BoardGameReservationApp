@@ -704,7 +704,7 @@ export default function ManageVenuePage() {
                       <div key={g.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
                         <Cover name={g.title} imageUrl={g.cover_url} size={40} />
                         <div className="min-w-0 flex-1 text-sm font-semibold">
-                          <GameLink name={g.title} />
+                          <GameLink name={g.title} bggId={g.bgg_id} href={g.bgg_url} />
                         </div>
                         <button
                           type="button"

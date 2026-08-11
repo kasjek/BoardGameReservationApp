@@ -29,13 +29,14 @@ DATE_HOUSE_DESCRIPTION = (
     "• Sun until 20:00\n\n"
     "Tables for 2–8 players. Bookings 1–3 hours."
 )
+# (title, BoardGameGeek id) — id links straight to the game page, not search.
 DATE_HOUSE_GAMES = (
-    "Love Letter",
-    "Fog of Love",
-    "Patchwork",
-    "7 Wonders Duel",
-    "Chronicles of Crime",
-    "Onitama",
+    ("Love Letter", 129622),
+    ("Fog of Love", 215311),
+    ("Patchwork", 163412),
+    ("7 Wonders Duel", 173346),
+    ("Chronicles of Crime", 239188),
+    ("Onitama", 158138),
 )
 
 # Weekday → last moment a reservation may end (Python: Mon=0 … Sun=6).
@@ -112,11 +113,11 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
         _legacy_seed_availability(venue, horizon_days=horizon_days)
 
     if "venues_venuegame" in tables:
-        for title in DATE_HOUSE_GAMES:
+        for title, bgg_id in DATE_HOUSE_GAMES:
             VenueGame.objects.update_or_create(
                 venue=venue,
                 title=title,
-                defaults={"is_active": True},
+                defaults={"is_active": True, "bgg_id": bgg_id},
             )
     return venue
 
