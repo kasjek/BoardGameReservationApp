@@ -298,7 +298,7 @@ def test_create_rejects_shorter_than_one_hour(db, venue):
     from rest_framework.exceptions import ValidationError
 
     host = make_user("alice")
-    with pytest.raises(ValidationError, match="at least 1 hour"):
+    with pytest.raises(ValidationError, match="at least 60 minutes"):
         make_table(
             host,
             venue,
@@ -311,7 +311,7 @@ def test_create_rejects_longer_than_three_hours(db, venue):
     from rest_framework.exceptions import ValidationError
 
     host = make_user("alice")
-    with pytest.raises(ValidationError, match="longer than 3 hours"):
+    with pytest.raises(ValidationError, match="longer than 180 minutes"):
         make_table(
             host,
             venue,

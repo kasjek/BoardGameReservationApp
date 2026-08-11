@@ -24,16 +24,31 @@ export function StatusChip({ status }: { status: TableStatus }) {
  * Link a board game name to its BoardGameGeek page. The backend resolver
  * (`/api/bgg/redirect`) looks up the exact BGG game id and redirects there,
  * falling back to a BGG search when the game can't be resolved.
+ * Prefer `bggGameUrl(id)` / passing `bggId` when the id is already known.
  */
 export function bggUrl(name: string): string {
   return `/api/bgg/redirect?q=${encodeURIComponent(name)}`;
 }
 
+/** Direct BoardGameGeek page for a known game id (never a search results page). */
+export function bggGameUrl(bggId: number): string {
+  return `https://boardgamegeek.com/boardgame/${bggId}`;
+}
+
 /**
  * The board game's cover thumbnail from BoardGameGeek (resolved via the backend,
  * which needs a BGG API token). Falls back to a lettered tile when unavailable.
+ * Pass `imageUrl` when the venue already cached a BGG thumbnail.
  */
-export function Cover({ name, size = 44 }: { name: string; size?: number }) {
+export function Cover({
+  name,
+  size = 44,
+  imageUrl,
+}: {
+  name: string;
+  size?: number;
+  imageUrl?: string | null;
+}) {
   const [failed, setFailed] = useState(false);
   const dim = { width: size, height: size, minWidth: size };
   const big = size >= 96;
@@ -55,10 +70,11 @@ export function Cover({ name, size = 44 }: { name: string; size?: number }) {
       </div>
     );
   }
+  const src = imageUrl || `/api/bgg/cover?q=${encodeURIComponent(name)}`;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`/api/bgg/cover?q=${encodeURIComponent(name)}`}
+      src={src}
       alt={name}
       style={dim}
       onError={() => setFailed(true)}
@@ -134,10 +150,26 @@ export function ChairIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-export function GameLink({ name, className }: { name: string; className?: string }) {
+export function GameLink({
+  name,
+  bggId,
+  href,
+  className,
+}: {
+  name: string;
+  /** When set, links straight to that BGG game page (not search). */
+  bggId?: number | null;
+  /** Explicit URL (e.g. venue game `bgg_url`); wins over `bggId`. */
+  href?: string | null;
+  className?: string;
+}) {
+  const link =
+    href ||
+    (bggId != null && bggId > 0 ? bggGameUrl(bggId) : null) ||
+    bggUrl(name);
   return (
     <a
-      href={bggUrl(name)}
+      href={link}
       target="_blank"
       rel="noreferrer"
       onClick={(e) => e.stopPropagation()}

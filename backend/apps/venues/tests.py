@@ -138,3 +138,271 @@ def test_seed_date_house_hours_match_google(db):
     assert monday.end_time == dt_time(20, 0)
     assert friday.end_time == dt_time(22, 0)
     assert sunday.end_time == dt_time(20, 0)
+
+
+def test_admin_creates_venue_with_weekly_hours_and_closure(db, client):
+    from datetime import time as dt_time
+
+    from apps.venues.hours import default_weekly_hours_payload
+    from apps.venues.models import VenueClosure, VenueWeeklyHours
+
+    admin = mk("dan", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    hours = default_weekly_hours_payload()
+    hours[0]["start_time"] = "11:00:00"
+    hours[0]["end_time"] = "18:00:00"
+    resp = client.post(
+        "/api/venues",
+        {
+            "name": "Holiday Cafe",
+            "location": "Teststrasse 1, Nürnberg",
+            "min_reservation_minutes": 60,
+            "max_reservation_minutes": 120,
+            "weekly_hours": hours,
+            "closures": [{"date": "2026-12-25", "comment": "Closed for Christmas"}],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    venue = Venue.objects.get(name="Holiday Cafe")
+    assert venue.min_reservation_minutes == 60
+    assert venue.max_reservation_minutes == 120
+    assert VenueWeeklyHours.objects.filter(venue=venue).count() == 7
+    monday = VenueWeeklyHours.objects.get(venue=venue, weekday=0)
+    assert monday.start_time == dt_time(11, 0)
+    closure = VenueClosure.objects.get(venue=venue, date="2026-12-25")
+    assert "Christmas" in closure.comment
+    # Closure day has no availability row.
+    assert not VenueAvailability.objects.filter(venue=venue, date="2026-12-25").exists()
+
+
+def test_closure_blocks_table_create(db):
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from rest_framework.exceptions import ValidationError
+
+    from apps.tables import services
+    from apps.venues.hours import set_weekly_hours
+    from apps.venues.models import VenueClosure
+
+    venue = Venue.objects.create(name="Closed Spot")
+    set_weekly_hours(
+        venue,
+        [
+            {
+                "weekday": d,
+                "is_closed": False,
+                "start_time": "10:00:00",
+                "end_time": "22:00:00",
+            }
+            for d in range(7)
+        ],
+    )
+    day = timezone.localdate() + timedelta(days=5)
+    VenueClosure.objects.create(venue=venue, date=day, comment="Staff outing")
+    from apps.venues.hours import sync_availability_from_hours
+
+    sync_availability_from_hours(venue)
+
+    host = mk("hosty2")
+    starts = timezone.now().replace(
+        year=day.year, month=day.month, day=day.day, hour=14, minute=0, second=0, microsecond=0
+    )
+    ends = starts + timedelta(hours=2)
+    with pytest.raises(ValidationError, match="Staff outing"):
+        services.create_table(
+            organizer=host,
+            venue=venue,
+            game_title="Catan",
+            starts_at=starts,
+            ends_at=ends,
+            min_players=2,
+            max_players=4,
+        )
+
+
+def test_venue_duration_limits_enforced_on_create(db):
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from rest_framework.exceptions import ValidationError
+
+    from apps.tables import services
+    from apps.venues.hours import set_weekly_hours
+    from apps.venues.models import VenueAvailability
+
+    venue = Venue.objects.create(
+        name="Short Tables",
+        min_reservation_minutes=60,
+        max_reservation_minutes=120,
+    )
+    set_weekly_hours(
+        venue,
+        [
+            {
+                "weekday": d,
+                "is_closed": False,
+                "start_time": "10:00:00",
+                "end_time": "22:00:00",
+            }
+            for d in range(7)
+        ],
+    )
+    host = mk("durhost")
+    starts = timezone.now() + timedelta(days=3)
+    starts = starts.replace(hour=14, minute=0, second=0, microsecond=0)
+    VenueAvailability.objects.update_or_create(
+        venue=venue,
+        date=starts.date(),
+        defaults={
+            "start_time": "10:00:00",
+            "end_time": "22:00:00",
+            "tables_available": 2,
+        },
+    )
+    with pytest.raises(ValidationError, match="at least 60"):
+        services.create_table(
+            organizer=host,
+            venue=venue,
+            game_title="Catan",
+            starts_at=starts,
+            ends_at=starts + timedelta(minutes=30),
+            min_players=2,
+            max_players=4,
+        )
+    with pytest.raises(ValidationError, match="longer than 120"):
+        services.create_table(
+            organizer=host,
+            venue=venue,
+            game_title="Catan",
+            starts_at=starts,
+            ends_at=starts + timedelta(hours=3),
+            min_players=2,
+            max_players=4,
+        )
+
+
+def test_hours_and_closures_api_for_manager(db, client):
+    from apps.venues.hours import default_weekly_hours_payload, set_weekly_hours
+
+    venue = Venue.objects.create(name="Managed")
+    set_weekly_hours(venue, default_weekly_hours_payload())
+    staff = mk("carol", role=Role.VENUE_USER, venue=venue)
+    client.force_authenticate(user=staff)
+
+    hours = client.get(f"/api/venues/{venue.id}/hours")
+    assert hours.status_code == 200
+    assert len(hours.data) == 7
+
+    put = client.put(
+        f"/api/venues/{venue.id}/hours",
+        [
+            {
+                "weekday": d,
+                "is_closed": d == 6,
+                "start_time": None if d == 6 else "10:00:00",
+                "end_time": None if d == 6 else "20:00:00",
+            }
+            for d in range(7)
+        ],
+        format="json",
+    )
+    assert put.status_code == 200, put.data
+    assert put.data[6]["is_closed"] is True
+
+    add = client.post(
+        f"/api/venues/{venue.id}/closures",
+        {"date": "2026-05-01", "comment": "Labour Day"},
+        format="json",
+    )
+    assert add.status_code == 201, add.data
+    listed = client.get(f"/api/venues/{venue.id}/closures")
+    assert listed.status_code == 200
+    assert listed.data[0]["comment"] == "Labour Day"
+
+
+def test_admin_adds_venue_game_from_bgg(db, client, monkeypatch):
+    from apps.bgg import services as bgg
+    from apps.venues.models import VenueGame
+
+    monkeypatch.setattr(
+        bgg,
+        "fetch_thing",
+        lambda bgg_id: {
+            "bgg_id": bgg_id,
+            "name": "Catan",
+            "thumbnail_url": "https://cf.geekdo-images.com/catan.jpg",
+        },
+    )
+    venue = Venue.objects.create(name="Game Shelf")
+    admin = mk("dan", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        f"/api/venues/{venue.id}/games",
+        {"bgg_id": 13},
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    assert resp.data["title"] == "Catan"
+    assert resp.data["bgg_id"] == 13
+    assert "catan.jpg" in resp.data["cover_url"]
+    assert VenueGame.objects.filter(venue=venue, bgg_id=13).count() == 1
+
+    # Public list
+    client.logout()
+    listed = client.get(f"/api/venues/{venue.id}/games")
+    assert listed.status_code == 200
+    assert listed.data[0]["title"] == "Catan"
+
+    # Duplicate rejected
+    client.force_authenticate(user=admin)
+    dup = client.post(f"/api/venues/{venue.id}/games", {"bgg_id": 13}, format="json")
+    assert dup.status_code == 400
+
+
+def test_non_manager_cannot_add_venue_game(db, client):
+    venue = Venue.objects.create(name="Game Shelf")
+    someone = mk("alice")
+    client.force_authenticate(user=someone)
+    resp = client.post(
+        f"/api/venues/{venue.id}/games",
+        {"title": "Catan"},
+        format="json",
+    )
+    assert resp.status_code == 403
+
+
+def test_manager_can_remove_venue_game(db, client):
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Game Shelf")
+    game = VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    staff = mk("carol", role=Role.VENUE_USER, venue=venue)
+    client.force_authenticate(user=staff)
+    resp = client.delete(f"/api/venues/{venue.id}/games/{game.id}")
+    assert resp.status_code == 204
+    assert not VenueGame.objects.filter(id=game.id).exists()
+
+
+def test_venue_game_bgg_url_is_game_page_not_search(db, client):
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Game Shelf")
+    VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    resp = client.get(f"/api/venues/{venue.id}/games")
+    assert resp.status_code == 200
+    assert resp.data[0]["bgg_url"] == "https://boardgamegeek.com/boardgame/13"
+    assert "geeksearch" not in (resp.data[0]["bgg_url"] or "")
+
+
+def test_bgg_redirect_uses_venue_game_bgg_id_when_api_unavailable(db, client, monkeypatch):
+    from apps.bgg import services as bgg
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Game Shelf")
+    VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    monkeypatch.setattr(bgg, "_bgg_search", lambda name: None)
+    resp = client.get("/api/bgg/redirect?q=Catan")
+    assert resp.status_code == 302
+    assert resp["Location"] == "https://boardgamegeek.com/boardgame/13"

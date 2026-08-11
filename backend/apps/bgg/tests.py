@@ -65,6 +65,42 @@ def test_bgg_search_takes_first_result_single_query(monkeypatch):
     assert "exact=1" not in calls[0]
 
 
+def test_search_boardgames_returns_multiple_hits(monkeypatch):
+    xml = (
+        b'<items total="2">'
+        b'<item type="boardgame" id="13">'
+        b'<name type="primary" value="Catan"/>'
+        b'<yearpublished value="1995"/>'
+        b"</item>"
+        b'<item type="boardgame" id="9209">'
+        b'<name type="primary" value="Ticket to Ride"/>'
+        b'<yearpublished value="2004"/>'
+        b"</item>"
+        b"</items>"
+    )
+    monkeypatch.setattr(services, "_http_get", lambda url, headers=None: xml)
+    hits = services.search_boardgames("cat", limit=10)
+    assert [h["bgg_id"] for h in hits] == [13, 9209]
+    assert hits[0]["name"] == "Catan"
+    assert hits[0]["year"] == 1995
+
+
+def test_bgg_search_api_requires_auth(db, client, monkeypatch):
+    monkeypatch.setattr(
+        services,
+        "search_boardgames",
+        lambda q, limit=20: [{"bgg_id": 13, "name": "Catan", "year": 1995}],
+    )
+    assert client.get("/api/bgg/search?q=Catan").status_code in (401, 403)
+    from apps.accounts.models import Role, User
+
+    user = User.objects.create_user(username="searcher", password="pw-testing-123", role=Role.USER)
+    client.force_authenticate(user=user)
+    resp = client.get("/api/bgg/search?q=Catan")
+    assert resp.status_code == 200
+    assert resp.data["results"][0]["name"] == "Catan"
+
+
 # --- Cover images ---------------------------------------------------------
 
 _SEARCH_XML = b'<items><item type="boardgame" id="13"><name type="primary" value="Catan"/></item></items>'

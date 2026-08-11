@@ -21,11 +21,13 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 - `GET /venues` — list/browse venues (with location info) *(3)*
 - `GET /venues/{id}` — venue details, description, photos, rating *(3)*
-- `POST /venues` — create venue (ADMIN) *(46)*
+- `POST /venues` — create venue (ADMIN); may include `weekly_hours` and `closures` *(46)*
 - `PATCH /venues/{id}` — edit venue description/photos (VENUE_USER own, ADMIN any) *(36, 46)*
 - `DELETE /venues/{id}` — remove venue (ADMIN) *(46)*
 - `GET /venues/{id}/availability` — days/times/table counts *(34)*
 - `PUT /venues/{id}/availability` — set availability/capacity (VENUE_USER own, ADMIN) *(34)*
+- `GET/PUT /venues/{id}/hours` — recurring bookable hours per weekday (Mon=0…Sun=6); PUT replaces the full week (VENUE_USER own, ADMIN) *(34)*
+- `GET/POST /venues/{id}/closures` / `DELETE /venues/{id}/closures/{id}` — date-specific closure alerts with comment; closed dates cannot be booked *(34)*
 - `GET /venues/{id}/rules` / `POST|PATCH|DELETE /venues/{id}/rules/{ruleId}` — reservation rules *(45)*
 - `GET /venues/{id}/games` — games available at the venue *(29)*
 - `POST|PATCH|DELETE /venues/{id}/games/{inventoryId}` — manage venue inventory: copies, condition, language (VENUE_USER own, ADMIN any) *(38, 44, 47)*

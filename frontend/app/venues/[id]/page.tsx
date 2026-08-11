@@ -13,6 +13,7 @@ import {
   type Table,
   venueApi,
   type Venue,
+  type VenueGame,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
@@ -63,6 +64,7 @@ export default function VenueDetailPage() {
   const [venue, setVenue] = useState<Venue | null>(null);
   const [tables, setTables] = useState<Table[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [games, setGames] = useState<VenueGame[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,11 +78,13 @@ export default function VenueDetailPage() {
       venueApi.get(id),
       tableApi.list({ venueId: String(id) }),
       reviewApi.forVenue(id),
+      venueApi.games(id),
     ])
-      .then(([v, t, r]) => {
+      .then(([v, t, r, g]) => {
         setVenue(v);
         setTables(t);
         setReviews(r);
+        setGames(g);
       })
       .catch((e) => setError(errorMessage(e)));
   }, [user, id]);
@@ -161,6 +165,29 @@ export default function VenueDetailPage() {
           <p className="whitespace-pre-line text-sm text-slate-700">{venue.description}</p>
         </div>
       ) : null}
+
+      <section className="mt-5">
+        <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
+          Games available ({games.length})
+        </h3>
+        {games.length === 0 ? (
+          <div className="mt-2 text-sm text-slate-400">No games listed for this venue yet.</div>
+        ) : (
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {games.map((g) => (
+              <div
+                key={g.id}
+                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3"
+              >
+                <Cover name={g.title} imageUrl={g.cover_url} size={56} />
+                <div className="min-w-0 flex-1 font-semibold">
+                  <GameLink name={g.title} bggId={g.bgg_id} href={g.bgg_url} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="mt-5">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">

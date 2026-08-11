@@ -78,21 +78,25 @@ def create_table(
     if ends_at <= starts_at:
         raise ValidationError("ends_at must be after starts_at.")
     duration = ends_at - starts_at
-    if duration < MIN_TABLE_DURATION:
-        raise ValidationError("Tables must be booked for at least 1 hour.")
-    if duration > MAX_TABLE_DURATION:
-        raise ValidationError("Tables cannot be longer than 3 hours.")
+    min_minutes = getattr(venue, "min_reservation_minutes", 60) or 60
+    max_minutes = getattr(venue, "max_reservation_minutes", 180) or 180
+    if duration < timedelta(minutes=min_minutes):
+        raise ValidationError(
+            f"Tables at this venue must be booked for at least {min_minutes} minutes."
+        )
+    if duration > timedelta(minutes=max_minutes):
+        raise ValidationError(
+            f"Tables at this venue cannot be longer than {max_minutes} minutes."
+        )
     if min_players < 1 or max_players < min_players:
         raise ValidationError("Require 1 <= min_players <= max_players.")
     if min_players < venue.min_players or max_players > venue.max_players:
         raise ValidationError(
             f"This venue only allows tables for {venue.min_players}–{venue.max_players} players."
         )
-    if not covering_availability(venue, starts_at, ends_at):
-        raise ValidationError(
-            "This venue is not open for the requested time. "
-            "Choose a slot within the venue's opening hours."
-        )
+    from apps.venues.hours import assert_slot_bookable
+
+    assert_slot_bookable(venue, starts_at, ends_at)
 
     table = Table.objects.create(
         organizer=organizer,
@@ -116,6 +120,18 @@ def create_table(
 
 def _check_venue_capacity(table: Table) -> None:
     """Enforce venue capacity with the 15-minute turnover buffer (ADR-011)."""
+    from apps.venues.hours import assert_slot_bookable, closure_for
+
+    closure = closure_for(table.venue, table.starts_at.date())
+    if closure is not None:
+        raise Conflict(
+            f"This venue is not bookable on {table.starts_at.date().isoformat()}: {closure.comment}"
+        )
+    try:
+        assert_slot_bookable(table.venue, table.starts_at, table.ends_at)
+    except ValidationError as exc:
+        raise Conflict(detail=exc.detail) from exc
+
     covering = covering_availability(table.venue, table.starts_at, table.ends_at)
     if not covering:
         raise Conflict("Venue is not available for the requested slot.")

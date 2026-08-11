@@ -10,6 +10,7 @@ import {
   venueApi,
   type Availability,
   type Venue,
+  type VenueGame,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
@@ -67,6 +68,7 @@ export default function CreateTablePage() {
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
+  const [venueGames, setVenueGames] = useState<VenueGame[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -82,8 +84,13 @@ export default function CreateTablePage() {
   const [languageOther, setLanguageOther] = useState("French");
 
   const selectedVenue = venues.find((v) => String(v.id) === venue);
+  const hasVenueGames = venueGames.length > 0;
   const venueMin = selectedVenue?.min_players ?? 1;
   const venueMax = selectedVenue?.max_players ?? 99;
+  const minReservationMinutes =
+    selectedVenue?.min_reservation_minutes ?? MIN_DURATION_MINUTES;
+  const maxReservationMinutes =
+    selectedVenue?.max_reservation_minutes ?? MAX_DURATION_MINUTES;
 
   const dayAvailability = useMemo(() => {
     if (!date) return null;
@@ -96,10 +103,10 @@ export default function CreateTablePage() {
     const close = parseHm(dayAvailability.end_time);
     return TIME_SLOTS.filter((t) => {
       const mins = parseHm(t);
-      // Need room for the minimum 1-hour booking before close.
-      return mins >= open && mins + MIN_DURATION_MINUTES <= close;
+      // Need room for the venue's minimum booking before close.
+      return mins >= open && mins + minReservationMinutes <= close;
     });
-  }, [dayAvailability]);
+  }, [dayAvailability, minReservationMinutes]);
 
   const toSlots = useMemo(() => {
     if (!dayAvailability) return [];
@@ -109,12 +116,12 @@ export default function CreateTablePage() {
       const mins = parseHm(t);
       const duration = mins - start;
       return (
-        duration >= MIN_DURATION_MINUTES &&
-        duration <= MAX_DURATION_MINUTES &&
+        duration >= minReservationMinutes &&
+        duration <= maxReservationMinutes &&
         mins <= close
       );
     });
-  }, [dayAvailability, from]);
+  }, [dayAvailability, from, minReservationMinutes, maxReservationMinutes]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -148,7 +155,26 @@ export default function CreateTablePage() {
     setMaxPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
   }, [selectedVenue]);
 
-  // Keep From/To inside the day's opening hours and 1–3h duration.
+  // Load games offered at the selected venue for the Game dropdown.
+  useEffect(() => {
+    if (!venue) {
+      setVenueGames([]);
+      setGame("");
+      return;
+    }
+    venueApi
+      .games(Number(venue))
+      .then((games) => {
+        setVenueGames(games);
+        setGame((current) => {
+          if (games.some((g) => g.title === current)) return current;
+          return games[0]?.title ?? "";
+        });
+      })
+      .catch((e) => setError(errorMessage(e)));
+  }, [venue]);
+
+  // Keep From/To inside the day's opening hours and venue duration limits.
   useEffect(() => {
     if (!dayAvailability) return;
     if (fromSlots.length === 0) return;
@@ -243,6 +269,8 @@ export default function CreateTablePage() {
             )}
             {" · "}
             {selectedVenue.min_players}–{selectedVenue.max_players} players
+            {" · "}
+            {minReservationMinutes}–{maxReservationMinutes} min
           </div>
         ) : null}
 
@@ -325,7 +353,26 @@ export default function CreateTablePage() {
         ) : null}
 
         <span className="label">Game</span>
-        <input className="input" value={game} onChange={(e) => setGame(e.target.value)} required placeholder="e.g. Catan" />
+        {hasVenueGames ? (
+          <select className="input" value={game} onChange={(e) => setGame(e.target.value)} required>
+            {venueGames.map((g) => (
+              <option key={g.id} value={g.title}>
+                {g.title}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className="input"
+            value={game}
+            onChange={(e) => setGame(e.target.value)}
+            required
+            placeholder="e.g. Catan"
+          />
+        )}
+        {selectedVenue && hasVenueGames ? (
+          <div className="mt-1 text-xs text-slate-500">Games available at {selectedVenue.name}.</div>
+        ) : null}
 
         <span className="label">Who brings the game?</span>
         <div className="mt-1 space-y-1 text-sm">

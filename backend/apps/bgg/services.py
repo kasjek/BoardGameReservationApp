@@ -62,27 +62,90 @@ def _http_get(url: str, headers: dict[str, str] | None = None) -> bytes | None:
 
 
 def _first_id(xml_bytes: bytes) -> int | None:
+    results = parse_search_results(xml_bytes)
+    return results[0]["bgg_id"] if results else None
+
+
+def parse_search_results(xml_bytes: bytes) -> list[dict]:
+    """Parse BGG search XML into [{bgg_id, name, year}, ...] (primary names only)."""
     try:
         root = ET.fromstring(xml_bytes)
     except ET.ParseError:
+        return []
+    out: list[dict] = []
+    seen: set[int] = set()
+    for item in root.findall("item"):
+        raw_id = item.get("id")
+        if not raw_id:
+            continue
+        try:
+            bgg_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if bgg_id in seen:
+            continue
+        name_el = item.find("name[@type='primary']")
+        if name_el is None:
+            name_el = item.find("name")
+        name = (name_el.get("value") if name_el is not None else None) or ""
+        if not name:
+            continue
+        year_el = item.find("yearpublished")
+        year = None
+        if year_el is not None and year_el.get("value"):
+            try:
+                year = int(year_el.get("value"))
+            except (TypeError, ValueError):
+                year = None
+        seen.add(bgg_id)
+        out.append({"bgg_id": bgg_id, "name": name, "year": year})
+    return out
+
+
+def search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
+    """Return BGG search hits for a typed query (for admin venue-game pickers)."""
+    q = query.strip()
+    if not q:
+        return []
+    url = f"{BGG_SEARCH_API}?query={quote_plus(q)}&type=boardgame"
+    body = _http_get(url, _auth_headers())
+    if body is None:
+        return []
+    return parse_search_results(body)[: max(1, min(limit, 50))]
+
+
+def fetch_thing(bgg_id: int) -> dict | None:
+    """Load name + thumbnail for a BGG thing id."""
+    body = _http_get(f"{BGG_THING_API}?id={bgg_id}", _auth_headers())
+    if body is None:
+        return None
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError:
         return None
     item = root.find("item")
-    if item is not None and item.get("id"):
-        try:
-            return int(item.get("id"))
-        except (TypeError, ValueError):
-            return None
-    return None
+    if item is None:
+        return None
+    name_el = item.find("name[@type='primary']")
+    if name_el is None:
+        name_el = item.find("name")
+    name = (name_el.get("value") if name_el is not None else None) or ""
+    if not name:
+        return None
+    thumb = None
+    thumb_el = item.find("thumbnail")
+    if thumb_el is not None and thumb_el.text:
+        thumb = thumb_el.text.strip()
+        if thumb.startswith("//"):
+            thumb = "https:" + thumb
+    return {"bgg_id": bgg_id, "name": name, "thumbnail_url": thumb or ""}
 
 
 def _bgg_search(name: str) -> int | None:
     """Always take the first (top-ranked) BGG search result — no exact-match preference,
     no user selection. Returns its id, or None if unreachable / no match."""
-    query = f"{BGG_SEARCH_API}?query={quote_plus(name)}&type=boardgame"
-    body = _http_get(query, _auth_headers())
-    if body is None:
-        return None  # network/egress failure -> let caller fall back
-    return _first_id(body)
+    results = search_boardgames(name, limit=1)
+    return results[0]["bgg_id"] if results else None
 
 
 def resolve_bgg_id(name: str) -> int | None:
@@ -105,9 +168,31 @@ def resolve_bgg_id(name: str) -> int | None:
 
 
 def resolve_url(name: str) -> str:
-    """Exact game page when resolvable, else the BGG search page."""
+    """Exact game page when resolvable, else the BGG search page.
+
+    Also checks venue game inventory for a stored bgg_id so titles from the
+    venue shelf still deep-link to the game page when the live BGG API is
+    unavailable.
+    """
     bgg_id = resolve_bgg_id(name)
-    return game_page_url(bgg_id) if bgg_id else search_url(name)
+    if bgg_id:
+        return game_page_url(bgg_id)
+    title = name.strip()
+    if title:
+        try:
+            from apps.venues.models import VenueGame
+
+            vg = (
+                VenueGame.objects.filter(title__iexact=title, bgg_id__isnull=False)
+                .order_by("id")
+                .first()
+            )
+            if vg and vg.bgg_id:
+                return game_page_url(vg.bgg_id)
+        except Exception:
+            # Venues app / table may be unavailable during early migrations.
+            pass
+    return search_url(name)
 
 
 def _bgg_thumbnail(bgg_id: int) -> str | None:
