@@ -93,7 +93,7 @@ def test_venue_detail_includes_maps_url_and_capacity(db, client):
 
 
 def test_create_table_respects_venue_player_limits(db):
-    from datetime import timedelta
+    from datetime import time, timedelta
 
     from django.utils import timezone
     from rest_framework.exceptions import ValidationError
@@ -103,7 +103,15 @@ def test_create_table_respects_venue_player_limits(db):
     venue = Venue.objects.create(name="Tiny Spot", min_players=2, max_players=4)
     host = mk("hosty")
     starts = timezone.now() + timedelta(days=2)
+    starts = starts.replace(hour=18, minute=0, second=0, microsecond=0)
     ends = starts + timedelta(hours=2)
+    VenueAvailability.objects.create(
+        venue=venue,
+        date=starts.date(),
+        start_time=time(0, 0),
+        end_time=time(23, 59, 59),
+        tables_available=2,
+    )
     with pytest.raises(ValidationError):
         services.create_table(
             organizer=host,
@@ -114,3 +122,19 @@ def test_create_table_respects_venue_player_limits(db):
             min_players=2,
             max_players=8,
         )
+
+
+def test_seed_date_house_hours_match_google(db):
+    """Mon–Thu/Sun close 20:00; Fri–Sat close 22:00; always open 10:00."""
+    from datetime import time as dt_time
+
+    from apps.venues.seed import OPEN_FROM
+
+    venue = ensure_date_house_cafe(horizon_days=14)
+    monday = next(r for r in venue.availability.all() if r.date.weekday() == 0)
+    friday = next(r for r in venue.availability.all() if r.date.weekday() == 4)
+    sunday = next(r for r in venue.availability.all() if r.date.weekday() == 6)
+    assert monday.start_time == OPEN_FROM
+    assert monday.end_time == dt_time(20, 0)
+    assert friday.end_time == dt_time(22, 0)
+    assert sunday.end_time == dt_time(20, 0)

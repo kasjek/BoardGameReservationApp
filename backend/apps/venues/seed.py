@@ -1,6 +1,12 @@
 """Demo venue seed data (Date House Cafe).
 
 Idempotent helpers used by the management command and data migration.
+
+Opening hours match publicly listed Google/RestaurantGuru hours for
+Date House Café (Bindergasse / Nürnberg old town), updated Jul 2026:
+  Mon–Thu 10:00–20:00
+  Fri–Sat 10:00–22:00
+  Sun     10:00–20:00
 """
 
 from __future__ import annotations
@@ -15,23 +21,24 @@ DATE_HOUSE_NAME = "Date House Cafe"
 DATE_HOUSE_ADDRESS = "Breite G. 88, 90402 Nürnberg"
 DATE_HOUSE_DESCRIPTION = (
     "Board-game-friendly cafe in Nürnberg's old town.\n\n"
-    "Table bookings:\n"
+    "Opening hours (table bookings):\n"
     "• Every day from 10:00\n"
-    "• Mon–Thu until 20:30\n"
-    "• Fri–Sat until 22:30\n"
-    "• Sun until 19:30\n\n"
-    "Tables for 2–8 players."
+    "• Mon–Thu until 20:00\n"
+    "• Fri–Sat until 22:00\n"
+    "• Sun until 20:00\n\n"
+    "Tables for 2–8 players. Bookings 1–3 hours."
 )
 
 # Weekday → last moment a reservation may end (Python: Mon=0 … Sun=6).
+# Sourced from Google / RestaurantGuru listing for Date House Café.
 END_BY_WEEKDAY: dict[int, time] = {
-    0: time(20, 30),  # Monday
-    1: time(20, 30),  # Tuesday
-    2: time(20, 30),  # Wednesday
-    3: time(20, 30),  # Thursday
-    4: time(22, 30),  # Friday
-    5: time(22, 30),  # Saturday
-    6: time(19, 30),  # Sunday
+    0: time(20, 0),  # Monday
+    1: time(20, 0),  # Tuesday
+    2: time(20, 0),  # Wednesday
+    3: time(20, 0),  # Thursday
+    4: time(22, 0),  # Friday
+    5: time(22, 0),  # Saturday
+    6: time(20, 0),  # Sunday
 }
 OPEN_FROM = time(10, 0)
 # Concurrent physical tables the venue can confirm in overlapping slots.
