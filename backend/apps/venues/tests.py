@@ -7,8 +7,14 @@ from apps.venues.seed import (
     DATE_HOUSE_ADDRESS,
     DATE_HOUSE_GAMES,
     DATE_HOUSE_NAME,
+    KATZENTEMPEL_ADDRESS,
+    KATZENTEMPEL_END_BY_WEEKDAY,
+    KATZENTEMPEL_GAMES,
+    KATZENTEMPEL_NAME,
+    KATZENTEMPEL_OPEN_BY_WEEKDAY,
     end_time_for,
     ensure_date_house_cafe,
+    ensure_katzentempel,
 )
 
 
@@ -101,6 +107,48 @@ def test_venue_detail_includes_maps_url_and_capacity(db, client):
     assert resp.data["max_players"] == 8
     assert "google.com/maps" in resp.data["maps_url"]
     assert "Breite" in resp.data["maps_url"]
+
+
+def test_seed_katzentempel(db, client):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    venue = ensure_katzentempel(horizon_days=14)
+    assert venue.name == KATZENTEMPEL_NAME
+    assert venue.location == KATZENTEMPEL_ADDRESS
+    assert venue.min_players == 2
+    assert venue.max_players == 8
+
+    today = timezone.localdate()
+    rows = list(
+        VenueAvailability.objects.filter(
+            venue=venue, date__gte=today, date__lt=today + timedelta(days=14)
+        ).order_by("date")
+    )
+    assert len(rows) == 14
+    for r in rows:
+        wd = r.date.weekday()
+        assert r.start_time == KATZENTEMPEL_OPEN_BY_WEEKDAY[wd]
+        assert r.end_time == KATZENTEMPEL_END_BY_WEEKDAY[wd]
+
+    titles = set(VenueGame.objects.filter(venue=venue, is_active=True).values_list("title", flat=True))
+    assert titles == set(KATZENTEMPEL_GAMES)
+
+    resp = client.get(f"/api/venues/{venue.id}")
+    assert resp.status_code == 200
+    assert "Peter-Vischer" in resp.data["maps_url"]
+    games = client.get(f"/api/venues/{venue.id}/games")
+    assert games.status_code == 200
+    assert [g["title"] for g in games.data] == sorted(KATZENTEMPEL_GAMES)
+
+    # Both demo venues appear in the public list.
+    ensure_date_house_cafe(horizon_days=1)
+    listing = client.get("/api/venues")
+    assert listing.status_code == 200
+    names = {v["name"] for v in listing.data}
+    assert DATE_HOUSE_NAME in names
+    assert KATZENTEMPEL_NAME in names
 
 
 def test_create_table_respects_venue_player_limits(db):
