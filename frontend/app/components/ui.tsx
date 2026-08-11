@@ -184,10 +184,12 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   const tab = (href: string, label: string, active: boolean) => (
     <Link
       href={href}
-      className={`relative flex-1 py-2.5 text-center text-xs ${active ? "font-bold text-orange-600" : "text-slate-500"}`}
+      className={`relative flex-1 py-2.5 text-center text-xs text-white ${
+        active ? "font-bold" : "font-medium opacity-80 hover:opacity-100"
+      }`}
     >
       {active ? (
-        <span className="absolute inset-x-5 bottom-0 h-1 rounded-full bg-orange-500" />
+        <span className="absolute inset-x-5 bottom-0 h-1 rounded-full bg-white" />
       ) : null}
       {label}
     </Link>
@@ -196,7 +198,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   return (
     <div className="mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-white">
       <BrandBanner />
-      <nav className="flex shrink-0 border-b border-slate-200 bg-white">
+      <nav className="flex shrink-0 bg-brand">
         {tab("/", "All Tables", path === "/")}
         {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
         {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
