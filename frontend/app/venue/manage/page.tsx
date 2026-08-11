@@ -7,6 +7,15 @@ import { Banner, Shell } from "../../components/ui";
 import { type Availability, errorMessage, venueApi, type Venue } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
+const ADMIN_VENUE_KEY = "adminSelectedVenueId";
+
+function venueIdFromQuery(): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = new URLSearchParams(window.location.search).get("venue");
+  const id = Number(raw || "");
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
 export default function ManageVenuePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -37,12 +46,27 @@ export default function ManageVenuePage() {
     try {
       const vs = await venueApi.list();
       setVenues(vs);
-      const initial = user?.role === "VENUE_USER" ? user.venue : (vs[0]?.id ?? null);
-      setVenueId((cur) => cur ?? initial ?? null);
+      if (user?.role === "VENUE_USER") {
+        setVenueId(user.venue);
+        return;
+      }
+      const fromQuery = venueIdFromQuery();
+      const fromStorage = Number(window.sessionStorage.getItem(ADMIN_VENUE_KEY) || "");
+      const preferred =
+        (fromQuery && vs.some((v) => v.id === fromQuery) && fromQuery) ||
+        (fromStorage && vs.some((v) => v.id === fromStorage) && fromStorage) ||
+        vs[0]?.id ||
+        null;
+      setVenueId((cur) => cur ?? preferred);
     } catch (e) {
       setError(errorMessage(e));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!isAdmin || venueId == null) return;
+    window.sessionStorage.setItem(ADMIN_VENUE_KEY, String(venueId));
+  }, [isAdmin, venueId]);
 
   const loadAvailability = useCallback(async () => {
     if (!venueId) return;
@@ -109,6 +133,25 @@ export default function ManageVenuePage() {
       {info ? <Banner kind="info">{info}</Banner> : null}
 
       {isAdmin ? (
+        <div className="mb-3">
+          <span className="label">Venue to manage</span>
+          <select
+            className="input"
+            value={venueId ?? ""}
+            onChange={(e) => setVenueId(Number(e.target.value))}
+            disabled={venues.length === 0}
+          >
+            {venues.length === 0 ? <option value="">No venues yet</option> : null}
+            {venues.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      {isAdmin ? (
         <form onSubmit={createVenue} className="card mb-4">
           <div className="label">Create a venue (admin)</div>
           <input
@@ -128,23 +171,6 @@ export default function ManageVenuePage() {
             Create venue
           </button>
         </form>
-      ) : null}
-
-      {isAdmin ? (
-        <>
-          <span className="label">Venue</span>
-          <select
-            className="input"
-            value={venueId ?? ""}
-            onChange={(e) => setVenueId(Number(e.target.value))}
-          >
-            {venues.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
-        </>
       ) : null}
 
       <form onSubmit={addAvailability} className="card mt-3">
