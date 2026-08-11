@@ -130,6 +130,15 @@ export const authApi = {
     }),
   me: () => request<User>("/auth/me"),
   rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),
+  changePassword: (payload: {
+    current_password: string;
+    new_password: string;
+    confirm_password: string;
+  }) =>
+    request<{ detail: string; token: string }>("/me/password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
 // --- Venues ---
@@ -201,7 +210,15 @@ export function errorMessage(e: unknown): string {
       const detail = (d as { detail?: unknown }).detail;
       if (typeof detail === "string" && detail.trim()) return detail;
       if (Array.isArray(detail) && typeof detail[0] === "string") return detail[0];
-      for (const key of ["password", "username", "email", "non_field_errors"]) {
+      for (const key of [
+        "password",
+        "current_password",
+        "new_password",
+        "confirm_password",
+        "username",
+        "email",
+        "non_field_errors",
+      ]) {
         const field = (d as Record<string, unknown>)[key];
         if (typeof field === "string" && field.trim()) return field;
         if (Array.isArray(field) && typeof field[0] === "string") return field[0];
