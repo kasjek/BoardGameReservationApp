@@ -159,8 +159,9 @@ export function formatWhen(startsAt: string, endsAt?: string): string {
 }
 
 /**
- * App brand banner: the dice-cube logo with the "Too Many Games" name.
+ * App brand banner: the dice-cube logo with the "Too Many Games" title.
  * Rendered top-left on every view; all other content sits below it.
+ * Not used on login/register — those use AuthHero instead.
  */
 export function BrandBanner() {
   return (
@@ -170,6 +171,33 @@ export function BrandBanner() {
       <span className="text-xl font-black uppercase leading-none tracking-tight text-slate-900">
         Too Many Games
       </span>
+    </div>
+  );
+}
+
+/**
+ * Centered brand lockup for the login/register first screen.
+ * Company logo on top, then the product taglines — no shared BrandBanner.
+ */
+export function AuthHero() {
+  return (
+    <div className="flex flex-col items-center px-6 pb-2 pt-10 text-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo.png"
+        alt="Too Many Games"
+        width={168}
+        height={168}
+        className="h-40 w-40 object-contain sm:h-44 sm:w-44"
+      />
+      <div className="mt-3 text-[1.65rem] font-black uppercase leading-[0.95] tracking-tight text-slate-900">
+        <div>Too Many</div>
+        <div className="mt-1">Games</div>
+      </div>
+      <h1 className="mt-6 text-2xl font-extrabold tracking-tight text-slate-900">
+        Discover new games
+      </h1>
+      <p className="mt-1.5 text-sm text-slate-500">Find like-minded people</p>
     </div>
   );
 }

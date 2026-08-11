@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Banner, BrandBanner } from "../components/ui";
+import { AuthHero, Banner } from "../components/ui";
 import { errorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
@@ -33,45 +33,41 @@ export default function RegisterPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">
-      <BrandBanner />
-      <div className="flex flex-1 flex-col justify-center p-6">
-      <div className="mb-6 text-center">
-        <div className="text-2xl font-extrabold text-brand">Create your account</div>
-        <div className="mt-1 text-sm text-slate-500">Join and reserve a seat at a table.</div>
-      </div>
-      {error ? <Banner kind="error">{error}</Banner> : null}
-      <form onSubmit={submit} className="space-y-2">
-        <input
-          className="input"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoCapitalize="none"
-        />
-        <input
-          className="input"
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          className="input"
-          type="password"
-          placeholder="Password (min 8 chars)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <button className="btn" disabled={busy}>
-          {busy ? "…" : "Sign up"}
-        </button>
-      </form>
-      <div className="mt-4 text-center text-sm text-slate-500">
-        Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-brand">
-          Log in ›
-        </Link>
-      </div>
+      <AuthHero />
+      <div className="flex flex-1 flex-col px-6 pb-8 pt-4">
+        {error ? <Banner kind="error">{error}</Banner> : null}
+        <form onSubmit={submit} className="space-y-2">
+          <input
+            className="input"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoCapitalize="none"
+          />
+          <input
+            className="input"
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            className="input"
+            type="password"
+            placeholder="Password (min 8 chars)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button className="btn" disabled={busy}>
+            {busy ? "…" : "Sign up"}
+          </button>
+        </form>
+        <div className="mt-4 text-center text-sm text-slate-500">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-brand">
+            Log in ›
+          </Link>
+        </div>
       </div>
     </div>
   );
