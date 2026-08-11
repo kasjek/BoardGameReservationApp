@@ -20,7 +20,7 @@ def client():
 def test_register_returns_token_and_me(db, client):
     resp = client.post(
         "/api/auth/register",
-        {"username": "newuser", "email": "n@example.com", "password": "supersecret1"},
+        {"username": "newuser", "email": "n@example.com", "password": "Supersecret1!"},
         format="json",
     )
     assert resp.status_code == 201

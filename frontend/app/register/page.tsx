@@ -21,6 +21,21 @@ export default function RegisterPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      setBusy(false);
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must include at least one capital letter.");
+      setBusy(false);
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      setError("Password must include at least one special character.");
+      setBusy(false);
+      return;
+    }
     try {
       await register(username, email, password);
       router.push("/");
@@ -54,10 +69,14 @@ export default function RegisterPage() {
           <input
             className="input"
             type="password"
-            placeholder="Password (min 8 chars)"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
           />
+          <div className="text-xs text-slate-500">
+            At least 8 characters, one capital letter, and one special character.
+          </div>
           <button className="btn" disabled={busy}>
             {busy ? "…" : "Sign up"}
           </button>
