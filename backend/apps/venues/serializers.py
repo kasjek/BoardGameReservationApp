@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .hours import default_weekly_hours_payload, set_weekly_hours, sync_availability_from_hours
-from .models import Venue, VenueAvailability, VenueClosure, VenueWeeklyHours
+from .models import Venue, VenueAvailability, VenueClosure, VenueGame, VenueWeeklyHours
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -84,6 +84,93 @@ class VenueClosureSerializer(serializers.ModelSerializer):
 class VenueClosureWriteSerializer(serializers.Serializer):
     date = serializers.DateField()
     comment = serializers.CharField(max_length=2000)
+
+
+class VenueGameSerializer(serializers.ModelSerializer):
+    cover_url = serializers.SerializerMethodField()
+    bgg_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VenueGame
+        fields = [
+            "id",
+            "venue",
+            "title",
+            "bgg_id",
+            "thumbnail_url",
+            "cover_url",
+            "bgg_url",
+            "is_active",
+        ]
+        read_only_fields = fields
+
+    def get_cover_url(self, obj):
+        return obj.thumbnail_url or None
+
+    def get_bgg_url(self, obj):
+        from apps.bgg.services import game_page_url, search_url
+
+        if obj.bgg_id:
+            return game_page_url(obj.bgg_id)
+        return search_url(obj.title) if obj.title else None
+
+
+class VenueGameWriteSerializer(serializers.Serializer):
+    """Add a game from a BGG search hit (preferred) or a bare title."""
+
+    bgg_id = serializers.IntegerField(required=False, min_value=1)
+    title = serializers.CharField(required=False, allow_blank=False, max_length=200)
+
+    def validate(self, attrs):
+        if not attrs.get("bgg_id") and not attrs.get("title"):
+            raise serializers.ValidationError("Provide bgg_id (preferred) or title.")
+        return attrs
+
+    def create(self, validated_data):
+        from apps.bgg import services as bgg
+
+        venue = self.context["venue"]
+        bgg_id = validated_data.get("bgg_id")
+        title = (validated_data.get("title") or "").strip()
+        thumbnail_url = ""
+
+        if bgg_id:
+            thing = bgg.fetch_thing(bgg_id)
+            if thing:
+                title = thing["name"] or title
+                thumbnail_url = thing.get("thumbnail_url") or ""
+            if not title:
+                raise serializers.ValidationError(
+                    {"bgg_id": "Could not load that BoardGameGeek game."}
+                )
+            if VenueGame.objects.filter(venue=venue, bgg_id=bgg_id).exists():
+                raise serializers.ValidationError(
+                    {"bgg_id": "That game is already listed for this venue."}
+                )
+        else:
+            # Title-only path: resolve BGG id + cover when possible.
+            resolved_id = bgg.resolve_bgg_id(title)
+            if resolved_id:
+                bgg_id = resolved_id
+                thing = bgg.fetch_thing(resolved_id)
+                if thing:
+                    title = thing["name"] or title
+                    thumbnail_url = thing.get("thumbnail_url") or ""
+            if not thumbnail_url:
+                thumbnail_url = bgg.resolve_cover_url(title) or ""
+
+        if VenueGame.objects.filter(venue=venue, title__iexact=title).exists():
+            raise serializers.ValidationError(
+                {"title": "That game is already listed for this venue."}
+            )
+
+        return VenueGame.objects.create(
+            venue=venue,
+            title=title,
+            bgg_id=bgg_id,
+            thumbnail_url=thumbnail_url or "",
+            is_active=True,
+        )
 
 
 class VenueCreateSerializer(VenueSerializer):

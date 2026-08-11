@@ -320,3 +320,66 @@ def test_hours_and_closures_api_for_manager(db, client):
     listed = client.get(f"/api/venues/{venue.id}/closures")
     assert listed.status_code == 200
     assert listed.data[0]["comment"] == "Labour Day"
+
+
+def test_admin_adds_venue_game_from_bgg(db, client, monkeypatch):
+    from apps.bgg import services as bgg
+    from apps.venues.models import VenueGame
+
+    monkeypatch.setattr(
+        bgg,
+        "fetch_thing",
+        lambda bgg_id: {
+            "bgg_id": bgg_id,
+            "name": "Catan",
+            "thumbnail_url": "https://cf.geekdo-images.com/catan.jpg",
+        },
+    )
+    venue = Venue.objects.create(name="Game Shelf")
+    admin = mk("dan", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        f"/api/venues/{venue.id}/games",
+        {"bgg_id": 13},
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    assert resp.data["title"] == "Catan"
+    assert resp.data["bgg_id"] == 13
+    assert "catan.jpg" in resp.data["cover_url"]
+    assert VenueGame.objects.filter(venue=venue, bgg_id=13).count() == 1
+
+    # Public list
+    client.logout()
+    listed = client.get(f"/api/venues/{venue.id}/games")
+    assert listed.status_code == 200
+    assert listed.data[0]["title"] == "Catan"
+
+    # Duplicate rejected
+    client.force_authenticate(user=admin)
+    dup = client.post(f"/api/venues/{venue.id}/games", {"bgg_id": 13}, format="json")
+    assert dup.status_code == 400
+
+
+def test_non_manager_cannot_add_venue_game(db, client):
+    venue = Venue.objects.create(name="Game Shelf")
+    someone = mk("alice")
+    client.force_authenticate(user=someone)
+    resp = client.post(
+        f"/api/venues/{venue.id}/games",
+        {"title": "Catan"},
+        format="json",
+    )
+    assert resp.status_code == 403
+
+
+def test_manager_can_remove_venue_game(db, client):
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Game Shelf")
+    game = VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    staff = mk("carol", role=Role.VENUE_USER, venue=venue)
+    client.force_authenticate(user=staff)
+    resp = client.delete(f"/api/venues/{venue.id}/games/{game.id}")
+    assert resp.status_code == 204
+    assert not VenueGame.objects.filter(id=game.id).exists()

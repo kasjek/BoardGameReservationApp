@@ -5,6 +5,8 @@ from .views import (
     VenueClosureDestroyView,
     VenueClosureListCreateView,
     VenueDetailView,
+    VenueGameDestroyView,
+    VenueGameListCreateView,
     VenueHoursView,
     VenueListCreateView,
 )
@@ -31,5 +33,15 @@ urlpatterns = [
         "venues/<int:venue_id>/closures/<int:pk>",
         VenueClosureDestroyView.as_view(),
         name="venue-closure-detail",
+    ),
+    path(
+        "venues/<int:venue_id>/games",
+        VenueGameListCreateView.as_view(),
+        name="venue-games",
+    ),
+    path(
+        "venues/<int:venue_id>/games/<int:pk>",
+        VenueGameDestroyView.as_view(),
+        name="venue-game-detail",
     ),
 ]

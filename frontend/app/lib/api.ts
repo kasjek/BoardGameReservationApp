@@ -98,6 +98,23 @@ export interface VenueClosure {
   created_at: string;
 }
 
+export interface VenueGame {
+  id: number;
+  venue: number;
+  title: string;
+  bgg_id: number | null;
+  thumbnail_url: string;
+  cover_url: string | null;
+  bgg_url: string | null;
+  is_active: boolean;
+}
+
+export interface BggSearchHit {
+  bgg_id: number;
+  name: string;
+  year: number | null;
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -199,6 +216,21 @@ export const venueApi = {
     }),
   deleteClosure: (venueId: number, closureId: number) =>
     request<unknown>(`/venues/${venueId}/closures/${closureId}`, { method: "DELETE" }),
+  games: (venueId: number) => request<VenueGame[]>(`/venues/${venueId}/games`),
+  addGame: (venueId: number, payload: { bgg_id?: number; title?: string }) =>
+    request<VenueGame>(`/venues/${venueId}/games`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteGame: (venueId: number, gameId: number) =>
+    request<unknown>(`/venues/${venueId}/games/${gameId}`, { method: "DELETE" }),
+};
+
+export const bggApi = {
+  search: (q: string, limit = 20) =>
+    request<{ results: BggSearchHit[] }>(
+      `/bgg/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+    ),
 };
 
 // --- Reviews ---
@@ -248,7 +280,17 @@ export function errorMessage(e: unknown): string {
       const detail = (d as { detail?: unknown }).detail;
       if (typeof detail === "string" && detail.trim()) return detail;
       if (Array.isArray(detail) && typeof detail[0] === "string") return detail[0];
-      for (const key of ["password", "username", "email", "non_field_errors"]) {
+      for (const key of [
+        "password",
+        "current_password",
+        "new_password",
+        "confirm_password",
+        "username",
+        "email",
+        "non_field_errors",
+        "bgg_id",
+        "title",
+      ]) {
         const field = (d as Record<string, unknown>)[key];
         if (typeof field === "string" && field.trim()) return field;
         if (Array.isArray(field) && typeof field[0] === "string") return field[0];

@@ -32,8 +32,17 @@ export function bggUrl(name: string): string {
 /**
  * The board game's cover thumbnail from BoardGameGeek (resolved via the backend,
  * which needs a BGG API token). Falls back to a lettered tile when unavailable.
+ * Pass `imageUrl` when the venue already cached a BGG thumbnail.
  */
-export function Cover({ name, size = 44 }: { name: string; size?: number }) {
+export function Cover({
+  name,
+  size = 44,
+  imageUrl,
+}: {
+  name: string;
+  size?: number;
+  imageUrl?: string | null;
+}) {
   const [failed, setFailed] = useState(false);
   const dim = { width: size, height: size, minWidth: size };
   const big = size >= 96;
@@ -55,10 +64,11 @@ export function Cover({ name, size = 44 }: { name: string; size?: number }) {
       </div>
     );
   }
+  const src = imageUrl || `/api/bgg/cover?q=${encodeURIComponent(name)}`;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`/api/bgg/cover?q=${encodeURIComponent(name)}`}
+      src={src}
       alt={name}
       style={dim}
       onError={() => setFailed(true)}

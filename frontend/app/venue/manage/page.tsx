@@ -3,12 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Banner, Shell } from "../../components/ui";
+import { Banner, Cover, GameLink, Shell } from "../../components/ui";
 import {
+  bggApi,
   errorMessage,
   venueApi,
+  type BggSearchHit,
   type Venue,
   type VenueClosure,
+  type VenueGame,
   type WeeklyHours,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -43,6 +46,97 @@ function fromTimeInput(value: string): string {
 }
 
 type AdminTab = "create" | "manage";
+
+function BggGamePicker({
+  onPick,
+  disabled,
+}: {
+  onPick: (hit: BggSearchHit) => void;
+  disabled?: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<BggSearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setHits([]);
+      setSearchError(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      setSearchError(null);
+      bggApi
+        .search(q)
+        .then((res) => {
+          if (!cancelled) setHits(res.results);
+        })
+        .catch((e) => {
+          if (!cancelled) {
+            setHits([]);
+            setSearchError(errorMessage(e));
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
+  return (
+    <div>
+      <span className="label">Add game from BoardGameGeek</span>
+      <input
+        className="input"
+        placeholder="Search board games…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        disabled={disabled}
+        autoComplete="off"
+      />
+      {searching ? <div className="mt-1 text-xs text-slate-400">Searching BGG…</div> : null}
+      {searchError ? <div className="mt-1 text-xs text-red-500">{searchError}</div> : null}
+      {hits.length > 0 ? (
+        <select
+          className="input mt-2"
+          defaultValue=""
+          disabled={disabled}
+          onChange={(e) => {
+            const id = Number(e.target.value);
+            const hit = hits.find((h) => h.bgg_id === id);
+            if (hit) {
+              onPick(hit);
+              setQuery("");
+              setHits([]);
+              e.target.value = "";
+            }
+          }}
+        >
+          <option value="" disabled>
+            Select a game…
+          </option>
+          {hits.map((h) => (
+            <option key={h.bgg_id} value={h.bgg_id}>
+              {h.name}
+              {h.year ? ` (${h.year})` : ""}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {!searching && query.trim().length >= 2 && hits.length === 0 && !searchError ? (
+        <div className="mt-1 text-xs text-slate-400">No BGG matches.</div>
+      ) : null}
+    </div>
+  );
+}
 
 function HoursEditor({
   hours,
@@ -122,6 +216,7 @@ export default function ManageVenuePage() {
   const [venueId, setVenueId] = useState<number | null>(null);
   const [hours, setHours] = useState<WeeklyHours[]>(defaultHours());
   const [closures, setClosures] = useState<VenueClosure[]>([]);
+  const [games, setGames] = useState<VenueGame[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -178,9 +273,14 @@ export default function ManageVenuePage() {
   const loadManageData = useCallback(async () => {
     if (!venueId) return;
     try {
-      const [h, c] = await Promise.all([venueApi.hours(venueId), venueApi.closures(venueId)]);
+      const [h, c, g] = await Promise.all([
+        venueApi.hours(venueId),
+        venueApi.closures(venueId),
+        venueApi.games(venueId),
+      ]);
       setHours(h.length === 7 ? h : defaultHours());
       setClosures(c);
+      setGames(g);
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -337,6 +437,42 @@ export default function ManageVenuePage() {
       await venueApi.deleteClosure(venueId, id);
       setInfo("Closure removed.");
       await loadManageData();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addGameFromBgg(hit: BggSearchHit) {
+    if (!venueId) return;
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const game = await venueApi.addGame(venueId, { bgg_id: hit.bgg_id, title: hit.name });
+      setGames((rows) =>
+        [...rows.filter((g) => g.id !== game.id), game].sort((a, b) =>
+          a.title.localeCompare(b.title),
+        ),
+      );
+      setInfo(`Added “${game.title}” to this venue.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeGame(id: number) {
+    if (!venueId) return;
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await venueApi.deleteGame(venueId, id);
+      setGames((rows) => rows.filter((g) => g.id !== id));
+      setInfo("Game removed from this venue.");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -552,6 +688,38 @@ export default function ManageVenuePage() {
                 </button>
               </form>
 
+              <div className="card">
+                <div className="text-sm font-bold">Board games at this venue</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Search BoardGameGeek and add titles visitors will see on the venue page.
+                </div>
+                <div className="mt-2">
+                  <BggGamePicker onPick={addGameFromBgg} disabled={busy} />
+                </div>
+                <div className="mt-3 space-y-2">
+                  {games.length === 0 ? (
+                    <div className="text-sm text-slate-400">No games listed yet.</div>
+                  ) : (
+                    games.map((g) => (
+                      <div key={g.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                        <Cover name={g.title} imageUrl={g.cover_url} size={40} />
+                        <div className="min-w-0 flex-1 text-sm font-semibold">
+                          <GameLink name={g.title} />
+                        </div>
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-red-500"
+                          disabled={busy}
+                          onClick={() => removeGame(g.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
               <form onSubmit={saveHours}>
                 <div className="mb-2 text-sm font-bold">Bookable hours</div>
                 <HoursEditor hours={hours} onChange={setHours} />
@@ -607,7 +775,7 @@ export default function ManageVenuePage() {
               </div>
             </>
           ) : (
-            <Banner kind="info">Select a venue to edit hours and closure alerts.</Banner>
+            <Banner kind="info">Select a venue to edit games, hours, and closure alerts.</Banner>
           )}
         </div>
       ) : null}

@@ -83,3 +83,28 @@ class VenueClosure(models.Model):
 
     def __str__(self) -> str:
         return f"{self.venue} closed {self.date}: {self.comment[:40]}"
+
+
+class VenueGame(models.Model):
+    """Board game available at a venue (picked from BoardGameGeek)."""
+
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="games")
+    title = models.CharField(max_length=200)
+    bgg_id = models.PositiveIntegerField(null=True, blank=True)
+    thumbnail_url = models.URLField(max_length=500, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["title"]
+        constraints = [
+            models.UniqueConstraint(fields=["venue", "title"], name="uniq_venue_game_title"),
+            models.UniqueConstraint(
+                fields=["venue", "bgg_id"],
+                condition=models.Q(bgg_id__isnull=False),
+                name="uniq_venue_game_bgg_id",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} @ {self.venue}"

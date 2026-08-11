@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Banner, Shell } from "../../components/ui";
+<<<<<<< HEAD
 import {
   errorMessage,
   tableApi,
@@ -11,6 +12,9 @@ import {
   type Availability,
   type Venue,
 } from "../../lib/api";
+=======
+import { errorMessage, tableApi, venueApi, type Venue, type VenueGame } from "../../lib/api";
+>>>>>>> e14f165 (feat(venues): manage BGG games and show them on venue pages)
 import { useAuth } from "../../lib/auth";
 
 // Languages selectable when "Other" is chosen (English and German have their own options).
@@ -66,7 +70,11 @@ export default function CreateTablePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
+<<<<<<< HEAD
   const [availability, setAvailability] = useState<Availability[]>([]);
+=======
+  const [venueGames, setVenueGames] = useState<VenueGame[]>([]);
+>>>>>>> e14f165 (feat(venues): manage BGG games and show them on venue pages)
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -82,6 +90,7 @@ export default function CreateTablePage() {
   const [languageOther, setLanguageOther] = useState("French");
 
   const selectedVenue = venues.find((v) => String(v.id) === venue);
+  const hasVenueGames = venueGames.length > 0;
   const venueMin = selectedVenue?.min_players ?? 1;
   const venueMax = selectedVenue?.max_players ?? 99;
   const minReservationMinutes =
@@ -151,6 +160,25 @@ export default function CreateTablePage() {
     setMinPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
     setMaxPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
   }, [selectedVenue]);
+
+  // Load games offered at the selected venue for the Game dropdown.
+  useEffect(() => {
+    if (!venue) {
+      setVenueGames([]);
+      setGame("");
+      return;
+    }
+    venueApi
+      .games(Number(venue))
+      .then((games) => {
+        setVenueGames(games);
+        setGame((current) => {
+          if (games.some((g) => g.title === current)) return current;
+          return games[0]?.title ?? "";
+        });
+      })
+      .catch((e) => setError(errorMessage(e)));
+  }, [venue]);
 
   // Keep From/To inside the day's opening hours and venue duration limits.
   useEffect(() => {
@@ -331,7 +359,26 @@ export default function CreateTablePage() {
         ) : null}
 
         <span className="label">Game</span>
-        <input className="input" value={game} onChange={(e) => setGame(e.target.value)} required placeholder="e.g. Catan" />
+        {hasVenueGames ? (
+          <select className="input" value={game} onChange={(e) => setGame(e.target.value)} required>
+            {venueGames.map((g) => (
+              <option key={g.id} value={g.title}>
+                {g.title}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className="input"
+            value={game}
+            onChange={(e) => setGame(e.target.value)}
+            required
+            placeholder="e.g. Catan"
+          />
+        )}
+        {selectedVenue && hasVenueGames ? (
+          <div className="mt-1 text-xs text-slate-500">Games available at {selectedVenue.name}.</div>
+        ) : null}
 
         <span className="label">Who brings the game?</span>
         <div className="mt-1 space-y-1 text-sm">

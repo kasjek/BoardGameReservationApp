@@ -1,6 +1,7 @@
 from django.http import HttpResponse, HttpResponseRedirect
 from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
@@ -36,3 +37,21 @@ class BggCoverView(APIView):
         if not url:
             return HttpResponse(status=404)
         return HttpResponseRedirect(url)
+
+
+class BggSearchView(APIView):
+    """JSON search hits from BoardGameGeek for admin game pickers."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "bgg"
+
+    def get(self, request):
+        q = request.query_params.get("q", "").strip()
+        if len(q) < 2:
+            raise ValidationError("q must be at least 2 characters.")
+        try:
+            limit = int(request.query_params.get("limit", "20"))
+        except (TypeError, ValueError):
+            limit = 20
+        results = services.search_boardgames(q, limit=limit)
+        return Response({"results": results})

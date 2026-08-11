@@ -5,11 +5,13 @@ from rest_framework.views import APIView
 from apps.accounts.models import Role
 
 from .hours import set_weekly_hours, sync_availability_from_hours
-from .models import Venue, VenueAvailability, VenueClosure, VenueWeeklyHours
+from .models import Venue, VenueAvailability, VenueClosure, VenueGame, VenueWeeklyHours
 from .serializers import (
     VenueAvailabilitySerializer,
     VenueClosureSerializer,
     VenueCreateSerializer,
+    VenueGameSerializer,
+    VenueGameWriteSerializer,
     VenueSerializer,
     VenueWeeklyHoursSerializer,
 )
@@ -127,3 +129,43 @@ class VenueClosureDestroyView(generics.DestroyAPIView):
         _require_manager(self.request.user, venue)
         super().perform_destroy(instance)
         sync_availability_from_hours(venue)
+
+
+class VenueGameListCreateView(generics.ListCreateAPIView):
+    """Public list of games at a venue; managers may add from BGG search hits."""
+
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = VenueGame.objects.filter(venue_id=self.kwargs["venue_id"]).order_by("title")
+        if self.request.method in permissions.SAFE_METHODS:
+            return qs.filter(is_active=True)
+        return qs
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return VenueGameWriteSerializer
+        return VenueGameSerializer
+
+    def create(self, request, *args, **kwargs):
+        venue = generics.get_object_or_404(Venue, pk=self.kwargs["venue_id"])
+        _require_manager(request.user, venue)
+        ser = VenueGameWriteSerializer(data=request.data, context={"venue": venue})
+        ser.is_valid(raise_exception=True)
+        game = ser.save()
+        return Response(VenueGameSerializer(game).data, status=status.HTTP_201_CREATED)
+
+
+class VenueGameDestroyView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = VenueGameSerializer
+
+    def get_queryset(self):
+        return VenueGame.objects.filter(venue_id=self.kwargs["venue_id"])
+
+    def perform_destroy(self, instance):
+        _require_manager(self.request.user, instance.venue)
+        super().perform_destroy(instance)
