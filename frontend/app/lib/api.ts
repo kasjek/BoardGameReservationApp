@@ -191,8 +191,17 @@ export const tableApi = {
 
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) {
-    const d = e.data as { detail?: string } | null;
-    if (d && typeof d === "object" && d.detail) return d.detail;
+    const d = e.data;
+    if (typeof d === "string" && d.trim()) return d;
+    if (Array.isArray(d) && d.length) {
+      const first = d[0];
+      if (typeof first === "string") return first;
+    }
+    if (d && typeof d === "object") {
+      const detail = (d as { detail?: unknown }).detail;
+      if (typeof detail === "string" && detail.trim()) return detail;
+      if (Array.isArray(detail) && typeof detail[0] === "string") return detail[0];
+    }
     if (e.status === 403) return "You don't have permission to do that.";
     if (e.status === 409) return "That action conflicts with the current state.";
     return `Request failed (${e.status}).`;

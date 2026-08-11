@@ -8,7 +8,7 @@ over-booking and duplicate seats.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import time, timedelta
 
 from django.db import transaction
 from django.utils import timezone
@@ -19,6 +19,9 @@ from .models import LateCancellationMark, SeatReservation, SeatStatus, Table, Ta
 TURNOVER = timedelta(minutes=15)
 LATE_CANCEL_WINDOW = timedelta(hours=24)
 MARK_VALIDITY = timedelta(days=30)
+# Platform booking length bounds (story 4 / story 45).
+MIN_TABLE_DURATION = timedelta(hours=1)
+MAX_TABLE_DURATION = timedelta(hours=3)
 
 ACTIVE_TABLE_STATUSES = (
     TableStatus.WAITING_FOR_VENUE_CONFIRMATION,
@@ -39,6 +42,24 @@ def _windows_conflict(s1, e1, s2, e2, buffer=TURNOVER) -> bool:
     return s1 < e2 + buffer and s2 < e1 + buffer
 
 
+def _naive_clock(dt) -> time:
+    """Wall-clock time used to match VenueAvailability rows (naive time fields)."""
+    return dt.timetz().replace(tzinfo=None)
+
+
+def covering_availability(venue, starts_at, ends_at):
+    """Availability rows on the start date that fully cover [starts_at, ends_at]."""
+    if starts_at.date() != ends_at.date():
+        return []
+    start_t = _naive_clock(starts_at)
+    end_t = _naive_clock(ends_at)
+    return [
+        a
+        for a in venue.availability.filter(date=starts_at.date())
+        if a.start_time <= start_t and a.end_time >= end_t
+    ]
+
+
 def create_table(
     *,
     organizer,
@@ -56,11 +77,21 @@ def create_table(
         raise PermissionDenied("Only a USER may host a table.")
     if ends_at <= starts_at:
         raise ValidationError("ends_at must be after starts_at.")
+    duration = ends_at - starts_at
+    if duration < MIN_TABLE_DURATION:
+        raise ValidationError("Tables must be booked for at least 1 hour.")
+    if duration > MAX_TABLE_DURATION:
+        raise ValidationError("Tables cannot be longer than 3 hours.")
     if min_players < 1 or max_players < min_players:
         raise ValidationError("Require 1 <= min_players <= max_players.")
     if min_players < venue.min_players or max_players > venue.max_players:
         raise ValidationError(
             f"This venue only allows tables for {venue.min_players}–{venue.max_players} players."
+        )
+    if not covering_availability(venue, starts_at, ends_at):
+        raise ValidationError(
+            "This venue is not open for the requested time. "
+            "Choose a slot within the venue's opening hours."
         )
 
     table = Table.objects.create(
@@ -85,12 +116,7 @@ def create_table(
 
 def _check_venue_capacity(table: Table) -> None:
     """Enforce venue capacity with the 15-minute turnover buffer (ADR-011)."""
-    covering = [
-        a
-        for a in table.venue.availability.filter(date=table.starts_at.date())
-        if a.start_time <= table.starts_at.timetz().replace(tzinfo=None)
-        and a.end_time >= table.ends_at.timetz().replace(tzinfo=None)
-    ]
+    covering = covering_availability(table.venue, table.starts_at, table.ends_at)
     if not covering:
         raise Conflict("Venue is not available for the requested slot.")
     tables_available = max(a.tables_available for a in covering)

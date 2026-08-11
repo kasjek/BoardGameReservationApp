@@ -42,7 +42,20 @@ def wide_availability(venue):
     )
 
 
-def make_table(organizer, venue, bring_own_game=True, **kwargs):
+def ensure_wide_availability(venue, day, tables_available=5):
+    """Guarantee a covering availability row so create_table can succeed in tests."""
+    VenueAvailability.objects.get_or_create(
+        venue=venue,
+        date=day,
+        defaults={
+            "start_time": time(0, 0),
+            "end_time": time(23, 59, 59),
+            "tables_available": tables_available,
+        },
+    )
+
+
+def make_table(organizer, venue, bring_own_game=True, ensure_availability=True, **kwargs):
     params = {
         "organizer": organizer,
         "venue": venue,
@@ -54,6 +67,8 @@ def make_table(organizer, venue, bring_own_game=True, **kwargs):
         "bring_own_game": bring_own_game,
     }
     params.update(kwargs)
+    if ensure_availability:
+        ensure_wide_availability(venue, params["starts_at"].date())
     return services.create_table(**params)
 
 
@@ -275,3 +290,72 @@ def test_venue_capacity_allows_when_capacity_available(db, venue):
     services.confirm_table(table=b, by_user=staff)  # capacity 2 -> allowed
     b.refresh_from_db()
     assert b.status == TableStatus.WAITING_FOR_PLAYERS
+
+
+# --- Duration + opening hours on create -------------------------------------
+
+def test_create_rejects_shorter_than_one_hour(db, venue):
+    from rest_framework.exceptions import ValidationError
+
+    host = make_user("alice")
+    with pytest.raises(ValidationError, match="at least 1 hour"):
+        make_table(
+            host,
+            venue,
+            starts_at=future_dt(hour=18),
+            ends_at=future_dt(hour=18, minute=30),
+        )
+
+
+def test_create_rejects_longer_than_three_hours(db, venue):
+    from rest_framework.exceptions import ValidationError
+
+    host = make_user("alice")
+    with pytest.raises(ValidationError, match="longer than 3 hours"):
+        make_table(
+            host,
+            venue,
+            starts_at=future_dt(hour=14),
+            ends_at=future_dt(hour=18),
+        )
+
+
+def test_create_rejects_outside_opening_hours(db, venue):
+    from rest_framework.exceptions import ValidationError
+
+    host = make_user("alice")
+    # Cafe opens at 10:00 — a 09:00–11:00 booking must be rejected.
+    VenueAvailability.objects.create(
+        venue=venue,
+        date=future_dt().date(),
+        start_time=time(10, 0),
+        end_time=time(20, 0),
+        tables_available=3,
+    )
+    with pytest.raises(ValidationError, match="not open"):
+        make_table(
+            host,
+            venue,
+            ensure_availability=False,
+            starts_at=future_dt(hour=9),
+            ends_at=future_dt(hour=11),
+        )
+
+
+def test_create_allows_slot_inside_opening_hours(db, venue):
+    host = make_user("alice")
+    VenueAvailability.objects.create(
+        venue=venue,
+        date=future_dt().date(),
+        start_time=time(10, 0),
+        end_time=time(20, 0),
+        tables_available=3,
+    )
+    table = make_table(
+        host,
+        venue,
+        ensure_availability=False,
+        starts_at=future_dt(hour=10),
+        ends_at=future_dt(hour=12),
+    )
+    assert table.status == TableStatus.WAITING_FOR_VENUE_CONFIRMATION

@@ -1,10 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Banner, Shell } from "../../components/ui";
-import { errorMessage, tableApi, venueApi, type Venue } from "../../lib/api";
+import {
+  errorMessage,
+  tableApi,
+  venueApi,
+  type Availability,
+  type Venue,
+} from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 
 // Languages selectable when "Other" is chosen (English and German have their own options).
@@ -34,6 +40,9 @@ const OTHER_LANGUAGES = [
   "Hindi",
 ];
 
+const MIN_DURATION_MINUTES = 60;
+const MAX_DURATION_MINUTES = 180;
+
 // Start/end times are restricted to full hour and half-hour slots.
 const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
@@ -41,10 +50,23 @@ const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
   return `${h}:${m}`;
 });
 
+function parseHm(value: string): number {
+  // Accept "HH:MM" or "HH:MM:SS".
+  const [h, m] = value.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+function formatHoursLabel(row: Availability): string {
+  const start = row.start_time.slice(0, 5);
+  const end = row.end_time.slice(0, 5);
+  return `${start}–${end}`;
+}
+
 export default function CreateTablePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [availability, setAvailability] = useState<Availability[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -63,6 +85,37 @@ export default function CreateTablePage() {
   const venueMin = selectedVenue?.min_players ?? 1;
   const venueMax = selectedVenue?.max_players ?? 99;
 
+  const dayAvailability = useMemo(() => {
+    if (!date) return null;
+    return availability.find((a) => a.date === date) ?? null;
+  }, [availability, date]);
+
+  const fromSlots = useMemo(() => {
+    if (!dayAvailability) return [];
+    const open = parseHm(dayAvailability.start_time);
+    const close = parseHm(dayAvailability.end_time);
+    return TIME_SLOTS.filter((t) => {
+      const mins = parseHm(t);
+      // Need room for the minimum 1-hour booking before close.
+      return mins >= open && mins + MIN_DURATION_MINUTES <= close;
+    });
+  }, [dayAvailability]);
+
+  const toSlots = useMemo(() => {
+    if (!dayAvailability) return [];
+    const close = parseHm(dayAvailability.end_time);
+    const start = parseHm(from);
+    return TIME_SLOTS.filter((t) => {
+      const mins = parseHm(t);
+      const duration = mins - start;
+      return (
+        duration >= MIN_DURATION_MINUTES &&
+        duration <= MAX_DURATION_MINUTES &&
+        mins <= close
+      );
+    });
+  }, [dayAvailability, from]);
+
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
@@ -77,12 +130,37 @@ export default function CreateTablePage() {
       .catch((e) => setError(errorMessage(e)));
   }, []);
 
+  useEffect(() => {
+    if (!venue) {
+      setAvailability([]);
+      return;
+    }
+    venueApi
+      .availability(Number(venue))
+      .then(setAvailability)
+      .catch((e) => setError(errorMessage(e)));
+  }, [venue]);
+
   // Keep party size inside the selected venue's limits.
   useEffect(() => {
     if (!selectedVenue) return;
     setMinPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
     setMaxPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
   }, [selectedVenue]);
+
+  // Keep From/To inside the day's opening hours and 1–3h duration.
+  useEffect(() => {
+    if (!dayAvailability) return;
+    if (fromSlots.length === 0) return;
+    if (!fromSlots.includes(from)) {
+      setFrom(fromSlots[0]);
+      return;
+    }
+    if (toSlots.length === 0) return;
+    if (!toSlots.includes(to)) {
+      setTo(toSlots[Math.min(toSlots.length - 1, 2)] ?? toSlots[0]);
+    }
+  }, [dayAvailability, fromSlots, toSlots, from, to]);
 
   if (loading || !user) return null;
   if (user.role === "VENUE_USER") {
@@ -97,6 +175,17 @@ export default function CreateTablePage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    if (!dayAvailability) {
+      setError("This venue has no opening hours on the selected date.");
+      setBusy(false);
+      return;
+    }
+    const duration = parseHm(to) - parseHm(from);
+    if (duration < MIN_DURATION_MINUTES || duration > MAX_DURATION_MINUTES) {
+      setError("Tables must be booked for between 1 and 3 hours.");
+      setBusy(false);
+      return;
+    }
     try {
       const starts_at = new Date(`${date}T${from}:00`).toISOString();
       const ends_at = new Date(`${date}T${to}:00`).toISOString();
@@ -118,6 +207,13 @@ export default function CreateTablePage() {
       setBusy(false);
     }
   }
+
+  const noHoursForDate = Boolean(date && venue && !dayAvailability);
+  const hoursHint = dayAvailability
+    ? `Open ${formatHoursLabel(dayAvailability)} · bookings 1–3 hours`
+    : date
+      ? "Closed / no availability on this date"
+      : "Pick a date to see opening hours";
 
   return (
     <Shell title="New Table">
@@ -152,12 +248,22 @@ export default function CreateTablePage() {
 
         <span className="label">Date</span>
         <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        <div className="mt-1 text-xs text-slate-500">{hoursHint}</div>
+        {noHoursForDate ? (
+          <Banner kind="error">No bookings possible on this date — venue is closed or unpublished.</Banner>
+        ) : null}
 
         <div className="flex gap-2">
           <div className="flex-1">
             <span className="label">From</span>
-            <select className="input" value={from} onChange={(e) => setFrom(e.target.value)}>
-              {TIME_SLOTS.map((t) => (
+            <select
+              className="input"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              disabled={!dayAvailability || fromSlots.length === 0}
+              required
+            >
+              {(fromSlots.length ? fromSlots : TIME_SLOTS).map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
@@ -166,8 +272,14 @@ export default function CreateTablePage() {
           </div>
           <div className="flex-1">
             <span className="label">To</span>
-            <select className="input" value={to} onChange={(e) => setTo(e.target.value)}>
-              {TIME_SLOTS.map((t) => (
+            <select
+              className="input"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              disabled={!dayAvailability || toSlots.length === 0}
+              required
+            >
+              {(toSlots.length ? toSlots : TIME_SLOTS).map((t) => (
                 <option key={t} value={t}>
                   {t}
                 </option>
@@ -175,6 +287,12 @@ export default function CreateTablePage() {
             </select>
           </div>
         </div>
+        {dayAvailability && from && to && toSlots.includes(to) ? (
+          <div className="mt-1 text-xs text-slate-500">
+            Duration {((parseHm(to) - parseHm(from)) / 60).toFixed(1).replace(/\.0$/, "")}h (min 1h, max
+            3h)
+          </div>
+        ) : null}
 
         <div className="flex gap-2">
           <div className="flex-1">
@@ -242,7 +360,7 @@ export default function CreateTablePage() {
           </label>
         </div>
 
-        <button className="btn mt-4" disabled={busy}>
+        <button className="btn mt-4" disabled={busy || noHoursForDate || fromSlots.length === 0}>
           {busy ? "…" : "Request table"}
         </button>
       </form>
