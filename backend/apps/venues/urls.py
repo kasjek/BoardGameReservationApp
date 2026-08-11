@@ -2,7 +2,10 @@ from django.urls import path
 
 from .views import (
     VenueAvailabilityListCreateView,
+    VenueClosureDestroyView,
+    VenueClosureListCreateView,
     VenueDetailView,
+    VenueHoursView,
     VenueListCreateView,
 )
 
@@ -13,5 +16,20 @@ urlpatterns = [
         "venues/<int:venue_id>/availability",
         VenueAvailabilityListCreateView.as_view(),
         name="venue-availability",
+    ),
+    path(
+        "venues/<int:venue_id>/hours",
+        VenueHoursView.as_view(),
+        name="venue-hours",
+    ),
+    path(
+        "venues/<int:venue_id>/closures",
+        VenueClosureListCreateView.as_view(),
+        name="venue-closures",
+    ),
+    path(
+        "venues/<int:venue_id>/closures/<int:pk>",
+        VenueClosureDestroyView.as_view(),
+        name="venue-closure-detail",
     ),
 ]

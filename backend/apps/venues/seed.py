@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from datetime import date, time, timedelta
 
+from django.db import connection
 from django.utils import timezone
 
 from .models import Venue, VenueAvailability
@@ -50,18 +51,7 @@ def end_time_for(day: date) -> time:
     return END_BY_WEEKDAY[day.weekday()]
 
 
-def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
-    """Create/update Date House Cafe and fill availability for the next N days."""
-    venue, _ = Venue.objects.update_or_create(
-        name=DATE_HOUSE_NAME,
-        defaults={
-            "location": DATE_HOUSE_ADDRESS,
-            "description": DATE_HOUSE_DESCRIPTION,
-            "min_players": 2,
-            "max_players": 8,
-        },
-    )
-
+def _legacy_seed_availability(venue: Venue, *, horizon_days: int) -> None:
     today = timezone.localdate()
     for offset in range(horizon_days):
         day = today + timedelta(days=offset)
@@ -74,6 +64,42 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
                 "tables_available": TABLES_AVAILABLE,
             },
         )
+
+
+def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
+    """Create/update Date House Cafe and fill weekly hours + availability."""
+    venue, _ = Venue.objects.update_or_create(
+        name=DATE_HOUSE_NAME,
+        defaults={
+            "location": DATE_HOUSE_ADDRESS,
+            "description": DATE_HOUSE_DESCRIPTION,
+            "min_players": 2,
+            "max_players": 8,
+        },
+    )
+
+    tables = connection.introspection.table_names()
+    if "venues_venueweeklyhours" in tables:
+        from .hours import set_weekly_hours
+
+        payload = [
+            {
+                "weekday": d,
+                "is_closed": False,
+                "start_time": OPEN_FROM,
+                "end_time": END_BY_WEEKDAY[d],
+            }
+            for d in range(7)
+        ]
+        set_weekly_hours(
+            venue,
+            payload,
+            tables_available=TABLES_AVAILABLE,
+            horizon_days=horizon_days,
+        )
+    else:
+        # Older migrations call this before VenueWeeklyHours exists.
+        _legacy_seed_availability(venue, horizon_days=horizon_days)
     return venue
 
 

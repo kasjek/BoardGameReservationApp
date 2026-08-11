@@ -81,6 +81,21 @@ export interface Availability {
   tables_available: number;
 }
 
+export interface WeeklyHours {
+  weekday: number; // Mon=0 … Sun=6
+  is_closed: boolean;
+  start_time: string | null;
+  end_time: string | null;
+}
+
+export interface VenueClosure {
+  id: number;
+  venue: number;
+  date: string;
+  comment: string;
+  created_at: string;
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -142,6 +157,8 @@ export const venueApi = {
     location?: string;
     min_players?: number;
     max_players?: number;
+    weekly_hours?: WeeklyHours[];
+    closures?: { date: string; comment: string }[];
   }) => request<Venue>("/venues", { method: "POST", body: JSON.stringify(payload) }),
   availability: (venueId: number) => request<Availability[]>(`/venues/${venueId}/availability`),
   addAvailability: (
@@ -152,6 +169,20 @@ export const venueApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  hours: (venueId: number) => request<WeeklyHours[]>(`/venues/${venueId}/hours`),
+  setHours: (venueId: number, hours: WeeklyHours[]) =>
+    request<WeeklyHours[]>(`/venues/${venueId}/hours`, {
+      method: "PUT",
+      body: JSON.stringify(hours),
+    }),
+  closures: (venueId: number) => request<VenueClosure[]>(`/venues/${venueId}/closures`),
+  addClosure: (venueId: number, payload: { date: string; comment: string }) =>
+    request<VenueClosure>(`/venues/${venueId}/closures`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteClosure: (venueId: number, closureId: number) =>
+    request<unknown>(`/venues/${venueId}/closures/${closureId}`, { method: "DELETE" }),
 };
 
 // --- Reviews ---
