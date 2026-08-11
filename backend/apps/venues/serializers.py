@@ -5,16 +5,34 @@ from .models import Venue, VenueAvailability
 
 class VenueSerializer(serializers.ModelSerializer):
     rating_avg = serializers.SerializerMethodField()
+    maps_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Venue
-        fields = ["id", "name", "description", "location", "rating_avg", "created_at"]
-        read_only_fields = ["id", "rating_avg", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "description",
+            "location",
+            "min_players",
+            "max_players",
+            "rating_avg",
+            "maps_url",
+            "created_at",
+        ]
+        read_only_fields = ["id", "rating_avg", "maps_url", "created_at"]
 
     def get_rating_avg(self, obj):
         from apps.reviews.models import average_rating_for_venue
 
         return average_rating_for_venue(obj.id)
+
+    def get_maps_url(self, obj):
+        if not obj.location:
+            return None
+        from .seed import google_maps_url
+
+        return google_maps_url(obj.location)
 
 
 class VenueAvailabilitySerializer(serializers.ModelSerializer):

@@ -108,12 +108,43 @@ export default function TableDetailPage() {
         <Cover name={table.game_title} size={200} />
       </div>
       <div className="text-sm text-slate-500">
-        {venue ? venue.name : `Venue #${table.venue}`}
-        {venue?.rating_avg != null ? (
-          <span className="text-yellow-600"> · ★ {venue.rating_avg.toFixed(1)}</span>
-        ) : null}
+        {venue ? (
+          <>
+            <a
+              href={`/venues/${venue.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                router.push(`/venues/${venue.id}`);
+              }}
+              className="font-semibold text-brand underline decoration-dotted underline-offset-2"
+            >
+              {venue.name}
+            </a>
+            {venue.rating_avg != null ? (
+              <span className="text-yellow-600"> · ★ {venue.rating_avg.toFixed(1)}</span>
+            ) : null}
+          </>
+        ) : (
+          `Venue #${table.venue}`
+        )}
       </div>
-      <h2 className="text-lg font-bold">{formatWhen(table.starts_at, table.ends_at)}</h2>
+      {venue?.location ? (
+        <div className="mt-1 text-sm">
+          {venue.maps_url ? (
+            <a
+              href={venue.maps_url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-slate-600 underline decoration-dotted underline-offset-2"
+            >
+              {venue.location}
+            </a>
+          ) : (
+            <span className="text-slate-600">{venue.location}</span>
+          )}
+        </div>
+      ) : null}
+      <h2 className="mt-2 text-lg font-bold">{formatWhen(table.starts_at, table.ends_at)}</h2>
       <div className="text-sm text-slate-500">
         Language:{" "}
         {table.game_language === "other"

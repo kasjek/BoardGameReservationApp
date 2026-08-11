@@ -58,6 +58,10 @@ def create_table(
         raise ValidationError("ends_at must be after starts_at.")
     if min_players < 1 or max_players < min_players:
         raise ValidationError("Require 1 <= min_players <= max_players.")
+    if min_players < venue.min_players or max_players > venue.max_players:
+        raise ValidationError(
+            f"This venue only allows tables for {venue.min_players}–{venue.max_players} players."
+        )
 
     table = Table.objects.create(
         organizer=organizer,

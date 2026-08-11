@@ -59,6 +59,10 @@ export default function CreateTablePage() {
   const [language, setLanguage] = useState("en");
   const [languageOther, setLanguageOther] = useState("French");
 
+  const selectedVenue = venues.find((v) => String(v.id) === venue);
+  const venueMin = selectedVenue?.min_players ?? 1;
+  const venueMax = selectedVenue?.max_players ?? 99;
+
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
@@ -72,6 +76,13 @@ export default function CreateTablePage() {
       })
       .catch((e) => setError(errorMessage(e)));
   }, []);
+
+  // Keep party size inside the selected venue's limits.
+  useEffect(() => {
+    if (!selectedVenue) return;
+    setMinPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
+    setMaxPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
+  }, [selectedVenue]);
 
   if (loading || !user) return null;
   if (user.role === "VENUE_USER") {
@@ -120,6 +131,24 @@ export default function CreateTablePage() {
             </option>
           ))}
         </select>
+        {selectedVenue?.location ? (
+          <div className="mt-1 text-xs text-slate-500">
+            {selectedVenue.maps_url ? (
+              <a
+                href={selectedVenue.maps_url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="underline decoration-dotted underline-offset-2"
+              >
+                {selectedVenue.location}
+              </a>
+            ) : (
+              selectedVenue.location
+            )}
+            {" · "}
+            {selectedVenue.min_players}–{selectedVenue.max_players} players
+          </div>
+        ) : null}
 
         <span className="label">Date</span>
         <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
@@ -153,7 +182,8 @@ export default function CreateTablePage() {
             <input
               className="input"
               type="number"
-              min={1}
+              min={venueMin}
+              max={venueMax}
               value={minPlayers}
               onChange={(e) => setMinPlayers(Number(e.target.value))}
             />
@@ -163,12 +193,18 @@ export default function CreateTablePage() {
             <input
               className="input"
               type="number"
-              min={1}
+              min={venueMin}
+              max={venueMax}
               value={maxPlayers}
               onChange={(e) => setMaxPlayers(Number(e.target.value))}
             />
           </div>
         </div>
+        {selectedVenue ? (
+          <div className="mt-1 text-xs text-slate-500">
+            This venue allows {selectedVenue.min_players}–{selectedVenue.max_players} players.
+          </div>
+        ) : null}
 
         <span className="label">Game</span>
         <input className="input" value={game} onChange={(e) => setGame(e.target.value)} required placeholder="e.g. Catan" />
