@@ -236,15 +236,22 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
       <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
         {user ? (
-          <button
-            className="text-xs text-slate-500"
-            onClick={() => {
-              logout();
-              router.push("/login");
-            }}
-          >
-            {user.username} · Log out
-          </button>
+          <div className="flex items-center gap-1 text-xs text-slate-500">
+            <Link href="/profile" className="font-semibold text-brand hover:underline">
+              {user.username}
+            </Link>
+            <span aria-hidden>·</span>
+            <button
+              type="button"
+              className="hover:underline"
+              onClick={() => {
+                logout();
+                router.push("/login");
+              }}
+            >
+              Log out
+            </button>
+          </div>
         ) : null}
       </header>
       <main className="min-h-0 flex-1 overflow-y-auto p-4">{children}</main>
