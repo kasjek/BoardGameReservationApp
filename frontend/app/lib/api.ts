@@ -66,7 +66,10 @@ export interface Venue {
   name: string;
   description: string;
   location: string;
+  min_players: number;
+  max_players: number;
   rating_avg: number | null;
+  maps_url: string | null;
 }
 
 export interface Availability {
@@ -132,8 +135,13 @@ export const authApi = {
 export const venueApi = {
   list: () => request<Venue[]>("/venues"),
   get: (id: number) => request<Venue>(`/venues/${id}`),
-  create: (payload: { name: string; description?: string; location?: string }) =>
-    request<Venue>("/venues", { method: "POST", body: JSON.stringify(payload) }),
+  create: (payload: {
+    name: string;
+    description?: string;
+    location?: string;
+    min_players?: number;
+    max_players?: number;
+  }) => request<Venue>("/venues", { method: "POST", body: JSON.stringify(payload) }),
   availability: (venueId: number) => request<Availability[]>(`/venues/${venueId}/availability`),
   addAvailability: (
     venueId: number,

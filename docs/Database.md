@@ -54,16 +54,19 @@ A cafe/restaurant that hosts tables. *(stories 3, 36, 53, 54)*
 | `name` | text | Venue name |
 | `description` | text | Public description |
 | `location` | text | Address / city |
+| `min_players` | int | Minimum party size for tables at this venue |
+| `max_players` | int | Maximum party size for tables at this venue |
 | `rating_avg` | numeric(2,1) | Derived from reviews |
 | `is_super_location` | bool | Marked "super location" by admin |
 | `is_blocked` | bool | Platform-level block |
 | `created_at` | timestamptz | Created time |
 | `updated_at` | timestamptz | Last update |
 
-| id | name | description | location | rating_avg | is_super_location | is_blocked |
-|---|---|---|---|---|---|---|
-| v_1 | Board & Brew | Cozy board game cafe with 20+ tables | Berlin, DE | 4.7 | true | false |
-| v_2 | Meeple Corner | Quiet spot, great coffee | Munich, DE | 4.2 | false | false |
+| id | name | description | location | min_players | max_players | rating_avg | is_super_location | is_blocked |
+|---|---|---|---|---|---|---|---|---|
+| v_1 | Board & Brew | Cozy board game cafe with 20+ tables | Berlin, DE | 2 | 8 | 4.7 | true | false |
+| v_2 | Meeple Corner | Quiet spot, great coffee | Munich, DE | 2 | 6 | 4.2 | false | false |
+| v_3 | Date House Cafe | Board-game-friendly cafe in the old town | Breite G. 88, 90402 Nürnberg | 2 | 8 | — | false | false |
 
 ### VenuePhoto
 

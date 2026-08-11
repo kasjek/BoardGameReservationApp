@@ -5,6 +5,9 @@ class Venue(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     location = models.CharField(max_length=255, blank=True)
+    # Party-size limits for tables hosted here (hosts still pick min/max per table).
+    min_players = models.PositiveIntegerField(default=2)
+    max_players = models.PositiveIntegerField(default=8)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
