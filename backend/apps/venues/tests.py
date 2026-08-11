@@ -406,3 +406,22 @@ def test_bgg_redirect_uses_venue_game_bgg_id_when_api_unavailable(db, client, mo
     resp = client.get("/api/bgg/redirect?q=Catan")
     assert resp.status_code == 302
     assert resp["Location"] == "https://boardgamegeek.com/boardgame/13"
+
+
+def test_seed_katzentempel(db):
+    from datetime import time as dt_time
+
+    from apps.venues.models import VenueGame, VenueWeeklyHours
+    from apps.venues.seed import KATZENTEMPEL_NAME, ensure_katzentempel
+
+    venue = ensure_katzentempel(horizon_days=7)
+    assert venue.name == KATZENTEMPEL_NAME
+    assert "Peter-Vischer" in venue.location
+    hours = list(VenueWeeklyHours.objects.filter(venue=venue).order_by("weekday"))
+    assert len(hours) == 7
+    assert hours[0].start_time == dt_time(10, 0)
+    assert hours[4].start_time == dt_time(9, 30)
+    assert hours[6].end_time == dt_time(19, 30)
+    titles = set(VenueGame.objects.filter(venue=venue, is_active=True).values_list("title", flat=True))
+    assert titles == {"Island of Cats", "Nekojima", "Spicy", "Calico"}
+    assert VenueGame.objects.filter(venue=venue, title="Calico").first().bgg_id == 283929

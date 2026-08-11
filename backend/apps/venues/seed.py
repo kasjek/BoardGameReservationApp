@@ -1,9 +1,9 @@
-"""Demo venue seed data (Date House Cafe).
+"""Demo venue seed data (Date House Cafe, Katzentempel Nürnberg).
 
 Idempotent helpers used by the management command and data migration.
 
-Opening hours match publicly listed Google/RestaurantGuru hours for
-Date House Café (Bindergasse / Nürnberg old town), updated Jul 2026:
+Date House Café hours match publicly listed Google/RestaurantGuru hours
+(Bindergasse / Nürnberg old town), updated Jul 2026:
   Mon–Thu 10:00–20:00
   Fri–Sat 10:00–22:00
   Sun     10:00–20:00
@@ -54,6 +54,43 @@ OPEN_FROM = time(10, 0)
 # Concurrent physical tables the venue can confirm in overlapping slots.
 TABLES_AVAILABLE = 3
 DEFAULT_HORIZON_DAYS = 120
+
+# Katzentempel Nürnberg — hours from katzentempel.de / directory listings.
+KATZENTEMPEL_NAME = "Katzentempel Nürnberg"
+KATZENTEMPEL_ADDRESS = "Peter-Vischer-Straße 21, 90403 Nürnberg"
+KATZENTEMPEL_DESCRIPTION = (
+    "Vegan cat café restaurant in Nürnberg's old town — cats roam freely "
+    "while guests enjoy plant-based food and drinks.\n\n"
+    "Opening hours (table bookings):\n"
+    "• Mon–Thu 10:00–20:30\n"
+    "• Fri–Sat 09:30–20:30\n"
+    "• Sun 09:30–19:30\n\n"
+    "Tables for 2–8 players."
+)
+KATZENTEMPEL_GAMES = (
+    ("Island of Cats", 284210),
+    ("Nekojima", 359871),
+    ("Spicy", 350933),
+    ("Calico", 283929),
+)
+KATZENTEMPEL_OPEN_BY_WEEKDAY: dict[int, time] = {
+    0: time(10, 0),
+    1: time(10, 0),
+    2: time(10, 0),
+    3: time(10, 0),
+    4: time(9, 30),
+    5: time(9, 30),
+    6: time(9, 30),
+}
+KATZENTEMPEL_END_BY_WEEKDAY: dict[int, time] = {
+    0: time(20, 30),
+    1: time(20, 30),
+    2: time(20, 30),
+    3: time(20, 30),
+    4: time(20, 30),
+    5: time(20, 30),
+    6: time(19, 30),
+}
 
 
 def end_time_for(day: date) -> time:
@@ -120,6 +157,70 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
                 defaults={"is_active": True, "bgg_id": bgg_id},
             )
     return venue
+
+
+def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
+    """Create/update Katzentempel Nürnberg with weekly hours, availability, and games."""
+    venue, _ = Venue.objects.update_or_create(
+        name=KATZENTEMPEL_NAME,
+        defaults={
+            "location": KATZENTEMPEL_ADDRESS,
+            "description": KATZENTEMPEL_DESCRIPTION,
+            "min_players": 2,
+            "max_players": 8,
+        },
+    )
+
+    tables = connection.introspection.table_names()
+    if "venues_venueweeklyhours" in tables:
+        from .hours import set_weekly_hours
+
+        payload = [
+            {
+                "weekday": d,
+                "is_closed": False,
+                "start_time": KATZENTEMPEL_OPEN_BY_WEEKDAY[d],
+                "end_time": KATZENTEMPEL_END_BY_WEEKDAY[d],
+            }
+            for d in range(7)
+        ]
+        set_weekly_hours(
+            venue,
+            payload,
+            tables_available=TABLES_AVAILABLE,
+            horizon_days=horizon_days,
+        )
+    else:
+        today = timezone.localdate()
+        for offset in range(horizon_days):
+            day = today + timedelta(days=offset)
+            weekday = day.weekday()
+            VenueAvailability.objects.update_or_create(
+                venue=venue,
+                date=day,
+                defaults={
+                    "start_time": KATZENTEMPEL_OPEN_BY_WEEKDAY[weekday],
+                    "end_time": KATZENTEMPEL_END_BY_WEEKDAY[weekday],
+                    "tables_available": TABLES_AVAILABLE,
+                },
+            )
+
+    if "venues_venuegame" in tables:
+        for title, bgg_id in KATZENTEMPEL_GAMES:
+            VenueGame.objects.update_or_create(
+                venue=venue,
+                title=title,
+                defaults={"is_active": True, "bgg_id": bgg_id},
+            )
+    return venue
+
+
+def ensure_demo_venues(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> list[Venue]:
+    """Seed all demo venues."""
+    return [
+        ensure_date_house_cafe(horizon_days=horizon_days),
+        ensure_katzentempel(horizon_days=horizon_days),
+    ]
 
 
 def google_maps_url(address: str) -> str:
