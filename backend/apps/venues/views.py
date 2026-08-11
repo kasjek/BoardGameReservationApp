@@ -2,8 +2,8 @@ from rest_framework import generics, permissions
 
 from apps.accounts.models import Role
 
-from .models import Venue, VenueAvailability
-from .serializers import VenueAvailabilitySerializer, VenueSerializer
+from .models import Venue, VenueAvailability, VenueGame
+from .serializers import VenueAvailabilitySerializer, VenueGameSerializer, VenueSerializer
 
 
 class IsAdminRole(permissions.BasePermission):
@@ -46,3 +46,15 @@ class VenueAvailabilityListCreateView(generics.ListCreateAPIView):
 
             raise PermissionDenied("Only the venue (or an admin) can set availability.")
         serializer.save(venue=venue)
+
+
+class VenueGameListView(generics.ListAPIView):
+    """Active games offered at a venue — used by the New Table dropdown."""
+
+    serializer_class = VenueGameSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return VenueGame.objects.filter(
+            venue_id=self.kwargs["venue_id"], is_active=True
+        ).order_by("title")

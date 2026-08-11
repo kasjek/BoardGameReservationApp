@@ -7,9 +7,10 @@ from __future__ import annotations
 
 from datetime import date, time, timedelta
 
+from django.db import connection
 from django.utils import timezone
 
-from .models import Venue, VenueAvailability
+from .models import Venue, VenueAvailability, VenueGame
 
 DATE_HOUSE_NAME = "Date House Cafe"
 DATE_HOUSE_ADDRESS = "Breite G. 88, 90402 Nürnberg"
@@ -21,6 +22,16 @@ DATE_HOUSE_DESCRIPTION = (
     "• Fri–Sat until 22:30\n"
     "• Sun until 19:30\n\n"
     "Tables for 2–8 players."
+)
+
+# Games available at Date House Cafe for the New Table dropdown.
+DATE_HOUSE_GAMES = (
+    "Love Letter",
+    "Fog of Love",
+    "Patchwork",
+    "7 Wonders Duel",
+    "Chronicles of Crime",
+    "Onitama",
 )
 
 # Weekday → last moment a reservation may end (Python: Mon=0 … Sun=6).
@@ -67,6 +78,15 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
                 "tables_available": TABLES_AVAILABLE,
             },
         )
+
+    # Skip when called from older migrations (before venues_venuegame exists).
+    if "venues_venuegame" in connection.introspection.table_names():
+        for title in DATE_HOUSE_GAMES:
+            VenueGame.objects.update_or_create(
+                venue=venue,
+                title=title,
+                defaults={"is_active": True},
+            )
     return venue
 
 

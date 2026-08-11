@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     VenueAvailabilityListCreateView,
     VenueDetailView,
+    VenueGameListView,
     VenueListCreateView,
 )
 
@@ -13,5 +14,10 @@ urlpatterns = [
         "venues/<int:venue_id>/availability",
         VenueAvailabilityListCreateView.as_view(),
         name="venue-availability",
+    ),
+    path(
+        "venues/<int:venue_id>/games",
+        VenueGameListView.as_view(),
+        name="venue-games",
     ),
 ]

@@ -29,3 +29,20 @@ class VenueAvailability(models.Model):
 
     def __str__(self) -> str:
         return f"{self.venue} {self.date} ({self.tables_available} tables)"
+
+
+class VenueGame(models.Model):
+    """Games offered at a venue for the create-table picker (stories 29, 38)."""
+
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="games")
+    title = models.CharField(max_length=200)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["title"]
+        constraints = [
+            models.UniqueConstraint(fields=["venue", "title"], name="uniq_venue_game_title"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} @ {self.venue}"

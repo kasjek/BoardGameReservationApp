@@ -2,9 +2,10 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Role, User
-from apps.venues.models import Venue, VenueAvailability
+from apps.venues.models import Venue, VenueAvailability, VenueGame
 from apps.venues.seed import (
     DATE_HOUSE_ADDRESS,
+    DATE_HOUSE_GAMES,
     DATE_HOUSE_NAME,
     end_time_for,
     ensure_date_house_cafe,
@@ -80,6 +81,16 @@ def test_seed_date_house_cafe(db):
     assert all(r.start_time.hour == 10 and r.start_time.minute == 0 for r in rows)
     for r in rows:
         assert r.end_time == end_time_for(r.date)
+    titles = set(VenueGame.objects.filter(venue=venue, is_active=True).values_list("title", flat=True))
+    assert titles == set(DATE_HOUSE_GAMES)
+
+
+def test_venue_games_list_api(db, client):
+    venue = ensure_date_house_cafe(horizon_days=1)
+    resp = client.get(f"/api/venues/{venue.id}/games")
+    assert resp.status_code == 200
+    titles = [g["title"] for g in resp.data]
+    assert titles == sorted(DATE_HOUSE_GAMES)
 
 
 def test_venue_detail_includes_maps_url_and_capacity(db, client):

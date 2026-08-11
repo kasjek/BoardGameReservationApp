@@ -81,6 +81,13 @@ export interface Availability {
   tables_available: number;
 }
 
+export interface VenueGame {
+  id: number;
+  venue: number;
+  title: string;
+  is_active: boolean;
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -152,6 +159,7 @@ export const venueApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  games: (venueId: number) => request<VenueGame[]>(`/venues/${venueId}/games`),
 };
 
 // --- Reviews ---

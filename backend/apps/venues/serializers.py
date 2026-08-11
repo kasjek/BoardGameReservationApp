@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Venue, VenueAvailability
+from .models import Venue, VenueAvailability, VenueGame
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -40,4 +40,11 @@ class VenueAvailabilitySerializer(serializers.ModelSerializer):
         model = VenueAvailability
         fields = ["id", "venue", "date", "start_time", "end_time", "tables_available"]
         # `venue` is taken from the URL and injected by the view, not the request body.
+        read_only_fields = ["id", "venue"]
+
+
+class VenueGameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VenueGame
+        fields = ["id", "venue", "title", "is_active"]
         read_only_fields = ["id", "venue"]
