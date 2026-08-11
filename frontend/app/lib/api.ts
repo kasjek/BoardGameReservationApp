@@ -36,6 +36,7 @@ export interface Table {
   id: number;
   organizer: number;
   venue: number;
+  venue_name: string;
   game_title: string;
   bring_own_game: boolean;
   game_language: "en" | "de" | "other";

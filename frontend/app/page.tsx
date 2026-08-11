@@ -115,6 +115,17 @@ export default function BrowsePage() {
                     <div className="mt-1 text-xs text-slate-500">
                       {formatWhen(t.starts_at, t.ends_at)}
                     </div>
+                    {t.venue_name ? (
+                      <div
+                        className="mt-1 text-xs font-semibold text-brand underline decoration-dotted underline-offset-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/venues/${t.venue}`);
+                        }}
+                      >
+                        {t.venue_name}
+                      </div>
+                    ) : null}
                     <div className="mt-2 text-xs text-slate-500">
                       {t.seats_taken}/{t.max_players} seats · {t.game_language.toUpperCase()}
                     </div>
