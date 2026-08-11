@@ -4,12 +4,15 @@ from .models import SeatReservation, Table
 
 
 class TableSerializer(serializers.ModelSerializer):
+    venue_name = serializers.CharField(source="venue.name", read_only=True)
+
     class Meta:
         model = Table
         fields = [
             "id",
             "organizer",
             "venue",
+            "venue_name",
             "game_title",
             "bring_own_game",
             "game_language",

@@ -179,6 +179,17 @@ export default function ProfilePage() {
                   <StatusChip status={t.status} />
                 </div>
                 <div className="mt-1 text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
+                {t.venue_name ? (
+                  <div
+                    className="mt-1 text-xs font-semibold text-brand underline decoration-dotted underline-offset-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/venues/${t.venue}`);
+                    }}
+                  >
+                    {t.venue_name}
+                  </div>
+                ) : null}
                 <div className="mt-1">
                   <span
                     className={`chip ${isOrganizer ? "bg-violet-100 text-brand" : "bg-slate-100 text-slate-600"}`}
