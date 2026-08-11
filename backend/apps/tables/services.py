@@ -78,10 +78,16 @@ def create_table(
     if ends_at <= starts_at:
         raise ValidationError("ends_at must be after starts_at.")
     duration = ends_at - starts_at
-    if duration < MIN_TABLE_DURATION:
-        raise ValidationError("Tables must be booked for at least 1 hour.")
-    if duration > MAX_TABLE_DURATION:
-        raise ValidationError("Tables cannot be longer than 3 hours.")
+    min_minutes = getattr(venue, "min_reservation_minutes", 60) or 60
+    max_minutes = getattr(venue, "max_reservation_minutes", 180) or 180
+    if duration < timedelta(minutes=min_minutes):
+        raise ValidationError(
+            f"Tables at this venue must be booked for at least {min_minutes} minutes."
+        )
+    if duration > timedelta(minutes=max_minutes):
+        raise ValidationError(
+            f"Tables at this venue cannot be longer than {max_minutes} minutes."
+        )
     if min_players < 1 or max_players < min_players:
         raise ValidationError("Require 1 <= min_players <= max_players.")
     if min_players < venue.min_players or max_players > venue.max_players:

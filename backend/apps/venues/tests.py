@@ -156,6 +156,8 @@ def test_admin_creates_venue_with_weekly_hours_and_closure(db, client):
         {
             "name": "Holiday Cafe",
             "location": "Teststrasse 1, Nürnberg",
+            "min_reservation_minutes": 60,
+            "max_reservation_minutes": 120,
             "weekly_hours": hours,
             "closures": [{"date": "2026-12-25", "comment": "Closed for Christmas"}],
         },
@@ -163,6 +165,8 @@ def test_admin_creates_venue_with_weekly_hours_and_closure(db, client):
     )
     assert resp.status_code == 201, resp.data
     venue = Venue.objects.get(name="Holiday Cafe")
+    assert venue.min_reservation_minutes == 60
+    assert venue.max_reservation_minutes == 120
     assert VenueWeeklyHours.objects.filter(venue=venue).count() == 7
     monday = VenueWeeklyHours.objects.get(venue=venue, weekday=0)
     assert monday.start_time == dt_time(11, 0)
@@ -213,6 +217,67 @@ def test_closure_blocks_table_create(db):
             game_title="Catan",
             starts_at=starts,
             ends_at=ends,
+            min_players=2,
+            max_players=4,
+        )
+
+
+def test_venue_duration_limits_enforced_on_create(db):
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from rest_framework.exceptions import ValidationError
+
+    from apps.tables import services
+    from apps.venues.hours import set_weekly_hours
+    from apps.venues.models import VenueAvailability
+
+    venue = Venue.objects.create(
+        name="Short Tables",
+        min_reservation_minutes=60,
+        max_reservation_minutes=120,
+    )
+    set_weekly_hours(
+        venue,
+        [
+            {
+                "weekday": d,
+                "is_closed": False,
+                "start_time": "10:00:00",
+                "end_time": "22:00:00",
+            }
+            for d in range(7)
+        ],
+    )
+    host = mk("durhost")
+    starts = timezone.now() + timedelta(days=3)
+    starts = starts.replace(hour=14, minute=0, second=0, microsecond=0)
+    VenueAvailability.objects.update_or_create(
+        venue=venue,
+        date=starts.date(),
+        defaults={
+            "start_time": "10:00:00",
+            "end_time": "22:00:00",
+            "tables_available": 2,
+        },
+    )
+    with pytest.raises(ValidationError, match="at least 60"):
+        services.create_table(
+            organizer=host,
+            venue=venue,
+            game_title="Catan",
+            starts_at=starts,
+            ends_at=starts + timedelta(minutes=30),
+            min_players=2,
+            max_players=4,
+        )
+    with pytest.raises(ValidationError, match="longer than 120"):
+        services.create_table(
+            organizer=host,
+            venue=venue,
+            game_title="Catan",
+            starts_at=starts,
+            ends_at=starts + timedelta(hours=3),
             min_players=2,
             max_players=4,
         )

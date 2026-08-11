@@ -17,11 +17,36 @@ class VenueSerializer(serializers.ModelSerializer):
             "location",
             "min_players",
             "max_players",
+            "min_reservation_minutes",
+            "max_reservation_minutes",
             "rating_avg",
             "maps_url",
             "created_at",
         ]
         read_only_fields = ["id", "rating_avg", "maps_url", "created_at"]
+
+    def validate(self, attrs):
+        min_m = attrs.get(
+            "min_reservation_minutes",
+            getattr(self.instance, "min_reservation_minutes", 60),
+        )
+        max_m = attrs.get(
+            "max_reservation_minutes",
+            getattr(self.instance, "max_reservation_minutes", 180),
+        )
+        if min_m < 30:
+            raise serializers.ValidationError(
+                {"min_reservation_minutes": "Minimum reservation time must be at least 30 minutes."}
+            )
+        if max_m < min_m:
+            raise serializers.ValidationError(
+                {
+                    "max_reservation_minutes": (
+                        "Maximum duration must be greater than or equal to the minimum reservation time."
+                    )
+                }
+            )
+        return attrs
 
     def get_rating_avg(self, obj):
         from apps.reviews.models import average_rating_for_venue

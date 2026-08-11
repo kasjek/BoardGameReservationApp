@@ -75,6 +75,8 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
             "description": DATE_HOUSE_DESCRIPTION,
             "min_players": 2,
             "max_players": 8,
+            "min_reservation_minutes": 60,
+            "max_reservation_minutes": 180,
         },
     )
 

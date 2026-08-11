@@ -129,12 +129,16 @@ export default function ManageVenuePage() {
   // Create form
   const [newName, setNewName] = useState("");
   const [newLocation, setNewLocation] = useState("");
+  const [createMinMinutes, setCreateMinMinutes] = useState(60);
+  const [createMaxMinutes, setCreateMaxMinutes] = useState(180);
   const [createHours, setCreateHours] = useState<WeeklyHours[]>(defaultHours());
   const [createClosures, setCreateClosures] = useState<{ date: string; comment: string }[]>([]);
   const [closureDate, setClosureDate] = useState("");
   const [closureComment, setClosureComment] = useState("");
 
-  // Manage closure form
+  // Manage form
+  const [manageMinMinutes, setManageMinMinutes] = useState(60);
+  const [manageMaxMinutes, setManageMaxMinutes] = useState(180);
   const [manageClosureDate, setManageClosureDate] = useState("");
   const [manageClosureComment, setManageClosureComment] = useState("");
 
@@ -200,6 +204,12 @@ export default function ManageVenuePage() {
     [venues, venueId],
   );
 
+  useEffect(() => {
+    if (!selectedVenue) return;
+    setManageMinMinutes(selectedVenue.min_reservation_minutes ?? 60);
+    setManageMaxMinutes(selectedVenue.max_reservation_minutes ?? 180);
+  }, [selectedVenue]);
+
   if (loading || !user || user.role === "USER") return null;
 
   function addCreateClosure() {
@@ -224,20 +234,54 @@ export default function ManageVenuePage() {
     setError(null);
     setInfo(null);
     try {
+      if (createMinMinutes > createMaxMinutes) {
+        setError("Minimum reservation time cannot exceed maximum duration.");
+        setBusy(false);
+        return;
+      }
       const v = await venueApi.create({
         name: newName,
         location: newLocation,
+        min_reservation_minutes: createMinMinutes,
+        max_reservation_minutes: createMaxMinutes,
         weekly_hours: createHours,
         closures: createClosures,
       });
       setInfo(`Venue "${v.name}" created.`);
       setNewName("");
       setNewLocation("");
+      setCreateMinMinutes(60);
+      setCreateMaxMinutes(180);
       setCreateHours(defaultHours());
       setCreateClosures([]);
       await loadVenues();
       setVenueId(v.id);
       setTab("manage");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveReservationLimits(e: React.FormEvent) {
+    e.preventDefault();
+    if (!venueId) return;
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    if (manageMinMinutes > manageMaxMinutes) {
+      setError("Minimum reservation time cannot exceed maximum duration.");
+      setBusy(false);
+      return;
+    }
+    try {
+      const updated = await venueApi.update(venueId, {
+        min_reservation_minutes: manageMinMinutes,
+        max_reservation_minutes: manageMaxMinutes,
+      });
+      setVenues((vs) => vs.map((v) => (v.id === updated.id ? updated : v)));
+      setInfo("Reservation duration limits updated.");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -352,6 +396,39 @@ export default function ManageVenuePage() {
           </div>
 
           <div>
+            <div className="mb-2 text-sm font-bold">Reservation duration</div>
+            <div className="mb-2 text-xs text-slate-500">
+              Minimum and maximum length of a table booking at this venue.
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <span className="label">Minimum reservation time (minutes)</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={30}
+                  step={30}
+                  value={createMinMinutes}
+                  onChange={(e) => setCreateMinMinutes(Number(e.target.value))}
+                  required
+                />
+              </div>
+              <div className="flex-1">
+                <span className="label">Maximum duration (minutes)</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={30}
+                  step={30}
+                  value={createMaxMinutes}
+                  onChange={(e) => setCreateMaxMinutes(Number(e.target.value))}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
             <div className="mb-2 text-sm font-bold">Bookable hours</div>
             <div className="mb-2 text-xs text-slate-500">
               Set start and end for each day of the week, or mark a day closed.
@@ -439,6 +516,42 @@ export default function ManageVenuePage() {
 
           {venueId ? (
             <>
+              <form onSubmit={saveReservationLimits} className="card">
+                <div className="text-sm font-bold">Reservation duration</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Minimum reservation time and maximum duration allowed for bookings.
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <div className="flex-1">
+                    <span className="label">Minimum reservation time (minutes)</span>
+                    <input
+                      className="input"
+                      type="number"
+                      min={30}
+                      step={30}
+                      value={manageMinMinutes}
+                      onChange={(e) => setManageMinMinutes(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <span className="label">Maximum duration (minutes)</span>
+                    <input
+                      className="input"
+                      type="number"
+                      min={30}
+                      step={30}
+                      value={manageMaxMinutes}
+                      onChange={(e) => setManageMaxMinutes(Number(e.target.value))}
+                      required
+                    />
+                  </div>
+                </div>
+                <button className="btn mt-3" disabled={busy}>
+                  {busy ? "…" : "Save duration limits"}
+                </button>
+              </form>
+
               <form onSubmit={saveHours}>
                 <div className="mb-2 text-sm font-bold">Bookable hours</div>
                 <HoursEditor hours={hours} onChange={setHours} />

@@ -9,6 +9,9 @@ class Venue(models.Model):
     # Party-size limits for tables hosted here (hosts still pick min/max per table).
     min_players = models.PositiveIntegerField(default=2)
     max_players = models.PositiveIntegerField(default=8)
+    # Allowed table booking length (minutes) for this venue.
+    min_reservation_minutes = models.PositiveIntegerField(default=60)
+    max_reservation_minutes = models.PositiveIntegerField(default=180)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

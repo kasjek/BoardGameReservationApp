@@ -41,10 +41,18 @@ class VenueListCreateView(generics.ListCreateAPIView):
         return VenueSerializer
 
 
-class VenueDetailView(generics.RetrieveAPIView):
+class VenueDetailView(generics.RetrieveUpdateAPIView):
     queryset = Venue.objects.all()
     serializer_class = VenueSerializer
-    permission_classes = [permissions.AllowAny]
+
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def perform_update(self, serializer):
+        _require_manager(self.request.user, self.get_object())
+        serializer.save()
 
 
 class VenueAvailabilityListCreateView(generics.ListCreateAPIView):

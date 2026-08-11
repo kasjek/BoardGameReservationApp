@@ -84,6 +84,10 @@ export default function CreateTablePage() {
   const selectedVenue = venues.find((v) => String(v.id) === venue);
   const venueMin = selectedVenue?.min_players ?? 1;
   const venueMax = selectedVenue?.max_players ?? 99;
+  const minReservationMinutes =
+    selectedVenue?.min_reservation_minutes ?? MIN_DURATION_MINUTES;
+  const maxReservationMinutes =
+    selectedVenue?.max_reservation_minutes ?? MAX_DURATION_MINUTES;
 
   const dayAvailability = useMemo(() => {
     if (!date) return null;
@@ -96,10 +100,10 @@ export default function CreateTablePage() {
     const close = parseHm(dayAvailability.end_time);
     return TIME_SLOTS.filter((t) => {
       const mins = parseHm(t);
-      // Need room for the minimum 1-hour booking before close.
-      return mins >= open && mins + MIN_DURATION_MINUTES <= close;
+      // Need room for the venue's minimum booking before close.
+      return mins >= open && mins + minReservationMinutes <= close;
     });
-  }, [dayAvailability]);
+  }, [dayAvailability, minReservationMinutes]);
 
   const toSlots = useMemo(() => {
     if (!dayAvailability) return [];
@@ -109,12 +113,12 @@ export default function CreateTablePage() {
       const mins = parseHm(t);
       const duration = mins - start;
       return (
-        duration >= MIN_DURATION_MINUTES &&
-        duration <= MAX_DURATION_MINUTES &&
+        duration >= minReservationMinutes &&
+        duration <= maxReservationMinutes &&
         mins <= close
       );
     });
-  }, [dayAvailability, from]);
+  }, [dayAvailability, from, minReservationMinutes, maxReservationMinutes]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -148,7 +152,7 @@ export default function CreateTablePage() {
     setMaxPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
   }, [selectedVenue]);
 
-  // Keep From/To inside the day's opening hours and 1–3h duration.
+  // Keep From/To inside the day's opening hours and venue duration limits.
   useEffect(() => {
     if (!dayAvailability) return;
     if (fromSlots.length === 0) return;
@@ -243,6 +247,8 @@ export default function CreateTablePage() {
             )}
             {" · "}
             {selectedVenue.min_players}–{selectedVenue.max_players} players
+            {" · "}
+            {minReservationMinutes}–{maxReservationMinutes} min
           </div>
         ) : null}
 

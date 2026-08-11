@@ -69,6 +69,8 @@ export interface Venue {
   location: string;
   min_players: number;
   max_players: number;
+  min_reservation_minutes: number;
+  max_reservation_minutes: number;
   rating_avg: number | null;
   maps_url: string | null;
 }
@@ -157,9 +159,23 @@ export const venueApi = {
     location?: string;
     min_players?: number;
     max_players?: number;
+    min_reservation_minutes?: number;
+    max_reservation_minutes?: number;
     weekly_hours?: WeeklyHours[];
     closures?: { date: string; comment: string }[];
   }) => request<Venue>("/venues", { method: "POST", body: JSON.stringify(payload) }),
+  update: (
+    id: number,
+    payload: Partial<{
+      name: string;
+      description: string;
+      location: string;
+      min_players: number;
+      max_players: number;
+      min_reservation_minutes: number;
+      max_reservation_minutes: number;
+    }>,
+  ) => request<Venue>(`/venues/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   availability: (venueId: number) => request<Availability[]>(`/venues/${venueId}/availability`),
   addAvailability: (
     venueId: number,
