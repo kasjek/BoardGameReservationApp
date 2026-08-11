@@ -7,21 +7,21 @@ DATE_HOUSE_NAME = "Date House Cafe"
 DATE_HOUSE_ADDRESS = "Breite G. 88, 90402 Nürnberg"
 DATE_HOUSE_DESCRIPTION = (
     "Board-game-friendly cafe in Nürnberg's old town.\n\n"
-    "Table bookings:\n"
+    "Opening hours (table bookings):\n"
     "• Every day from 10:00\n"
-    "• Mon–Thu until 20:30\n"
-    "• Fri–Sat until 22:30\n"
-    "• Sun until 19:30\n\n"
-    "Tables for 2–8 players."
+    "• Mon–Thu until 20:00\n"
+    "• Fri–Sat until 22:00\n"
+    "• Sun until 20:00\n\n"
+    "Tables for 2–8 players. Bookings 1–3 hours."
 )
 END_BY_WEEKDAY = {
-    0: time(20, 30),
-    1: time(20, 30),
-    2: time(20, 30),
-    3: time(20, 30),
-    4: time(22, 30),
-    5: time(22, 30),
-    6: time(19, 30),
+    0: time(20, 0),
+    1: time(20, 0),
+    2: time(20, 0),
+    3: time(20, 0),
+    4: time(22, 0),
+    5: time(22, 0),
+    6: time(20, 0),
 }
 OPEN_FROM = time(10, 0)
 

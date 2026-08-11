@@ -4,17 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Banner, Shell } from "../../components/ui";
-<<<<<<< HEAD
 import {
   errorMessage,
   tableApi,
   venueApi,
   type Availability,
   type Venue,
+  type VenueGame,
 } from "../../lib/api";
-=======
-import { errorMessage, tableApi, venueApi, type Venue, type VenueGame } from "../../lib/api";
->>>>>>> e14f165 (feat(venues): manage BGG games and show them on venue pages)
 import { useAuth } from "../../lib/auth";
 
 // Languages selectable when "Other" is chosen (English and German have their own options).
@@ -70,11 +67,8 @@ export default function CreateTablePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
-<<<<<<< HEAD
   const [availability, setAvailability] = useState<Availability[]>([]);
-=======
   const [venueGames, setVenueGames] = useState<VenueGame[]>([]);
->>>>>>> e14f165 (feat(venues): manage BGG games and show them on venue pages)
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

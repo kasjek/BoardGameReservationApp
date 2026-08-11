@@ -77,6 +77,8 @@ def _legacy_seed_availability(venue: Venue, *, horizon_days: int) -> None:
 
 def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
     """Create/update Date House Cafe and fill weekly hours + availability."""
+    # Do not set reservation-duration fields here: older RunPython migrations
+    # call this before those columns exist (model defaults cover them later).
     venue, _ = Venue.objects.update_or_create(
         name=DATE_HOUSE_NAME,
         defaults={
@@ -84,8 +86,6 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
             "description": DATE_HOUSE_DESCRIPTION,
             "min_players": 2,
             "max_players": 8,
-            "min_reservation_minutes": 60,
-            "max_reservation_minutes": 180,
         },
     )
 

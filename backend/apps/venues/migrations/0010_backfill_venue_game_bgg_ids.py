@@ -1,6 +1,5 @@
 from django.db import migrations
 
-
 # Known BoardGameGeek ids for seeded / common titles.
 BGG_IDS_BY_TITLE = {
     "Love Letter": 129622,
@@ -28,7 +27,7 @@ def noop(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("venues", "0008_seed_date_house_games"),
+        ("venues", "0009_seed_date_house_games"),
     ]
 
     operations = [
