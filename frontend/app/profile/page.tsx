@@ -13,7 +13,7 @@ import {
   Shell,
   StatusChip,
 } from "../components/ui";
-import { authApi, errorMessage, tableApi, type Table } from "../lib/api";
+import { authApi, errorMessage, setToken, tableApi, type Table } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
 interface Booking {
@@ -30,7 +30,12 @@ export default function ProfilePage() {
   const [organized, setOrganized] = useState<Table[]>([]);
   const [joined, setJoined] = useState<Table[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [rolling, setRolling] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
 
@@ -44,6 +49,34 @@ export default function ProfilePage() {
       setError(errorMessage(e));
     } finally {
       setRolling(false);
+    }
+  }
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setChangingPassword(true);
+    setError(null);
+    setPasswordMessage(null);
+    if (newPassword !== confirmPassword) {
+      setError("New passwords do not match.");
+      setChangingPassword(false);
+      return;
+    }
+    try {
+      const res = await authApi.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      });
+      setToken(res.token);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordMessage("Password updated.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -137,7 +170,47 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      <div className="card mb-4">
+        <div className="text-sm font-bold">Change password</div>
+        <div className="mt-1 text-xs text-slate-500">
+          At least 8 characters, one capital letter, and one special character.
+        </div>
+        <form onSubmit={changePassword} className="mt-3 space-y-2">
+          <input
+            className="input"
+            type="password"
+            placeholder="Current password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+          <input
+            className="input"
+            type="password"
+            placeholder="New password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+            required
+          />
+          <input
+            className="input"
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            required
+          />
+          <button className="btn" disabled={changingPassword}>
+            {changingPassword ? "…" : "Update password"}
+          </button>
+        </form>
+      </div>
+
       {error ? <Banner kind="error">{error}</Banner> : null}
+      {passwordMessage ? <Banner kind="info">{passwordMessage}</Banner> : null}
 
       <div className="mb-3 flex gap-2">
         <select

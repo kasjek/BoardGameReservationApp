@@ -82,3 +82,75 @@ def test_register_accepts_strong_password(db, client):
     )
     assert resp.status_code == 201, resp.data
     assert User.objects.filter(username="stronguser").exists()
+
+
+def test_change_password_requires_auth(db, client):
+    assert client.post("/api/me/password", {}).status_code in (401, 403)
+
+
+def test_change_password_rejects_wrong_current(db, client):
+    user = mk("alice")
+    client.force_authenticate(user=user)
+    resp = client.post(
+        "/api/me/password",
+        {
+            "current_password": "wrong-password",
+            "new_password": "NewPass1!",
+            "confirm_password": "NewPass1!",
+        },
+        format="json",
+    )
+    assert resp.status_code == 400
+    assert "current_password" in resp.data
+
+
+def test_change_password_rejects_mismatch_and_weak(db, client):
+    user = mk("alice")
+    client.force_authenticate(user=user)
+    mismatch = client.post(
+        "/api/me/password",
+        {
+            "current_password": "pw-testing-123",
+            "new_password": "NewPass1!",
+            "confirm_password": "NewPass2!",
+        },
+        format="json",
+    )
+    assert mismatch.status_code == 400
+    assert "confirm_password" in mismatch.data
+
+    weak = client.post(
+        "/api/me/password",
+        {
+            "current_password": "pw-testing-123",
+            "new_password": "alllowercase1!",
+            "confirm_password": "alllowercase1!",
+        },
+        format="json",
+    )
+    assert weak.status_code == 400
+    assert "new_password" in weak.data
+
+
+def test_change_password_success_rotates_token(db, client):
+    from rest_framework.authtoken.models import Token
+
+    user = mk("alice")
+    old_token = Token.objects.create(user=user)
+    client.credentials(HTTP_AUTHORIZATION=f"Token {old_token.key}")
+    resp = client.post(
+        "/api/me/password",
+        {
+            "current_password": "pw-testing-123",
+            "new_password": "NewPass1!",
+            "confirm_password": "NewPass1!",
+        },
+        format="json",
+    )
+    assert resp.status_code == 200, resp.data
+    assert resp.data["token"]
+    assert resp.data["token"] != old_token.key
+    assert not Token.objects.filter(key=old_token.key).exists()
+    user.refresh_from_db()
+    assert user.check_password("NewPass1!")
+    assert not user.check_password("pw-testing-123")

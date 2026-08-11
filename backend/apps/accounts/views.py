@@ -7,7 +7,12 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import PublicUserSerializer, RegisterSerializer, UserSerializer
+from .serializers import (
+    ChangePasswordSerializer,
+    PublicUserSerializer,
+    RegisterSerializer,
+    UserSerializer,
+)
 
 User = get_user_model()
 
@@ -55,3 +60,20 @@ class RollAvatarView(APIView):
         user.avatar_seed = secrets.token_hex(6)
         user.save(update_fields=["avatar_seed"])
         return Response(UserSerializer(user).data)
+
+
+class ChangePasswordView(APIView):
+    """Let the signed-in user change their password from the profile page."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        # Rotate the auth token so old sessions cannot keep using the prior password's token.
+        Token.objects.filter(user=user).delete()
+        token = Token.objects.create(user=user)
+        return Response({"detail": "Password updated.", "token": token.key})
