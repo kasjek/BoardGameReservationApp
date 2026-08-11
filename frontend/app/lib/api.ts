@@ -201,6 +201,11 @@ export function errorMessage(e: unknown): string {
       const detail = (d as { detail?: unknown }).detail;
       if (typeof detail === "string" && detail.trim()) return detail;
       if (Array.isArray(detail) && typeof detail[0] === "string") return detail[0];
+      for (const key of ["password", "username", "email", "non_field_errors"]) {
+        const field = (d as Record<string, unknown>)[key];
+        if (typeof field === "string" && field.trim()) return field;
+        if (Array.isArray(field) && typeof field[0] === "string") return field[0];
+      }
     }
     if (e.status === 403) return "You don't have permission to do that.";
     if (e.status === 409) return "That action conflicts with the current state.";

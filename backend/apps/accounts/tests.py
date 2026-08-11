@@ -47,3 +47,38 @@ def test_public_profile_exposes_avatar_seed_not_email(db, client):
     assert resp.status_code == 200
     assert resp.data["avatar_seed"] == "abc123"
     assert "email" not in resp.data
+
+
+def test_register_rejects_weak_passwords(db, client):
+    cases = [
+        ("short1!", "capital"),  # too short / missing capital
+        ("alllowercase1!", "capital"),
+        ("NoSpecial1", "special"),
+        ("SHORT1!", "8"),  # 7 chars with capital + sign
+    ]
+    for i, (password, _) in enumerate(cases):
+        resp = client.post(
+            "/api/auth/register",
+            {
+                "username": f"weak{i}",
+                "email": f"weak{i}@example.com",
+                "password": password,
+            },
+            format="json",
+        )
+        assert resp.status_code == 400, (password, resp.data)
+        assert "password" in resp.data
+
+
+def test_register_accepts_strong_password(db, client):
+    resp = client.post(
+        "/api/auth/register",
+        {
+            "username": "stronguser",
+            "email": "strong@example.com",
+            "password": "GoodPass1!",
+        },
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    assert User.objects.filter(username="stronguser").exists()
