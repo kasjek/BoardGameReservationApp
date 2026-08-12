@@ -190,6 +190,59 @@ def _local_search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
     return out
 
 
+def list_directory_boardgames() -> list[dict]:
+    """All known BoardGameGeek titles in the local directory (venue inventory + cache).
+
+    Used by the New Table bring-own picker as a single dropdown of games already
+    linked to a BGG id. Sorted by name; duplicates collapse by bgg_id.
+    """
+    by_id: dict[int, dict] = {}
+
+    try:
+        from apps.venues.models import VenueGame
+    except ImportError:
+        VenueGame = None  # type: ignore[misc, assignment]
+
+    if VenueGame is not None:
+        for title, bgg_id in (
+            VenueGame.objects.filter(is_active=True, bgg_id__isnull=False)
+            .order_by("title")
+            .values_list("title", "bgg_id")
+            .iterator()
+        ):
+            if not bgg_id or not title:
+                continue
+            by_id.setdefault(
+                int(bgg_id),
+                {"bgg_id": int(bgg_id), "name": title, "year": None},
+            )
+
+    try:
+        from .models import BggResolution
+    except ImportError:
+        BggResolution = None  # type: ignore[misc, assignment]
+
+    if BggResolution is not None:
+        for matched_name, bgg_id in (
+            BggResolution.objects.filter(bgg_id__isnull=False)
+            .exclude(matched_name="")
+            .order_by("matched_name")
+            .values_list("matched_name", "bgg_id")
+            .iterator()
+        ):
+            if not bgg_id:
+                continue
+            name = matched_name or ""
+            if not name:
+                continue
+            by_id.setdefault(
+                int(bgg_id),
+                {"bgg_id": int(bgg_id), "name": name, "year": None},
+            )
+
+    return sorted(by_id.values(), key=lambda h: normalize(h["name"]))
+
+
 def search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
     """Return BGG search hits for a typed query (venue pickers + New Table typeahead)."""
     q = strip_year_brackets(query)

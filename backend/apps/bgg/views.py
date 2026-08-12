@@ -57,6 +57,16 @@ class BggSearchView(APIView):
         return Response({"results": results})
 
 
+class BggDirectoryView(APIView):
+    """JSON list of all known BoardGameGeek titles in the local directory."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "bgg"
+
+    def get(self, request):
+        return Response({"results": services.list_directory_boardgames()})
+
+
 class BggThingView(APIView):
     """JSON details for a BoardGameGeek thing id (includes recommended playtime)."""
 
