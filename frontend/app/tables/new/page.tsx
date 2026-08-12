@@ -451,7 +451,8 @@ export default function CreateTablePage() {
     };
   }, [bringOwn, bggId, game, isSpontaneous, venueGames, t]);
 
-  if (loading || !user) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
+  if (!user) return null;
   if (user.role === "VENUE_USER") {
     return (
       <Shell title={t("newTable.title")}>

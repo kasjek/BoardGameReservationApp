@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { type TableStatus } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -249,9 +249,19 @@ export function AuthHero() {
 /** Full-viewport placeholder so auth/data loads never leave a blank white page. */
 export function LoadingScreen({ label }: { label?: string }) {
   const { t } = useI18n();
+  const [showEscape, setShowEscape] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setShowEscape(true), 3500);
+    return () => window.clearTimeout(id);
+  }, []);
   return (
-    <div className="mx-auto flex min-h-[100dvh] w-full max-w-md items-center justify-center bg-white px-6 text-sm text-slate-500 md:max-w-2xl lg:max-w-3xl">
-      {label || t("common.loading")}
+    <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center justify-center gap-3 bg-white px-6 text-sm text-slate-500 md:max-w-2xl lg:max-w-3xl">
+      <div>{label || t("common.loading")}</div>
+      {showEscape ? (
+        <Link href="/login" className="font-semibold text-brand hover:underline">
+          {t("common.goToLogin")}
+        </Link>
+      ) : null}
     </div>
   );
 }

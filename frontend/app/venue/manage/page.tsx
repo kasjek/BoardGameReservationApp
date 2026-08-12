@@ -314,7 +314,8 @@ export default function ManageVenuePage() {
     setManageMaxMinutes(selectedVenue.max_reservation_minutes ?? 180);
   }, [selectedVenue]);
 
-  if (loading || !user || user.role === "USER") return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
+  if (!user || user.role === "USER") return null;
 
   function addCreateClosure() {
     if (!closureDate || !closureComment.trim()) {

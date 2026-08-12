@@ -80,7 +80,8 @@ export default function VenueAdminPage() {
     if (user && selectedVenueId != null) load();
   }, [user, selectedVenueId, load]);
 
-  if (loading || !user || user.role === "USER") return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
+  if (!user || user.role === "USER") return null;
 
   async function act(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
