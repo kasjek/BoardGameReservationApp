@@ -70,6 +70,7 @@ export const en: Messages = {
   },
   common: {
     loading: "Loading…",
+    goToLogin: "Go to log in",
     back: "Back",
     remove: "Remove",
     seats: "seats",
@@ -225,6 +226,7 @@ export const en: Messages = {
     itemGuest: "Venue game fee (seat) – {game}",
   },
   tableDetail: {
+    title: "Table",
     back: "All Tables",
     language: "Language",
     other: "Other",
@@ -397,6 +399,7 @@ export const de: Messages = {
   },
   common: {
     loading: "Laden…",
+    goToLogin: "Zur Anmeldung",
     back: "Zurück",
     remove: "Entfernen",
     seats: "Plätze",
@@ -557,6 +560,7 @@ export const de: Messages = {
     itemGuest: "Location-Spielgebühr (Platz) – {game}",
   },
   tableDetail: {
+    title: "Tisch",
     back: "Alle Tische",
     language: "Sprache",
     other: "Andere",

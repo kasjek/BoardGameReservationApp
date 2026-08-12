@@ -134,7 +134,8 @@ export default function ProfilePage() {
     });
   }, [bookings, roleFilter, timeFilter]);
 
-  if (loading || !user) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
+  if (!user) return null;
 
   const roleLineKey =
     user.late_cancel_marks_active === 1 ? "profile.roleLine" : "profile.roleLinePlural";

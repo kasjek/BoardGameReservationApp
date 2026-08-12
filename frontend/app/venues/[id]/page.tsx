@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../../components/ui";
+import {
+  Banner,
+  Cover,
+  formatWhen,
+  GameLink,
+  LoadingScreen,
+  Shell,
+  StatusChip,
+} from "../../components/ui";
 import {
   errorMessage,
   reviewApi,
@@ -113,7 +121,9 @@ export default function VenueDetailPage() {
     return { planned: plannedList, past: pastList };
   }, [tables]);
 
-  if (loading || !user || !venue) {
+  if (loading) return <LoadingScreen />;
+  if (!user) return null;
+  if (!venue) {
     return (
       <Shell title={t("venueDetail.title")}>
         {error ? <Banner kind="error">{error}</Banner> : null}

@@ -154,8 +154,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (t) headers["Authorization"] = `Token ${t}`;
 
   // Abort hung API calls (e.g. GoDaddy proxy / missing BACKEND_URL) so the UI
-  // does not stay on a blank loading screen forever.
-  const timeoutMs = 12_000;
+  // does not stay on a loading screen forever.
+  const timeoutMs = 6_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;

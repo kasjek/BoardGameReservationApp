@@ -75,7 +75,8 @@ export default function BrowsePage() {
     }
   }
 
-  if (loading || !user) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
+  if (!user) return null;
 
   const canReserve = user.role === "USER" || user.role === "ADMIN";
 

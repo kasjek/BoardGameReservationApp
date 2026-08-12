@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
-import { authApi, setToken, type User } from "./api";
+import { authApi, getToken, setToken, type User } from "./api";
 
 interface AuthState {
   user: User | null;
@@ -33,6 +33,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
+        // Guests should reach /login immediately — do not block on /auth/me when
+        // there is no token (also avoids a long hang when BACKEND_URL is wrong).
+        if (!getToken()) {
+          setUser(null);
+          return;
+        }
         await refresh();
       } finally {
         if (!cancelled) setLoading(false);

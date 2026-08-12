@@ -81,7 +81,19 @@ export default function TableDetailPage() {
     if (user) load();
   }, [user, load]);
 
-  if (loading || !user || !table) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
+  if (!user) return null;
+  if (!table) {
+    return (
+      <Shell title={t("tableDetail.title")}>
+        {error ? (
+          <Banner kind="error">{error}</Banner>
+        ) : (
+          <div className="text-sm text-slate-400">{t("common.loading")}</div>
+        )}
+      </Shell>
+    );
+  }
 
   const canHost = user.role === "USER" || user.role === "ADMIN";
   const isOrganizer = table.organizer === user.id;
