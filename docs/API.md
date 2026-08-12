@@ -12,6 +12,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `POST /auth/login` — exchange credentials for a session/token *(9)*
 - `POST /auth/logout` — end session
 - `GET /auth/me` — current user profile and role (and venue link for `VENUE_USER`)
+- `POST /me/password` — change own password (`current_password`, `new_password`, `confirm_password`); rotates auth token *(9)*
 - `PATCH /me/avatar` — set avatar from the allocated set *(10)*
 - `PATCH /me/settings` — e.g. toggle `allow_invites` *(17)*
 - `GET /users/{id}` — public profile: avatar, name, rating, cancellation count only *(20, 23, 26)*

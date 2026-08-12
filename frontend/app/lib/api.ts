@@ -164,6 +164,15 @@ export const authApi = {
     }),
   me: () => request<User>("/auth/me"),
   rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),
+  changePassword: (payload: {
+    current_password: string;
+    new_password: string;
+    confirm_password: string;
+  }) =>
+    request<{ detail: string; token: string }>("/me/password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
 // --- Venues ---
@@ -288,8 +297,11 @@ export function errorMessage(e: unknown): string {
         "username",
         "email",
         "non_field_errors",
+<<<<<<< HEAD
         "bgg_id",
         "title",
+=======
+>>>>>>> 5f5732f (feat(auth): let users change their password from profile)
       ]) {
         const field = (d as Record<string, unknown>)[key];
         if (typeof field === "string" && field.trim()) return field;
