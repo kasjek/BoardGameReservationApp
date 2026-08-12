@@ -152,9 +152,33 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   };
   const t = getToken();
   if (t) headers["Authorization"] = `Token ${t}`;
-  const res = await fetch(`/api${path}`, { ...init, headers });
+
+  // Abort hung API calls (e.g. GoDaddy proxy / missing BACKEND_URL) so the UI
+  // does not stay on a blank loading screen forever.
+  const timeoutMs = 12_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, { ...init, headers, signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(504, { detail: "Request timed out." });
+    }
+    throw err;
+  }
+  clearTimeout(timer);
+
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { detail: text.slice(0, 200) || `Request failed (${res.status}).` };
+    }
+  }
   if (!res.ok) throw new ApiError(res.status, data);
   return data as T;
 }

@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../components/ui";
+import {
+  Banner,
+  Cover,
+  formatWhen,
+  GameLink,
+  LoadingScreen,
+  Shell,
+  StatusChip,
+} from "../components/ui";
 import { errorMessage, tableApi, venueApi, type Table, type Venue } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
@@ -72,7 +80,7 @@ export default function VenueAdminPage() {
     if (user && selectedVenueId != null) load();
   }, [user, selectedVenueId, load]);
 
-  if (loading || !user || user.role === "USER") return null;
+  if (loading || !user || user.role === "USER") return <LoadingScreen />;
 
   async function act(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);

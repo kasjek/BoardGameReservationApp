@@ -10,6 +10,7 @@ import {
   dicebearUrl,
   formatWhen,
   GameLink,
+  LoadingScreen,
   Shell,
   StatusChip,
 } from "../components/ui";
@@ -133,7 +134,7 @@ export default function ProfilePage() {
     });
   }, [bookings, roleFilter, timeFilter]);
 
-  if (loading || !user) return null;
+  if (loading || !user) return <LoadingScreen />;
 
   const roleLineKey =
     user.late_cancel_marks_active === 1 ? "profile.roleLine" : "profile.roleLinePlural";

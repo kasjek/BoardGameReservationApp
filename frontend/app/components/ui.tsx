@@ -246,6 +246,16 @@ export function AuthHero() {
   );
 }
 
+/** Full-viewport placeholder so auth/data loads never leave a blank white page. */
+export function LoadingScreen({ label }: { label?: string }) {
+  const { t } = useI18n();
+  return (
+    <div className="mx-auto flex min-h-[100dvh] w-full max-w-md items-center justify-center bg-white px-6 text-sm text-slate-500 md:max-w-2xl lg:max-w-3xl">
+      {label || t("common.loading")}
+    </div>
+  );
+}
+
 export function Shell({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { t } = useI18n();
@@ -270,7 +280,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   );
 
   return (
-    <div className="mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-white">
+    <div className="mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden bg-white shadow-sm md:max-w-2xl lg:max-w-3xl">
       <BrandBanner />
       <nav className="flex shrink-0 overflow-hidden bg-brand">
         {tab("/", t("nav.allTables"), path === "/")}

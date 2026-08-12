@@ -4,7 +4,16 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { VenueGameFeePrompt } from "./components/VenueGameFeePrompt";
-import { Banner, ChairIcon, Cover, formatWhen, GameLink, Shell, StatusChip } from "./components/ui";
+import {
+  Banner,
+  ChairIcon,
+  Cover,
+  formatWhen,
+  GameLink,
+  LoadingScreen,
+  Shell,
+  StatusChip,
+} from "./components/ui";
 import { errorMessage, tableApi, type Table } from "./lib/api";
 import { useAuth } from "./lib/auth";
 import { useI18n } from "./lib/i18n";
@@ -66,7 +75,7 @@ export default function BrowsePage() {
     }
   }
 
-  if (loading || !user) return null;
+  if (loading || !user) return <LoadingScreen />;
 
   const canReserve = user.role === "USER" || user.role === "ADMIN";
 
