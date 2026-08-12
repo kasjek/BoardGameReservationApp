@@ -190,8 +190,19 @@ export const tableApi = {
 
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) {
-    const d = e.data as { detail?: string } | null;
-    if (d && typeof d === "object" && d.detail) return d.detail;
+    const d = e.data as
+      | { detail?: string; non_field_errors?: string[]; username?: string[]; password?: string[] }
+      | string[]
+      | null;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d) && d[0]) return String(d[0]);
+    if (d && typeof d === "object") {
+      if (typeof d.detail === "string") return d.detail;
+      if (Array.isArray(d.non_field_errors) && d.non_field_errors[0]) return d.non_field_errors[0];
+      if (Array.isArray(d.username) && d.username[0]) return d.username[0];
+      if (Array.isArray(d.password) && d.password[0]) return d.password[0];
+    }
+    if (e.status === 400) return "Unable to log in with those credentials.";
     if (e.status === 403) return "You don't have permission to do that.";
     if (e.status === 409) return "That action conflicts with the current state.";
     return `Request failed (${e.status}).`;
