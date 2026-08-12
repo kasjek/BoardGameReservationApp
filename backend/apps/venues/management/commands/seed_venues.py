@@ -23,3 +23,12 @@ class Command(BaseCommand):
                     f"with {options['days']} days of availability."
                 )
             )
+        from apps.tables.seed import ensure_katzentempel_demo_tables
+
+        tables = ensure_katzentempel_demo_tables()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Katzentempel demo tables: {len(tables)} "
+                f"({', '.join(t.game_title for t in tables)})"
+            )
+        )
