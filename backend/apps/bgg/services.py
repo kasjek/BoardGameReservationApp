@@ -317,8 +317,8 @@ def _venue_game_match(name: str):
     if not matches:
         return None
 
-    # Prefer a row that already has cover art, then one with a bgg_id.
-    matches.sort(key=lambda g: (not bool(g.thumbnail_url), g.bgg_id is None, g.id))
+    # Prefer a row that already has cover art, then one with a bgg_id; newest wins ties.
+    matches.sort(key=lambda g: (not bool(g.thumbnail_url), g.bgg_id is None, -g.id))
     return matches[0]
 
 
@@ -435,6 +435,14 @@ def _bgg_thumbnail(bgg_id: int) -> str | None:
     return None
 
 
+def _is_bgg_cover_url(url: str | None) -> bool:
+    """True when the URL is a BoardGameGeek CDN cover (not a Wikipedia fallback)."""
+    if not url:
+        return False
+    lower = url.lower()
+    return "geekdo-images.com" in lower or "boardgamegeek.com" in lower
+
+
 def _wikipedia_cover(name: str) -> str | None:
     """Box-cover image for a game via Wikipedia (no token required).
 
@@ -474,6 +482,9 @@ def resolve_cover_url(name: str) -> str | None:
 
     Prefers the BGG cover (needs a token), then falls back to a Wikipedia box image.
     Years in brackets are ignored when matching ("Calico (2020)" → Calico).
+
+    Cached Wikipedia fallbacks are not reused when a BGG id is known — those often
+    resolve to the wrong article (e.g. Isle of Man flag for “Isle of Cats”).
     """
     from .models import BggResolution
 
@@ -482,12 +493,10 @@ def resolve_cover_url(name: str) -> str | None:
         return None
 
     cached = BggResolution.objects.filter(query_norm=norm).first()
-    if cached is not None and cached.thumbnail_url and cached.bgg_id:
-        return cached.thumbnail_url
 
     # Curated venue inventory often already has the right cover (and bgg_id).
     venue_game = _venue_game_match(name)
-    if venue_game and venue_game.thumbnail_url:
+    if venue_game and _is_bgg_cover_url(venue_game.thumbnail_url):
         defaults = {
             "thumbnail_url": venue_game.thumbnail_url,
             "matched_name": name,
@@ -496,6 +505,14 @@ def resolve_cover_url(name: str) -> str | None:
             defaults["bgg_id"] = venue_game.bgg_id
         BggResolution.objects.update_or_create(query_norm=norm, defaults=defaults)
         return venue_game.thumbnail_url
+
+    if (
+        cached is not None
+        and cached.thumbnail_url
+        and cached.bgg_id
+        and _is_bgg_cover_url(cached.thumbnail_url)
+    ):
+        return cached.thumbnail_url
 
     bgg_id = (
         (venue_game.bgg_id if venue_game and venue_game.bgg_id else None)
@@ -514,4 +531,32 @@ def resolve_cover_url(name: str) -> str | None:
         if bgg_id:
             defaults["bgg_id"] = bgg_id
         BggResolution.objects.update_or_create(query_norm=norm, defaults=defaults)
+        if venue_game and _is_bgg_cover_url(thumb) and venue_game.thumbnail_url != thumb:
+            venue_game.thumbnail_url = thumb
+            venue_game.save(update_fields=["thumbnail_url"])
+    return thumb
+
+
+def refresh_venue_game_cover(venue_game) -> str | None:
+    """Fetch and store the BGG thumbnail for a VenueGame that has a bgg_id."""
+    if not getattr(venue_game, "bgg_id", None):
+        return None
+    thing = fetch_thing(int(venue_game.bgg_id))
+    thumb = (thing or {}).get("thumbnail_url") or ""
+    if not thumb:
+        thumb = _bgg_thumbnail(int(venue_game.bgg_id)) or ""
+    if not thumb:
+        return None
+    venue_game.thumbnail_url = thumb
+    venue_game.save(update_fields=["thumbnail_url"])
+    from .models import BggResolution
+
+    BggResolution.objects.update_or_create(
+        query_norm=normalize(venue_game.title),
+        defaults={
+            "bgg_id": venue_game.bgg_id,
+            "matched_name": venue_game.title,
+            "thumbnail_url": thumb,
+        },
+    )
     return thumb
