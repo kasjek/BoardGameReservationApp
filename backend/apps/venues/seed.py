@@ -1,4 +1,4 @@
-"""Demo venue seed data (Date House Cafe, Katzentempel Nürnberg).
+"""Demo venue seed data (Date House Cafe, Katzentempel).
 
 Idempotent helpers used by the management command and data migration.
 
@@ -55,8 +55,9 @@ OPEN_FROM = time(10, 0)
 TABLES_AVAILABLE = 3
 DEFAULT_HORIZON_DAYS = 120
 
-# Katzentempel Nürnberg — hours from katzentempel.de / directory listings.
-KATZENTEMPEL_NAME = "Katzentempel Nürnberg"
+# Katzentempel — hours from katzentempel.de / directory listings.
+KATZENTEMPEL_NAME = "Katzentempel"
+KATZENTEMPEL_LEGACY_NAMES = ("Katzentempel Nürnberg",)
 KATZENTEMPEL_ADDRESS = "Peter-Vischer-Straße 21, 90403 Nürnberg"
 KATZENTEMPEL_DESCRIPTION = (
     "Vegan cat café restaurant in Nürnberg's old town — cats roam freely "
@@ -161,16 +162,25 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
 
 
 def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
-    """Create/update Katzentempel Nürnberg with weekly hours, availability, and games."""
-    venue, _ = Venue.objects.update_or_create(
-        name=KATZENTEMPEL_NAME,
-        defaults={
-            "location": KATZENTEMPEL_ADDRESS,
-            "description": KATZENTEMPEL_DESCRIPTION,
-            "min_players": 2,
-            "max_players": 8,
-        },
-    )
+    """Create/update Katzentempel with weekly hours, availability, and games."""
+    # Fold legacy seeded titles into the canonical name without duplicating the venue.
+    Venue.objects.filter(name__in=KATZENTEMPEL_LEGACY_NAMES).update(name=KATZENTEMPEL_NAME)
+    duplicates = list(Venue.objects.filter(name=KATZENTEMPEL_NAME).order_by("id"))
+    defaults = {
+        "location": KATZENTEMPEL_ADDRESS,
+        "description": KATZENTEMPEL_DESCRIPTION,
+        "min_players": 2,
+        "max_players": 8,
+    }
+    if duplicates:
+        venue = duplicates[0]
+        for field, value in defaults.items():
+            setattr(venue, field, value)
+        venue.save(update_fields=[*defaults.keys()])
+        for extra in duplicates[1:]:
+            extra.delete()
+    else:
+        venue = Venue.objects.create(name=KATZENTEMPEL_NAME, **defaults)
 
     tables = connection.introspection.table_names()
     if "venues_venueweeklyhours" in tables:
@@ -231,7 +241,7 @@ def google_maps_url(address: str = "", *, name: str = "") -> str:
     """Google search URL that leads with the venue name so it is clearly visible.
 
     Bare street addresses alone hide the venue on Google; prefer
-    ``Name Address`` (e.g. ``Katzentempel Nürnberg Peter-Vischer-Straße 21…``).
+    ``Name Address`` (e.g. ``Katzentempel Peter-Vischer-Straße 21…``).
     """
     from urllib.parse import quote_plus
 
