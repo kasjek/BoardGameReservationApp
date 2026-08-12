@@ -1,4 +1,4 @@
-"""Demo venue seed data (Date House Cafe, Katzentempel).
+"""Demo venue seed data (Date House Cafe, Katzentempel, Hotel Knorz).
 
 Idempotent helpers used by the management command and data migration.
 
@@ -102,6 +102,22 @@ KATZENTEMPEL_END_BY_WEEKDAY: dict[int, time] = {
     5: time(20, 30),
     6: time(19, 30),
 }
+
+# Hotel Knorz — family hotel near Playmobil FunPark (Zirndorf).
+# Bookable hours match Google/HRS reception hours for this property (daily 08:00–20:00).
+# Booking rules match Date House Cafe (2–8 players, 1–3 hour tables, 3 concurrent).
+HOTEL_KNORZ_NAME = "Hotel Knorz"
+HOTEL_KNORZ_ADDRESS = "Volkhardtstraße 18, 90513 Zirndorf"
+HOTEL_KNORZ_DESCRIPTION = (
+    "Family boutique hotel in Zirndorf near the Playmobil FunPark — board games "
+    "to borrow at reception, garden, and rooms for overnight guests.\n\n"
+    "Opening hours (reception / table bookings, Google/HRS):\n"
+    "• Mon–Sun 08:00–20:00\n\n"
+    "Tables for 2–8 players. Bookings 1–3 hours."
+)
+HOTEL_KNORZ_GAMES = DATE_HOUSE_GAMES
+HOTEL_KNORZ_OPEN_BY_WEEKDAY: dict[int, time] = {d: time(8, 0) for d in range(7)}
+HOTEL_KNORZ_END_BY_WEEKDAY: dict[int, time] = {d: time(20, 0) for d in range(7)}
 
 
 def end_time_for(day: date) -> time:
@@ -250,11 +266,77 @@ def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
     return venue
 
 
+def ensure_hotel_knorz(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
+    """Create/update Hotel Knorz with Google/HRS hours and Date House booking rules."""
+    defaults = {
+        "location": HOTEL_KNORZ_ADDRESS,
+        "description": HOTEL_KNORZ_DESCRIPTION,
+        "min_players": 2,
+        "max_players": 8,
+        "min_reservation_minutes": 60,
+        "max_reservation_minutes": 180,
+    }
+    venue, _ = Venue.objects.update_or_create(
+        name=HOTEL_KNORZ_NAME,
+        defaults=defaults,
+    )
+
+    tables = connection.introspection.table_names()
+    if "venues_venueweeklyhours" in tables:
+        from .hours import set_weekly_hours
+
+        payload = [
+            {
+                "weekday": d,
+                "is_closed": False,
+                "start_time": HOTEL_KNORZ_OPEN_BY_WEEKDAY[d],
+                "end_time": HOTEL_KNORZ_END_BY_WEEKDAY[d],
+            }
+            for d in range(7)
+        ]
+        set_weekly_hours(
+            venue,
+            payload,
+            tables_available=TABLES_AVAILABLE,
+            horizon_days=horizon_days,
+        )
+    else:
+        today = timezone.localdate()
+        for offset in range(horizon_days):
+            day = today + timedelta(days=offset)
+            weekday = day.weekday()
+            VenueAvailability.objects.update_or_create(
+                venue=venue,
+                date=day,
+                defaults={
+                    "start_time": HOTEL_KNORZ_OPEN_BY_WEEKDAY[weekday],
+                    "end_time": HOTEL_KNORZ_END_BY_WEEKDAY[weekday],
+                    "tables_available": TABLES_AVAILABLE,
+                },
+            )
+
+    if "venues_venuegame" in tables:
+        from apps.bgg import services as bgg_services
+
+        wanted_titles = {title for title, _ in HOTEL_KNORZ_GAMES}
+        VenueGame.objects.filter(venue=venue).exclude(title__in=wanted_titles).delete()
+        for title, bgg_id in HOTEL_KNORZ_GAMES:
+            game, _ = VenueGame.objects.update_or_create(
+                venue=venue,
+                title=title,
+                defaults={"is_active": True, "bgg_id": bgg_id},
+            )
+            if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
+                bgg_services.refresh_venue_game_cover(game)
+    return venue
+
+
 def ensure_demo_venues(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> list[Venue]:
     """Seed all demo venues."""
     return [
         ensure_date_house_cafe(horizon_days=horizon_days),
         ensure_katzentempel(horizon_days=horizon_days),
+        ensure_hotel_knorz(horizon_days=horizon_days),
     ]
 
 

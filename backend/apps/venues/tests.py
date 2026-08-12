@@ -455,3 +455,50 @@ def test_seed_katzentempel(db):
     assert VenueGame.objects.filter(venue=venue, title="Spicy").first().bgg_id == 299169
     assert VenueGame.objects.filter(venue=venue, title="Nekojima").first().bgg_id == 359029
     assert VenueGame.objects.filter(venue=venue, title="The Isle of Cats").first().bgg_id == 281259
+
+
+def test_seed_hotel_knorz(db, client):
+    from datetime import time as dt_time
+
+    from apps.accounts.models import Role
+    from apps.venues.demo_users import ensure_venue_managers
+    from apps.venues.models import VenueGame, VenueWeeklyHours
+    from apps.venues.seed import (
+        DATE_HOUSE_GAMES,
+        HOTEL_KNORZ_ADDRESS,
+        HOTEL_KNORZ_NAME,
+        ensure_hotel_knorz,
+    )
+
+    venue = ensure_hotel_knorz(horizon_days=7)
+    assert venue.name == HOTEL_KNORZ_NAME
+    assert venue.location == HOTEL_KNORZ_ADDRESS
+    assert venue.min_players == 2
+    assert venue.max_players == 8
+    assert venue.min_reservation_minutes == 60
+    assert venue.max_reservation_minutes == 180
+    hours = list(VenueWeeklyHours.objects.filter(venue=venue).order_by("weekday"))
+    assert len(hours) == 7
+    assert all(h.start_time == dt_time(8, 0) and h.end_time == dt_time(20, 0) for h in hours)
+    titles = set(VenueGame.objects.filter(venue=venue, is_active=True).values_list("title", flat=True))
+    assert titles == {title for title, _ in DATE_HOUSE_GAMES}
+
+    resp = client.get(f"/api/venues/{venue.id}")
+    assert resp.status_code == 200
+    assert resp.data["name"] == HOTEL_KNORZ_NAME
+    assert "Volkhardt" in resp.data["location"]
+    assert "Knorz" in resp.data["maps_url"]
+
+    managers = ensure_venue_managers()
+    by_name = {u.username: u for u in managers}
+    assert by_name["knorz"].role == Role.VENUE_USER
+    assert by_name["knorz"].venue_id == venue.id
+    assert by_name["knorz"].check_password("VenuePass1!")
+    assert by_name["katzen"].role == Role.VENUE_USER
+    assert by_name["katzen"].venue.name == "Katzentempel"
+    # Second call must not overwrite the Knorz manager password.
+    by_name["knorz"].set_password("KeepPass1!")
+    by_name["knorz"].save(update_fields=["password"])
+    ensure_venue_managers()
+    by_name["knorz"].refresh_from_db()
+    assert by_name["knorz"].check_password("KeepPass1!")
