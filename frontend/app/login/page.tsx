@@ -33,7 +33,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white shadow-sm md:max-w-lg">
       <AuthHero />
       <div className="flex flex-1 flex-col px-6 pb-8 pt-4">
         {error ? <Banner kind="error">{error}</Banner> : null}

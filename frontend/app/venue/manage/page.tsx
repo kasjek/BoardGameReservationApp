@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Banner, Cover, GameLink, Shell } from "../../components/ui";
+import { Banner, Cover, GameLink, LoadingScreen, Shell } from "../../components/ui";
 import {
   bggApi,
   errorMessage,
@@ -314,7 +314,7 @@ export default function ManageVenuePage() {
     setManageMaxMinutes(selectedVenue.max_reservation_minutes ?? 180);
   }, [selectedVenue]);
 
-  if (loading || !user || user.role === "USER") return null;
+  if (loading || !user || user.role === "USER") return <LoadingScreen />;
 
   function addCreateClosure() {
     if (!closureDate || !closureComment.trim()) {

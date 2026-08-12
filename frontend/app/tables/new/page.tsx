@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { VenueGameFeeHint, VenueGameFeePrompt } from "../../components/VenueGameFeePrompt";
-import { Banner, Shell } from "../../components/ui";
+import { Banner, LoadingScreen, Shell } from "../../components/ui";
 import {
   bggApi,
   errorMessage,
@@ -451,7 +451,7 @@ export default function CreateTablePage() {
     };
   }, [bringOwn, bggId, game, isSpontaneous, venueGames, t]);
 
-  if (loading || !user) return null;
+  if (loading || !user) return <LoadingScreen />;
   if (user.role === "VENUE_USER") {
     return (
       <Shell title={t("newTable.title")}>

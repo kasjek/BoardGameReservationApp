@@ -12,6 +12,7 @@ import {
   dicebearUrl,
   formatWhen,
   GameLink,
+  LoadingScreen,
   Shell,
   StatusChip,
 } from "../../components/ui";
@@ -80,7 +81,7 @@ export default function TableDetailPage() {
     if (user) load();
   }, [user, load]);
 
-  if (loading || !user || !table) return null;
+  if (loading || !user || !table) return <LoadingScreen />;
 
   const canHost = user.role === "USER" || user.role === "ADMIN";
   const isOrganizer = table.organizer === user.id;
