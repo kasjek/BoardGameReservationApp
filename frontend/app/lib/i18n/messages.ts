@@ -348,7 +348,7 @@ export const de: Messages = {
     name: "Too Many Games",
     logoAlt: "Too Many Games Logo",
     discover: "Neue Spiele entdecken",
-    tagline: "Gleichgesinnte finden",
+    tagline: "Gleichgesinnte Leute finden",
   },
   nav: {
     allTables: "Alle Tische",
