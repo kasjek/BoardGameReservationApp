@@ -319,6 +319,38 @@ def test_cover_is_cached(db, monkeypatch):
     assert services.resolve_cover_url("catan").endswith("catan.jpg")
 
 
+def test_cover_refreshes_stale_wikipedia_cache_when_bgg_id_known(db, monkeypatch):
+    """Wikipedia fallbacks must not stick when we know the BGG id (Isle of Cats / Spicy)."""
+    from apps.bgg.models import BggResolution
+    from apps.venues.models import Venue, VenueGame
+
+    VenueGame.objects.filter(title__iexact="Spicy").update(thumbnail_url="")
+    BggResolution.objects.update_or_create(
+        query_norm="spicy",
+        defaults={
+            "bgg_id": 299169,
+            "matched_name": "Spicy",
+            "thumbnail_url": "https://upload.wikimedia.org/wikipedia/commons/sean.png",
+        },
+    )
+    # Avoid matching a curated venue row with a fresh BGG cover from other tests/seeds.
+    VenueGame.objects.filter(title__iexact="Spicy").delete()
+    Venue.objects.filter(name="Cover Cafe").delete()
+
+    monkeypatch.setattr(
+        services,
+        "_bgg_thumbnail",
+        lambda bgg_id: "https://cf.geekdo-images.com/spicy-real.jpg" if bgg_id == 299169 else None,
+    )
+    monkeypatch.setattr(services, "_wikipedia_cover", lambda name: pytest.fail("no wiki"))
+    monkeypatch.setattr(services, "resolve_bgg_id", lambda name: 299169)
+    url = services.resolve_cover_url("Spicy")
+    assert url == "https://cf.geekdo-images.com/spicy-real.jpg"
+    cached = BggResolution.objects.get(query_norm="spicy")
+    assert "geekdo-images.com" in cached.thumbnail_url
+    assert "spicy-real" in cached.thumbnail_url
+
+
 def test_auth_header_added_with_token(monkeypatch):
     monkeypatch.setenv("BGG_API_TOKEN", "test-token-123")
     assert services._auth_headers()["Authorization"] == "Bearer test-token-123"

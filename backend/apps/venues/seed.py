@@ -233,12 +233,16 @@ def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
         wanted_titles = {title for title, _ in KATZENTEMPEL_GAMES}
         # Drop obsolete titles from earlier incorrect seeds (e.g. "Island of Cats").
         VenueGame.objects.filter(venue=venue).exclude(title__in=wanted_titles).delete()
+        from apps.bgg import services as bgg_services
+
         for title, bgg_id in KATZENTEMPEL_GAMES:
-            VenueGame.objects.update_or_create(
+            game, _ = VenueGame.objects.update_or_create(
                 venue=venue,
                 title=title,
                 defaults={"is_active": True, "bgg_id": bgg_id},
             )
+            if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
+                bgg_services.refresh_venue_game_cover(game)
     return venue
 
 
