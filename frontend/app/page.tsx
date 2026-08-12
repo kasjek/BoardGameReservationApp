@@ -7,9 +7,11 @@ import { VenueGameFeePrompt } from "./components/VenueGameFeePrompt";
 import { Banner, ChairIcon, Cover, formatWhen, GameLink, Shell, StatusChip } from "./components/ui";
 import { errorMessage, tableApi, type Table } from "./lib/api";
 import { useAuth } from "./lib/auth";
+import { useI18n } from "./lib/i18n";
 
 export default function BrowsePage() {
   const { user, loading } = useAuth();
+  const { t, localeTag } = useI18n();
   const router = useRouter();
   const [tables, setTables] = useState<Table[]>([]);
   const [myIds, setMyIds] = useState<Set<number>>(new Set());
@@ -35,30 +37,30 @@ export default function BrowsePage() {
       const mine = await tableApi.list({ attendeeId: String(user.id) });
       setMyIds(new Set(mine.map((m) => m.id)));
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e, t));
     }
-  }, [game, status, user]);
+  }, [game, status, user, t]);
 
   useEffect(() => {
     if (user) load();
   }, [user, load]);
 
-  async function reserve(t: Table) {
+  async function reserve(tbl: Table) {
     setBusy(true);
     setNotice(null);
     try {
-      const seat = await tableApi.reserve(t.id);
+      const seat = await tableApi.reserve(tbl.id);
       setNotice({
         kind: "info",
-        msg: seat.status === "waitlisted" ? "Added to the waitlist." : "Seat reserved!",
+        msg: seat.status === "waitlisted" ? t("browse.waitlistedOk") : t("browse.reservedOk"),
       });
       await load();
       // Venue-game fee applies to reserved seats only (not waitlist).
-      if (!t.bring_own_game && seat.status === "reserved") {
-        setFeePrompt(t);
+      if (!tbl.bring_own_game && seat.status === "reserved") {
+        setFeePrompt(tbl);
       }
     } catch (e) {
-      setNotice({ kind: "error", msg: errorMessage(e) });
+      setNotice({ kind: "error", msg: errorMessage(e, t) });
     } finally {
       setBusy(false);
     }
@@ -69,23 +71,25 @@ export default function BrowsePage() {
   const canReserve = user.role === "USER" || user.role === "ADMIN";
 
   return (
-    <Shell title="All Tables">
+    <Shell title={t("browse.title")}>
       <div className="mb-3 flex gap-2">
         <input
           className="input"
-          placeholder="Search game…"
+          placeholder={t("browse.searchGame")}
           value={game}
           onChange={(e) => setGame(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && load()}
         />
         <select className="input w-40" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="available">Available</option>
-          <option value="">All tables</option>
-          <option value="waiting_for_venue_confirmation">Waiting for venue</option>
-          <option value="waiting_for_players">Waiting for players</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="completed">Completed</option>
+          <option value="available">{t("browse.available")}</option>
+          <option value="">{t("browse.allTables")}</option>
+          <option value="waiting_for_venue_confirmation">
+            {t("status.waiting_for_venue_confirmation")}
+          </option>
+          <option value="waiting_for_players">{t("status.waiting_for_players")}</option>
+          <option value="confirmed">{t("status.confirmed")}</option>
+          <option value="cancelled">{t("status.cancelled")}</option>
+          <option value="completed">{t("status.completed")}</option>
         </select>
       </div>
 
@@ -94,55 +98,57 @@ export default function BrowsePage() {
 
       {tables.length === 0 ? (
         <div className="mt-10 text-center text-sm text-slate-400">
-          {status === "waiting_for_players"
-            ? "No tables are waiting for players right now. Try 'All tables', or create one!"
-            : "No tables match this filter."}
+          {status === "waiting_for_players" ? t("browse.emptyWaiting") : t("browse.emptyFilter")}
         </div>
       ) : (
         <div className="space-y-3">
-          {tables.map((t) => {
-            const bookable = t.status === "waiting_for_players" || t.status === "confirmed";
-            const full = t.seats_taken >= t.max_players;
-            const mine = myIds.has(t.id);
+          {tables.map((tbl) => {
+            const bookable = tbl.status === "waiting_for_players" || tbl.status === "confirmed";
+            const full = tbl.seats_taken >= tbl.max_players;
+            const mine = myIds.has(tbl.id);
             return (
-              <div key={t.id} className="card">
+              <div key={tbl.id} className="card">
                 <div
                   className="flex cursor-pointer gap-3"
-                  onClick={() => router.push(`/tables/${t.id}`)}
+                  onClick={() => router.push(`/tables/${tbl.id}`)}
                 >
-                  <Cover name={t.game_title} size={56} />
+                  <Cover name={tbl.game_title} size={56} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <h4 className="font-semibold">
-                        <GameLink name={t.game_title} />
+                        <GameLink name={tbl.game_title} />
                       </h4>
-                      <StatusChip status={t.status} />
+                      <StatusChip status={tbl.status} />
                     </div>
                     <div className="mt-1 text-xs text-slate-500">
-                      {formatWhen(t.starts_at, t.ends_at)}
+                      {formatWhen(tbl.starts_at, tbl.ends_at, localeTag)}
                     </div>
-                    {t.venue_name ? (
+                    {tbl.venue_name ? (
                       <div
                         className="mt-1 text-xs font-semibold text-brand underline decoration-dotted underline-offset-2"
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`/venues/${t.venue}`);
+                          router.push(`/venues/${tbl.venue}`);
                         }}
                       >
-                        {t.venue_name}
+                        {tbl.venue_name}
                       </div>
                     ) : null}
                     <div className="mt-2 text-xs text-slate-500">
-                      {t.seats_taken}/{t.max_players} seats · {t.game_language.toUpperCase()}
+                      {t("browse.seatsLine", {
+                        taken: tbl.seats_taken,
+                        max: tbl.max_players,
+                        lang: tbl.game_language.toUpperCase(),
+                      })}
                     </div>
                     <div className="mt-1 text-xs text-slate-500">
-                      Min {t.min_players} · Max {t.max_players} players
+                      {t("browse.minMaxPlayers", { min: tbl.min_players, max: tbl.max_players })}
                     </div>
                   </div>
                 </div>
                 {mine ? (
                   <div className="mt-3 text-center text-sm font-semibold text-green-700">
-                    ✓ Your seat is reserved
+                    {t("browse.seatReserved")}
                   </div>
                 ) : canReserve && bookable ? (
                   <button
@@ -150,14 +156,14 @@ export default function BrowsePage() {
                     disabled={busy}
                     onClick={(e) => {
                       e.stopPropagation();
-                      reserve(t);
+                      reserve(tbl);
                     }}
                   >
                     {full ? (
-                      "Join waitlist"
+                      t("browse.joinWaitlist")
                     ) : (
                       <span className="inline-flex items-center justify-center gap-2">
-                        <ChairIcon /> Take a Seat
+                        <ChairIcon /> {t("browse.takeASeat")}
                       </span>
                     )}
                   </button>

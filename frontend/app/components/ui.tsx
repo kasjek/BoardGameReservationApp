@@ -6,18 +6,18 @@ import { useState } from "react";
 
 import { type TableStatus } from "../lib/api";
 import { useAuth } from "../lib/auth";
-
-const STATUS: Record<TableStatus, { label: string; cls: string }> = {
-  waiting_for_venue_confirmation: { label: "Waiting for venue", cls: "bg-slate-100 text-slate-600" },
-  waiting_for_players: { label: "Waiting for players", cls: "bg-amber-100 text-amber-700" },
-  confirmed: { label: "Confirmed", cls: "bg-green-100 text-green-700" },
-  cancelled: { label: "Cancelled", cls: "bg-red-100 text-red-700" },
-  completed: { label: "Completed", cls: "bg-slate-100 text-slate-600" },
-};
+import { LanguageSwitcher, useI18n } from "../lib/i18n";
 
 export function StatusChip({ status }: { status: TableStatus }) {
-  const s = STATUS[status];
-  return <span className={`chip ${s.cls}`}>● {s.label}</span>;
+  const { t } = useI18n();
+  const cls: Record<TableStatus, string> = {
+    waiting_for_venue_confirmation: "bg-slate-100 text-slate-600",
+    waiting_for_players: "bg-amber-100 text-amber-700",
+    confirmed: "bg-green-100 text-green-700",
+    cancelled: "bg-red-100 text-red-700",
+    completed: "bg-slate-100 text-slate-600",
+  };
+  return <span className={`chip ${cls[status]}`}>● {t(`status.${status}`)}</span>;
 }
 
 /**
@@ -163,6 +163,7 @@ export function GameLink({
   href?: string | null;
   className?: string;
 }) {
+  const { t } = useI18n();
   const link =
     href ||
     (bggId != null && bggId > 0 ? bggGameUrl(bggId) : null) ||
@@ -173,7 +174,7 @@ export function GameLink({
       target="_blank"
       rel="noreferrer"
       onClick={(e) => e.stopPropagation()}
-      title={`View "${name}" on BoardGameGeek`}
+      title={t("bgg.viewOnBgg", { name })}
       className={className ?? "text-brand underline decoration-dotted underline-offset-2"}
     >
       {name}
@@ -181,28 +182,35 @@ export function GameLink({
   );
 }
 
-export function formatWhen(startsAt: string, endsAt?: string): string {
+export function formatWhen(startsAt: string, endsAt?: string, localeTag = "en-GB"): string {
   const s = new Date(startsAt);
-  const date = s.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-  const from = s.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const date = s.toLocaleDateString(localeTag, { weekday: "short", day: "numeric", month: "short" });
+  const from = s.toLocaleTimeString(localeTag, { hour: "2-digit", minute: "2-digit" });
   if (!endsAt) return `${date} · ${from}`;
-  const to = new Date(endsAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const to = new Date(endsAt).toLocaleTimeString(localeTag, { hour: "2-digit", minute: "2-digit" });
   return `${date} · ${from}–${to}`;
+}
+
+/** Localized wrapper around formatWhen that picks up the active UI locale. */
+export function FormatWhen({ startsAt, endsAt }: { startsAt: string; endsAt?: string }) {
+  const { localeTag } = useI18n();
+  return <>{formatWhen(startsAt, endsAt, localeTag)}</>;
 }
 
 /**
  * App brand banner: the dice-cube logo with the "Too Many Games" title.
- * Rendered top-left on every view; all other content sits below it.
- * Not used on login/register — those use AuthHero instead.
+ * Language flags sit top-right. Not used on login/register — those use AuthHero.
  */
 export function BrandBanner() {
+  const { t } = useI18n();
   return (
     <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt="Too Many Games logo" width={44} height={44} className="shrink-0" />
-      <span className="text-xl font-black uppercase leading-none tracking-tight text-slate-900">
-        Too Many Games
+      <img src="/logo.png" alt={t("brand.logoAlt")} width={44} height={44} className="shrink-0" />
+      <span className="min-w-0 flex-1 text-xl font-black uppercase leading-none tracking-tight text-slate-900">
+        {t("brand.name")}
       </span>
+      <LanguageSwitcher />
     </div>
   );
 }
@@ -212,12 +220,16 @@ export function BrandBanner() {
  * Company logo on top, then the product taglines — no shared BrandBanner.
  */
 export function AuthHero() {
+  const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center px-6 pb-2 pt-10 text-center">
+    <div className="relative flex flex-col items-center px-6 pb-2 pt-10 text-center">
+      <div className="absolute right-4 top-3">
+        <LanguageSwitcher />
+      </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/logo.png"
-        alt="Too Many Games"
+        alt={t("brand.name")}
         width={168}
         height={168}
         className="h-40 w-40 object-contain sm:h-44 sm:w-44"
@@ -227,15 +239,16 @@ export function AuthHero() {
         <div className="mt-1">Games</div>
       </div>
       <h1 className="mt-6 text-2xl font-extrabold tracking-tight text-slate-900">
-        Discover new games
+        {t("brand.discover")}
       </h1>
-      <p className="mt-1.5 text-sm text-slate-500">Find like-minded people</p>
+      <p className="mt-1.5 text-sm text-slate-500">{t("brand.tagline")}</p>
     </div>
   );
 }
 
 export function Shell({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const path = usePathname();
   const canManageVenue = user?.role === "VENUE_USER" || user?.role === "ADMIN";
@@ -260,10 +273,10 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
     <div className="mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-white">
       <BrandBanner />
       <nav className="flex shrink-0 overflow-hidden bg-brand">
-        {tab("/", "All Tables", path === "/")}
-        {canHost ? tab("/tables/new", "New Table", path.startsWith("/tables/new")) : null}
-        {canManageVenue ? tab("/venue", "Venue", path.startsWith("/venue")) : null}
-        {tab("/profile", "My Bookings", path.startsWith("/profile"))}
+        {tab("/", t("nav.allTables"), path === "/")}
+        {canHost ? tab("/tables/new", t("nav.newTable"), path.startsWith("/tables/new")) : null}
+        {canManageVenue ? tab("/venue", t("nav.venue"), path.startsWith("/venue")) : null}
+        {tab("/profile", t("nav.myBookings"), path.startsWith("/profile"))}
       </nav>
       <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
@@ -281,7 +294,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
                 router.push("/login");
               }}
             >
-              Log out
+              {t("nav.logOut")}
             </button>
           </div>
         ) : null}
@@ -294,6 +307,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
 
 /** Required BoardGameGeek XML API attribution (Terms of Use). */
 export function BggAttribution() {
+  const { t } = useI18n();
   return (
     <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-1.5">
       <a
@@ -301,12 +315,12 @@ export function BggAttribution() {
         target="_blank"
         rel="noreferrer noopener"
         className="mx-auto flex w-fit items-center justify-center opacity-80 transition hover:opacity-100"
-        title="Game data from BoardGameGeek"
+        title={t("bgg.poweredTitle")}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/powered-by-bgg.png"
-          alt="Powered by BoardGameGeek"
+          alt={t("bgg.poweredAlt")}
           width={110}
           height={32}
           className="h-6 w-auto"

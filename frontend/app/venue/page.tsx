@@ -7,11 +7,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Banner, Cover, formatWhen, GameLink, Shell, StatusChip } from "../components/ui";
 import { errorMessage, tableApi, venueApi, type Table, type Venue } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useI18n } from "../lib/i18n";
 
 const ADMIN_VENUE_KEY = "adminSelectedVenueId";
 
 export default function VenueAdminPage() {
   const { user, loading } = useAuth();
+  const { t, localeTag } = useI18n();
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<number | null>(null);
@@ -44,8 +46,8 @@ export default function VenueAdminPage() {
           (saved && vs.some((v) => v.id === saved) && saved) || vs[0]?.id || null;
         setSelectedVenueId(initial);
       })
-      .catch((e) => setError(errorMessage(e)));
-  }, [user]);
+      .catch((e) => setError(errorMessage(e, t)));
+  }, [user, t]);
 
   useEffect(() => {
     if (!isAdmin || selectedVenueId == null) return;
@@ -57,14 +59,14 @@ export default function VenueAdminPage() {
     setError(null);
     try {
       const all = await tableApi.list({ venueId: String(selectedVenueId) });
-      setPending(all.filter((t) => t.status === "waiting_for_venue_confirmation"));
+      setPending(all.filter((tbl) => tbl.status === "waiting_for_venue_confirmation"));
       setUpcoming(
-        all.filter((t) => t.status === "waiting_for_players" || t.status === "confirmed"),
+        all.filter((tbl) => tbl.status === "waiting_for_players" || tbl.status === "confirmed"),
       );
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e, t));
     }
-  }, [user, selectedVenueId]);
+  }, [user, selectedVenueId, t]);
 
   useEffect(() => {
     if (user && selectedVenueId != null) load();
@@ -81,7 +83,7 @@ export default function VenueAdminPage() {
       setInfo(ok);
       await load();
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -92,20 +94,20 @@ export default function VenueAdminPage() {
     selectedVenueId != null ? `/venue/manage?venue=${selectedVenueId}` : "/venue/manage";
 
   return (
-    <Shell title="Venue">
+    <Shell title={t("venueAdmin.title")}>
       {error ? <Banner kind="error">{error}</Banner> : null}
       {info ? <Banner kind="info">{info}</Banner> : null}
 
       {isAdmin ? (
         <div className="mb-3">
-          <span className="label">Venue to manage</span>
+          <span className="label">{t("venueAdmin.venueToManage")}</span>
           <select
             className="input"
             value={selectedVenueId ?? ""}
             onChange={(e) => setSelectedVenueId(Number(e.target.value))}
             disabled={venues.length === 0}
           >
-            {venues.length === 0 ? <option value="">No venues yet</option> : null}
+            {venues.length === 0 ? <option value="">{t("venueAdmin.noVenues")}</option> : null}
             {venues.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
@@ -119,45 +121,47 @@ export default function VenueAdminPage() {
       ) : null}
 
       <Link href={manageHref} className="mb-3 block text-sm font-semibold text-brand">
-        Manage venue &amp; availability ›
+        {t("venueAdmin.manageLink")}
       </Link>
 
       {selectedVenueId == null ? (
-        <Banner kind="info">Select a venue to review requests and upcoming events.</Banner>
+        <Banner kind="info">{t("venueAdmin.selectVenue")}</Banner>
       ) : (
         <>
-          <div className="label">Pending requests</div>
+          <div className="label">{t("venueAdmin.pending")}</div>
           {pending.length === 0 ? (
-            <div className="text-sm text-slate-400">No pending requests.</div>
+            <div className="text-sm text-slate-400">{t("venueAdmin.noPending")}</div>
           ) : (
             <div className="space-y-3">
-              {pending.map((t) => (
-                <div key={t.id} className="card flex gap-3">
-                  <Cover name={t.game_title} size={48} />
+              {pending.map((tbl) => (
+                <div key={tbl.id} className="card flex gap-3">
+                  <Cover name={tbl.game_title} size={48} />
                   <div className="min-w-0 flex-1">
                     <h4 className="font-semibold">
-                      <GameLink name={t.game_title} />
+                      <GameLink name={tbl.game_title} />
                     </h4>
-                    <div className="text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
+                    <div className="text-xs text-slate-500">
+                      {formatWhen(tbl.starts_at, tbl.ends_at, localeTag)}
+                    </div>
                     <div className="mt-1 text-xs text-slate-500">
-                      {t.bring_own_game
-                        ? "Host brings own game"
-                        : "Uses a venue game — needs game confirmation"}
+                      {tbl.bring_own_game
+                        ? t("venueAdmin.hostBrings")
+                        : t("venueAdmin.usesVenueGame")}
                     </div>
                     <div className="mt-2 flex gap-2">
                       <button
                         className="btn-ghost"
                         disabled={busy}
-                        onClick={() => act(() => tableApi.reject(t.id), "Rejected.")}
+                        onClick={() => act(() => tableApi.reject(tbl.id), t("venueAdmin.rejected"))}
                       >
-                        Reject
+                        {t("venueAdmin.reject")}
                       </button>
                       <button
                         className="btn"
                         disabled={busy}
-                        onClick={() => act(() => tableApi.confirm(t.id), "Confirmed.")}
+                        onClick={() => act(() => tableApi.confirm(tbl.id), t("venueAdmin.confirmed"))}
                       >
-                        Confirm
+                        {t("venueAdmin.confirm")}
                       </button>
                     </div>
                   </div>
@@ -166,22 +170,24 @@ export default function VenueAdminPage() {
             </div>
           )}
 
-          <div className="label mt-4">Upcoming events</div>
+          <div className="label mt-4">{t("venueAdmin.upcoming")}</div>
           {upcoming.length === 0 ? (
-            <div className="text-sm text-slate-400">None yet.</div>
+            <div className="text-sm text-slate-400">{t("venueAdmin.noneYet")}</div>
           ) : (
             <div className="space-y-2">
-              {upcoming.map((t) => (
-                <div key={t.id} className="card flex gap-3">
-                  <Cover name={t.game_title} size={44} />
+              {upcoming.map((tbl) => (
+                <div key={tbl.id} className="card flex gap-3">
+                  <Cover name={tbl.game_title} size={44} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <h4 className="font-semibold">
-                        <GameLink name={t.game_title} />
+                        <GameLink name={tbl.game_title} />
                       </h4>
-                      <StatusChip status={t.status} />
+                      <StatusChip status={tbl.status} />
                     </div>
-                    <div className="text-xs text-slate-500">{formatWhen(t.starts_at, t.ends_at)}</div>
+                    <div className="text-xs text-slate-500">
+                      {formatWhen(tbl.starts_at, tbl.ends_at, localeTag)}
+                    </div>
                   </div>
                 </div>
               ))}

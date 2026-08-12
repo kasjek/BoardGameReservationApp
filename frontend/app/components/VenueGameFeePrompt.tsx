@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "../lib/i18n";
 import {
   formatDurationHours,
   formatEur,
@@ -33,10 +34,12 @@ export function VenueGameFeePrompt({
   tableId,
   onClose,
 }: VenueGameFeePromptProps) {
+  const { t } = useI18n();
   if (!open) return null;
 
   const hours = tableDurationHours(startsAt, endsAt);
   const amount = venueGameFeeEur(startsAt, endsAt);
+  const amountLabel = formatEur(amount);
   const returnUrl =
     typeof window !== "undefined" && tableId
       ? `${window.location.origin}/tables/${tableId}`
@@ -45,8 +48,8 @@ export function VenueGameFeePrompt({
     amountEur: amount,
     itemName:
       role === "host"
-        ? `Venue game fee (host) – ${gameTitle}`
-        : `Venue game fee (seat) – ${gameTitle}`,
+        ? t("paypal.itemHost", { game: gameTitle })
+        : t("paypal.itemGuest", { game: gameTitle }),
     returnUrl,
     cancelUrl: returnUrl,
   });
@@ -60,47 +63,33 @@ export function VenueGameFeePrompt({
     >
       <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
         <h2 id="venue-game-fee-title" className="text-lg font-bold text-slate-900">
-          Pay venue game fee
+          {t("paypal.title")}
         </h2>
         <p className="mt-2 text-sm text-slate-600">
-          {role === "host"
-            ? "You’re borrowing a game from the venue. Please pay the fee now that your table is created."
-            : "You’re borrowing a venue game for this table. Please pay the fee for your seat."}
+          {role === "host" ? t("paypal.hostBody") : t("paypal.guestBody")}
         </p>
         <div className="card mt-4 space-y-1 text-sm">
           <div className="flex justify-between gap-2">
-            <span className="text-slate-500">Rate</span>
+            <span className="text-slate-500">{t("paypal.rate")}</span>
             <span>€{VENUE_GAME_FEE_EUR_PER_HOUR} / hour</span>
           </div>
           <div className="flex justify-between gap-2">
-            <span className="text-slate-500">Duration</span>
+            <span className="text-slate-500">{t("paypal.duration")}</span>
             <span>{formatDurationHours(hours)} h</span>
           </div>
           <div className="flex justify-between gap-2 font-bold">
-            <span>Total</span>
-            <span>€{formatEur(amount)}</span>
+            <span>{t("paypal.total")}</span>
+            <span>€{amountLabel}</span>
           </div>
-          <div className="pt-1 text-xs text-slate-400">
-            PayPal · {PAYPAL_BUSINESS_EMAIL}
-          </div>
+          <div className="pt-1 text-xs text-slate-400">PayPal · {PAYPAL_BUSINESS_EMAIL}</div>
         </div>
-        <a
-          href={payUrl}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="btn mt-4 block"
-          onClick={() => {
-            // Keep dialog open so the user can return and continue; they may complete PayPal in another tab.
-          }}
-        >
-          Pay €{formatEur(amount)} with PayPal
+        <a href={payUrl} target="_blank" rel="noreferrer noopener" className="btn mt-4 block">
+          {t("paypal.payWithPaypal", { amount: amountLabel })}
         </a>
         <button type="button" className="btn-ghost mt-2" onClick={onClose}>
-          Continue without paying now
+          {t("paypal.continueLater")}
         </button>
-        <p className="mt-2 text-center text-xs text-slate-400">
-          Payment opens in PayPal. You can continue in the app afterwards.
-        </p>
+        <p className="mt-2 text-center text-xs text-slate-400">{t("paypal.opensInPaypal")}</p>
       </div>
     </div>
   );
@@ -116,30 +105,28 @@ export function VenueGameFeeHint({
   toHm: string;
   date: string;
 }) {
+  const { t } = useI18n();
+  const rate = VENUE_GAME_FEE_EUR_PER_HOUR;
   if (!date || !fromHm || !toHm) {
     return (
-      <div className="mt-1 text-xs text-slate-500">
-        Venue game fee: €{VENUE_GAME_FEE_EUR_PER_HOUR}/hour (paid via PayPal when you create the
-        table; joiners pay after taking a seat).
-      </div>
+      <div className="mt-1 text-xs text-slate-500">{t("paypal.hintNoDate", { rate })}</div>
     );
   }
   const starts = new Date(`${date}T${fromHm}:00`);
   const ends = new Date(`${date}T${toHm}:00`);
   if (Number.isNaN(starts.getTime()) || Number.isNaN(ends.getTime()) || ends <= starts) {
-    return (
-      <div className="mt-1 text-xs text-slate-500">
-        Venue game fee: €{VENUE_GAME_FEE_EUR_PER_HOUR}/hour via PayPal.
-      </div>
-    );
+    return <div className="mt-1 text-xs text-slate-500">{t("paypal.hintShort", { rate })}</div>;
   }
   const hours = tableDurationHours(starts, ends);
   const amount = venueGameFeeEur(starts, ends);
   return (
     <div className="mt-1 text-xs text-slate-500">
-      Venue game fee for this booking: €{formatEur(amount)} ({formatDurationHours(hours)} h × €
-      {VENUE_GAME_FEE_EUR_PER_HOUR}/h) — PayPal to {PAYPAL_BUSINESS_EMAIL}. Joiners pay the same
-      rate after taking a seat.
+      {t("paypal.hintWithAmount", {
+        amount: formatEur(amount),
+        hours: formatDurationHours(hours),
+        rate,
+        email: PAYPAL_BUSINESS_EMAIL,
+      })}
     </div>
   );
 }
