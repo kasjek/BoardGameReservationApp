@@ -554,6 +554,9 @@ export default function CreateTablePage() {
       ? game
       : "";
 
+  // Keep Request table inactive until every required field is valid (e.g. date chosen).
+  const formReady = Object.keys(validate()).length === 0;
+
   return (
     <Shell title={t("newTable.title")}>
       {error ? <Banner kind="error">{error}</Banner> : null}
@@ -881,7 +884,7 @@ export default function CreateTablePage() {
           </div>
         ) : null}
 
-        <button className="btn mt-4" disabled={busy}>
+        <button className="btn mt-4" disabled={busy || !formReady}>
           {busy ? t("common.ellipsis") : t("newTable.requestTable")}
         </button>
       </form>
