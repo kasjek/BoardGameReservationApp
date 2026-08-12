@@ -15,10 +15,9 @@ import {
   type WeeklyHours,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 
 const ADMIN_VENUE_KEY = "adminSelectedVenueId";
-
-const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 function venueIdFromQuery(): number | null {
   if (typeof window === "undefined") return null;
@@ -28,7 +27,7 @@ function venueIdFromQuery(): number | null {
 }
 
 function defaultHours(): WeeklyHours[] {
-  return WEEKDAYS.map((_, weekday) => ({
+  return Array.from({ length: 7 }, (_, weekday) => ({
     weekday,
     is_closed: false,
     start_time: "10:00:00",
@@ -50,9 +49,11 @@ type AdminTab = "create" | "manage";
 function BggGamePicker({
   onPick,
   disabled,
+  t,
 }: {
   onPick: (hit: BggSearchHit) => void;
   disabled?: boolean;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<BggSearchHit[]>([]);
@@ -78,7 +79,7 @@ function BggGamePicker({
         .catch((e) => {
           if (!cancelled) {
             setHits([]);
-            setSearchError(errorMessage(e));
+            setSearchError(errorMessage(e, t));
           }
         })
         .finally(() => {
@@ -89,20 +90,20 @@ function BggGamePicker({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, t]);
 
   return (
     <div>
-      <span className="label">Add game from BoardGameGeek</span>
+      <span className="label">{t("bgg.addFromBgg")}</span>
       <input
         className="input"
-        placeholder="Search board games…"
+        placeholder={t("bgg.searchPlaceholder")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         disabled={disabled}
         autoComplete="off"
       />
-      {searching ? <div className="mt-1 text-xs text-slate-400">Searching BGG…</div> : null}
+      {searching ? <div className="mt-1 text-xs text-slate-400">{t("bgg.searching")}</div> : null}
       {searchError ? <div className="mt-1 text-xs text-red-500">{searchError}</div> : null}
       {hits.length > 0 ? (
         <select
@@ -110,8 +111,8 @@ function BggGamePicker({
           defaultValue=""
           disabled={disabled}
           onChange={(e) => {
-            const id = Number(e.target.value);
-            const hit = hits.find((h) => h.bgg_id === id);
+            const hitId = Number(e.target.value);
+            const hit = hits.find((h) => h.bgg_id === hitId);
             if (hit) {
               onPick(hit);
               setQuery("");
@@ -121,7 +122,7 @@ function BggGamePicker({
           }}
         >
           <option value="" disabled>
-            Select a game…
+            {t("bgg.selectGame")}
           </option>
           {hits.map((h) => (
             <option key={h.bgg_id} value={h.bgg_id}>
@@ -132,7 +133,7 @@ function BggGamePicker({
         </select>
       ) : null}
       {!searching && query.trim().length >= 2 && hits.length === 0 && !searchError ? (
-        <div className="mt-1 text-xs text-slate-400">No BGG matches.</div>
+        <div className="mt-1 text-xs text-slate-400">{t("bgg.noMatches")}</div>
       ) : null}
     </div>
   );
@@ -141,9 +142,11 @@ function BggGamePicker({
 function HoursEditor({
   hours,
   onChange,
+  t,
 }: {
   hours: WeeklyHours[];
   onChange: (next: WeeklyHours[]) => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   function update(weekday: number, patch: Partial<WeeklyHours>) {
     onChange(hours.map((h) => (h.weekday === weekday ? { ...h, ...patch } : h)));
@@ -151,7 +154,7 @@ function HoursEditor({
 
   return (
     <div className="space-y-2">
-      {WEEKDAYS.map((label, weekday) => {
+      {Array.from({ length: 7 }, (_, weekday) => {
         const row = hours.find((h) => h.weekday === weekday) ?? {
           weekday,
           is_closed: false,
@@ -161,7 +164,7 @@ function HoursEditor({
         return (
           <div key={weekday} className="rounded-xl border border-slate-100 p-3">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-sm font-semibold">{label}</div>
+              <div className="text-sm font-semibold">{t(`venueManage.weekday${weekday}`)}</div>
               <label className="flex items-center gap-2 text-xs text-slate-600">
                 <input
                   type="checkbox"
@@ -174,13 +177,13 @@ function HoursEditor({
                     })
                   }
                 />
-                Closed
+                {t("venueManage.closed")}
               </label>
             </div>
             {!row.is_closed ? (
               <div className="mt-2 flex gap-2">
                 <div className="flex-1">
-                  <span className="label">Start</span>
+                  <span className="label">{t("venueManage.start")}</span>
                   <input
                     className="input"
                     type="time"
@@ -189,7 +192,7 @@ function HoursEditor({
                   />
                 </div>
                 <div className="flex-1">
-                  <span className="label">End</span>
+                  <span className="label">{t("venueManage.end")}</span>
                   <input
                     className="input"
                     type="time"
@@ -199,7 +202,7 @@ function HoursEditor({
                 </div>
               </div>
             ) : (
-              <div className="mt-2 text-xs text-slate-400">Not bookable on this weekday.</div>
+              <div className="mt-2 text-xs text-slate-400">{t("venueManage.notBookableWeekday")}</div>
             )}
           </div>
         );
@@ -210,6 +213,7 @@ function HoursEditor({
 
 export default function ManageVenuePage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [tab, setTab] = useState<AdminTab>("manage");
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -266,9 +270,9 @@ export default function ManageVenuePage() {
         null;
       setVenueId((cur) => cur ?? preferred);
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e, t));
     }
-  }, [user]);
+  }, [user, t]);
 
   const loadManageData = useCallback(async () => {
     if (!venueId) return;
@@ -282,9 +286,9 @@ export default function ManageVenuePage() {
       setClosures(c);
       setGames(g);
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e, t));
     }
-  }, [venueId]);
+  }, [venueId, t]);
 
   useEffect(() => {
     if (user) loadVenues();
@@ -314,7 +318,7 @@ export default function ManageVenuePage() {
 
   function addCreateClosure() {
     if (!closureDate || !closureComment.trim()) {
-      setError("Closure date and comment are required.");
+      setError(t("venueManage.errClosureRequired"));
       return;
     }
     setError(null);
@@ -335,7 +339,7 @@ export default function ManageVenuePage() {
     setInfo(null);
     try {
       if (createMinMinutes > createMaxMinutes) {
-        setError("Minimum reservation time cannot exceed maximum duration.");
+        setError(t("venueManage.errDurationOrder"));
         setBusy(false);
         return;
       }
@@ -347,7 +351,7 @@ export default function ManageVenuePage() {
         weekly_hours: createHours,
         closures: createClosures,
       });
-      setInfo(`Venue "${v.name}" created.`);
+      setInfo(t("venueManage.createdOk", { name: v.name }));
       setNewName("");
       setNewLocation("");
       setCreateMinMinutes(60);
@@ -358,7 +362,7 @@ export default function ManageVenuePage() {
       setVenueId(v.id);
       setTab("manage");
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -371,7 +375,7 @@ export default function ManageVenuePage() {
     setError(null);
     setInfo(null);
     if (manageMinMinutes > manageMaxMinutes) {
-      setError("Minimum reservation time cannot exceed maximum duration.");
+      setError(t("venueManage.errDurationOrder"));
       setBusy(false);
       return;
     }
@@ -381,9 +385,9 @@ export default function ManageVenuePage() {
         max_reservation_minutes: manageMaxMinutes,
       });
       setVenues((vs) => vs.map((v) => (v.id === updated.id ? updated : v)));
-      setInfo("Reservation duration limits updated.");
+      setInfo(t("venueManage.durationSaved"));
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -398,9 +402,9 @@ export default function ManageVenuePage() {
     try {
       const saved = await venueApi.setHours(venueId, hours);
       setHours(saved);
-      setInfo("Bookable hours updated.");
+      setInfo(t("venueManage.hoursSaved"));
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -419,10 +423,10 @@ export default function ManageVenuePage() {
       });
       setManageClosureDate("");
       setManageClosureComment("");
-      setInfo("Closure alert added — bookings blocked on that date.");
+      setInfo(t("venueManage.closureAdded"));
       await loadManageData();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -435,10 +439,10 @@ export default function ManageVenuePage() {
     setInfo(null);
     try {
       await venueApi.deleteClosure(venueId, id);
-      setInfo("Closure removed.");
+      setInfo(t("venueManage.closureRemoved"));
       await loadManageData();
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -456,9 +460,9 @@ export default function ManageVenuePage() {
           a.title.localeCompare(b.title),
         ),
       );
-      setInfo(`Added “${game.title}” to this venue.`);
+      setInfo(t("venueManage.gameAdded", { name: game.title }));
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -472,16 +476,16 @@ export default function ManageVenuePage() {
     try {
       await venueApi.deleteGame(venueId, id);
       setGames((rows) => rows.filter((g) => g.id !== id));
-      setInfo("Game removed from this venue.");
+      setInfo(t("venueManage.gameRemoved"));
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Shell title="Manage venue">
+    <Shell title={t("venueManage.title")}>
       {error ? <Banner kind="error">{error}</Banner> : null}
       {info ? <Banner kind="info">{info}</Banner> : null}
 
@@ -494,7 +498,7 @@ export default function ManageVenuePage() {
             }`}
             onClick={() => setTab("create")}
           >
-            Create a new venue
+            {t("venueManage.createTab")}
           </button>
           <button
             type="button"
@@ -503,7 +507,7 @@ export default function ManageVenuePage() {
             }`}
             onClick={() => setTab("manage")}
           >
-            Manage existing venues
+            {t("venueManage.manageTab")}
           </button>
         </div>
       ) : null}
@@ -511,20 +515,20 @@ export default function ManageVenuePage() {
       {isAdmin && tab === "create" ? (
         <form onSubmit={createVenue} className="space-y-4">
           <div>
-            <span className="label">Venue name</span>
+            <span className="label">{t("venueManage.venueName")}</span>
             <input
               className="input"
-              placeholder="e.g. Katzentempel Nürnberg"
+              placeholder={t("venueManage.venueNamePlaceholder")}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               required
             />
           </div>
           <div>
-            <span className="label">Address</span>
+            <span className="label">{t("venueManage.address")}</span>
             <input
               className="input"
-              placeholder="Street, postcode, city"
+              placeholder={t("venueManage.addressPlaceholder")}
               value={newLocation}
               onChange={(e) => setNewLocation(e.target.value)}
               required
@@ -532,13 +536,11 @@ export default function ManageVenuePage() {
           </div>
 
           <div>
-            <div className="mb-2 text-sm font-bold">Reservation duration</div>
-            <div className="mb-2 text-xs text-slate-500">
-              Minimum and maximum length of a table booking at this venue.
-            </div>
+            <div className="mb-2 text-sm font-bold">{t("venueManage.reservationDuration")}</div>
+            <div className="mb-2 text-xs text-slate-500">{t("venueManage.reservationHintCreate")}</div>
             <div className="flex gap-2">
               <div className="flex-1">
-                <span className="label">Minimum reservation time (minutes)</span>
+                <span className="label">{t("venueManage.minReservation")}</span>
                 <input
                   className="input"
                   type="number"
@@ -550,7 +552,7 @@ export default function ManageVenuePage() {
                 />
               </div>
               <div className="flex-1">
-                <span className="label">Maximum duration (minutes)</span>
+                <span className="label">{t("venueManage.maxDuration")}</span>
                 <input
                   className="input"
                   type="number"
@@ -565,18 +567,14 @@ export default function ManageVenuePage() {
           </div>
 
           <div>
-            <div className="mb-2 text-sm font-bold">Bookable hours</div>
-            <div className="mb-2 text-xs text-slate-500">
-              Set start and end for each day of the week, or mark a day closed.
-            </div>
-            <HoursEditor hours={createHours} onChange={setCreateHours} />
+            <div className="mb-2 text-sm font-bold">{t("venueManage.bookableHours")}</div>
+            <div className="mb-2 text-xs text-slate-500">{t("venueManage.bookableHoursHint")}</div>
+            <HoursEditor hours={createHours} onChange={setCreateHours} t={t} />
           </div>
 
           <div className="card">
-            <div className="text-sm font-bold">Closure alerts</div>
-            <div className="mt-1 text-xs text-slate-500">
-              Block booking on a specific date (e.g. public holiday) and explain why.
-            </div>
+            <div className="text-sm font-bold">{t("venueManage.closureAlerts")}</div>
+            <div className="mt-1 text-xs text-slate-500">{t("venueManage.closureHintCreate")}</div>
             <div className="mt-2 space-y-2">
               <input
                 className="input"
@@ -586,12 +584,12 @@ export default function ManageVenuePage() {
               />
               <input
                 className="input"
-                placeholder="Why is the venue not bookable?"
+                placeholder={t("venueManage.closureWhy")}
                 value={closureComment}
                 onChange={(e) => setClosureComment(e.target.value)}
               />
               <button type="button" className="btn-ghost" onClick={addCreateClosure}>
-                Add closure alert
+                {t("venueManage.addClosure")}
               </button>
             </div>
             {createClosures.length > 0 ? (
@@ -607,7 +605,7 @@ export default function ManageVenuePage() {
                         setCreateClosures((rows) => rows.filter((r) => r.date !== c.date))
                       }
                     >
-                      Remove
+                      {t("common.remove")}
                     </button>
                   </div>
                 ))}
@@ -616,7 +614,7 @@ export default function ManageVenuePage() {
           </div>
 
           <button className="btn" disabled={busy}>
-            {busy ? "…" : "Create venue"}
+            {busy ? t("common.ellipsis") : t("venueManage.createVenue")}
           </button>
         </form>
       ) : null}
@@ -625,14 +623,14 @@ export default function ManageVenuePage() {
         <div className="space-y-4">
           {isAdmin ? (
             <div>
-              <span className="label">Venue to manage</span>
+              <span className="label">{t("venueManage.venueToManage")}</span>
               <select
                 className="input"
                 value={venueId ?? ""}
                 onChange={(e) => setVenueId(Number(e.target.value))}
                 disabled={venues.length === 0}
               >
-                {venues.length === 0 ? <option value="">No venues yet</option> : null}
+                {venues.length === 0 ? <option value="">{t("venueManage.noVenues")}</option> : null}
                 {venues.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name}
@@ -653,13 +651,11 @@ export default function ManageVenuePage() {
           {venueId ? (
             <>
               <form onSubmit={saveReservationLimits} className="card">
-                <div className="text-sm font-bold">Reservation duration</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  Minimum reservation time and maximum duration allowed for bookings.
-                </div>
+                <div className="text-sm font-bold">{t("venueManage.reservationDuration")}</div>
+                <div className="mt-1 text-xs text-slate-500">{t("venueManage.reservationHintManage")}</div>
                 <div className="mt-2 flex gap-2">
                   <div className="flex-1">
-                    <span className="label">Minimum reservation time (minutes)</span>
+                    <span className="label">{t("venueManage.minReservation")}</span>
                     <input
                       className="input"
                       type="number"
@@ -671,7 +667,7 @@ export default function ManageVenuePage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <span className="label">Maximum duration (minutes)</span>
+                    <span className="label">{t("venueManage.maxDuration")}</span>
                     <input
                       className="input"
                       type="number"
@@ -684,21 +680,19 @@ export default function ManageVenuePage() {
                   </div>
                 </div>
                 <button className="btn mt-3" disabled={busy}>
-                  {busy ? "…" : "Save duration limits"}
+                  {busy ? t("common.ellipsis") : t("venueManage.saveDuration")}
                 </button>
               </form>
 
               <div className="card">
-                <div className="text-sm font-bold">Board games at this venue</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  Search BoardGameGeek and add titles visitors will see on the venue page.
-                </div>
+                <div className="text-sm font-bold">{t("venueManage.boardGames")}</div>
+                <div className="mt-1 text-xs text-slate-500">{t("venueManage.boardGamesHint")}</div>
                 <div className="mt-2">
-                  <BggGamePicker onPick={addGameFromBgg} disabled={busy} />
+                  <BggGamePicker onPick={addGameFromBgg} disabled={busy} t={t} />
                 </div>
                 <div className="mt-3 space-y-2">
                   {games.length === 0 ? (
-                    <div className="text-sm text-slate-400">No games listed yet.</div>
+                    <div className="text-sm text-slate-400">{t("venueManage.noGames")}</div>
                   ) : (
                     games.map((g) => (
                       <div key={g.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
@@ -712,7 +706,7 @@ export default function ManageVenuePage() {
                           disabled={busy}
                           onClick={() => removeGame(g.id)}
                         >
-                          Remove
+                          {t("common.remove")}
                         </button>
                       </div>
                     ))
@@ -721,18 +715,16 @@ export default function ManageVenuePage() {
               </div>
 
               <form onSubmit={saveHours}>
-                <div className="mb-2 text-sm font-bold">Bookable hours</div>
-                <HoursEditor hours={hours} onChange={setHours} />
+                <div className="mb-2 text-sm font-bold">{t("venueManage.bookableHours")}</div>
+                <HoursEditor hours={hours} onChange={setHours} t={t} />
                 <button className="btn mt-3" disabled={busy}>
-                  {busy ? "…" : "Save hours"}
+                  {busy ? t("common.ellipsis") : t("venueManage.saveHours")}
                 </button>
               </form>
 
               <div className="card">
-                <div className="text-sm font-bold">Closure alerts</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  Users cannot book this venue on these dates. Always include a reason.
-                </div>
+                <div className="text-sm font-bold">{t("venueManage.closureAlerts")}</div>
+                <div className="mt-1 text-xs text-slate-500">{t("venueManage.closureHintManage")}</div>
                 <form onSubmit={addManageClosure} className="mt-2 space-y-2">
                   <input
                     className="input"
@@ -743,18 +735,18 @@ export default function ManageVenuePage() {
                   />
                   <input
                     className="input"
-                    placeholder="Why is the venue not bookable?"
+                    placeholder={t("venueManage.closureWhy")}
                     value={manageClosureComment}
                     onChange={(e) => setManageClosureComment(e.target.value)}
                     required
                   />
                   <button className="btn" disabled={busy}>
-                    {busy ? "…" : "Add closure alert"}
+                    {busy ? t("common.ellipsis") : t("venueManage.addClosure")}
                   </button>
                 </form>
                 <div className="mt-3 space-y-2">
                   {closures.length === 0 ? (
-                    <div className="text-sm text-slate-400">No closure alerts yet.</div>
+                    <div className="text-sm text-slate-400">{t("venueManage.noClosures")}</div>
                   ) : (
                     closures.map((c) => (
                       <div key={c.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm">
@@ -766,7 +758,7 @@ export default function ManageVenuePage() {
                           disabled={busy}
                           onClick={() => removeClosure(c.id)}
                         >
-                          Remove
+                          {t("common.remove")}
                         </button>
                       </div>
                     ))
@@ -775,7 +767,7 @@ export default function ManageVenuePage() {
               </div>
             </>
           ) : (
-            <Banner kind="info">Select a venue to edit games, hours, and closure alerts.</Banner>
+            <Banner kind="info">{t("venueManage.selectVenue")}</Banner>
           )}
         </div>
       ) : null}

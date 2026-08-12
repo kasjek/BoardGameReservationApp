@@ -13,8 +13,10 @@ import {
   type VenueGame,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 
 // Languages selectable when "Other" is chosen (English and German have their own options).
+// API values stay in English; display uses lang.* keys.
 const OTHER_LANGUAGES = [
   "French",
   "Spanish",
@@ -39,7 +41,33 @@ const OTHER_LANGUAGES = [
   "Arabic",
   "Hebrew",
   "Hindi",
-];
+] as const;
+
+const OTHER_LANGUAGE_KEYS: Record<(typeof OTHER_LANGUAGES)[number], string> = {
+  French: "lang.french",
+  Spanish: "lang.spanish",
+  Italian: "lang.italian",
+  Portuguese: "lang.portuguese",
+  Dutch: "lang.dutch",
+  Polish: "lang.polish",
+  Czech: "lang.czech",
+  Hungarian: "lang.hungarian",
+  Romanian: "lang.romanian",
+  Swedish: "lang.swedish",
+  Norwegian: "lang.norwegian",
+  Danish: "lang.danish",
+  Finnish: "lang.finnish",
+  Greek: "lang.greek",
+  Turkish: "lang.turkish",
+  Russian: "lang.russian",
+  Ukrainian: "lang.ukrainian",
+  Chinese: "lang.chinese",
+  Japanese: "lang.japanese",
+  Korean: "lang.korean",
+  Arabic: "lang.arabic",
+  Hebrew: "lang.hebrew",
+  Hindi: "lang.hindi",
+};
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 180;
@@ -65,6 +93,7 @@ function formatHoursLabel(row: Availability): string {
 
 export default function CreateTablePage() {
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
@@ -81,7 +110,7 @@ export default function CreateTablePage() {
   const [game, setGame] = useState("");
   const [bringOwn, setBringOwn] = useState(true);
   const [language, setLanguage] = useState("en");
-  const [languageOther, setLanguageOther] = useState("French");
+  const [languageOther, setLanguageOther] = useState<string>(OTHER_LANGUAGES[0]);
 
   const selectedVenue = venues.find((v) => String(v.id) === venue);
   const hasVenueGames = venueGames.length > 0;
@@ -101,8 +130,8 @@ export default function CreateTablePage() {
     if (!dayAvailability) return [];
     const open = parseHm(dayAvailability.start_time);
     const close = parseHm(dayAvailability.end_time);
-    return TIME_SLOTS.filter((t) => {
-      const mins = parseHm(t);
+    return TIME_SLOTS.filter((slot) => {
+      const mins = parseHm(slot);
       // Need room for the venue's minimum booking before close.
       return mins >= open && mins + minReservationMinutes <= close;
     });
@@ -112,8 +141,8 @@ export default function CreateTablePage() {
     if (!dayAvailability) return [];
     const close = parseHm(dayAvailability.end_time);
     const start = parseHm(from);
-    return TIME_SLOTS.filter((t) => {
-      const mins = parseHm(t);
+    return TIME_SLOTS.filter((slot) => {
+      const mins = parseHm(slot);
       const duration = mins - start;
       return (
         duration >= minReservationMinutes &&
@@ -134,8 +163,8 @@ export default function CreateTablePage() {
         setVenues(v);
         if (v[0]) setVenue(String(v[0].id));
       })
-      .catch((e) => setError(errorMessage(e)));
-  }, []);
+      .catch((e) => setError(errorMessage(e, t)));
+  }, [t]);
 
   useEffect(() => {
     if (!venue) {
@@ -145,8 +174,8 @@ export default function CreateTablePage() {
     venueApi
       .availability(Number(venue))
       .then(setAvailability)
-      .catch((e) => setError(errorMessage(e)));
-  }, [venue]);
+      .catch((e) => setError(errorMessage(e, t)));
+  }, [venue, t]);
 
   // Keep party size inside the selected venue's limits.
   useEffect(() => {
@@ -171,8 +200,8 @@ export default function CreateTablePage() {
           return games[0]?.title ?? "";
         });
       })
-      .catch((e) => setError(errorMessage(e)));
-  }, [venue]);
+      .catch((e) => setError(errorMessage(e, t)));
+  }, [venue, t]);
 
   // Keep From/To inside the day's opening hours and venue duration limits.
   useEffect(() => {
@@ -191,8 +220,8 @@ export default function CreateTablePage() {
   if (loading || !user) return null;
   if (user.role === "VENUE_USER") {
     return (
-      <Shell title="New Table">
-        <Banner kind="info">Venue accounts cannot host tables. Use a standard user account.</Banner>
+      <Shell title={t("newTable.title")}>
+        <Banner kind="info">{t("newTable.venueBlocked")}</Banner>
       </Shell>
     );
   }
@@ -202,20 +231,20 @@ export default function CreateTablePage() {
     setBusy(true);
     setError(null);
     if (!dayAvailability) {
-      setError("This venue has no opening hours on the selected date.");
+      setError(t("newTable.errNoHours"));
       setBusy(false);
       return;
     }
     const duration = parseHm(to) - parseHm(from);
     if (duration < MIN_DURATION_MINUTES || duration > MAX_DURATION_MINUTES) {
-      setError("Tables must be booked for between 1 and 3 hours.");
+      setError(t("newTable.errDuration"));
       setBusy(false);
       return;
     }
     try {
       const starts_at = new Date(`${date}T${from}:00`).toISOString();
       const ends_at = new Date(`${date}T${to}:00`).toISOString();
-      const t = await tableApi.create({
+      const created = await tableApi.create({
         venue: Number(venue),
         game_title: game,
         bring_own_game: bringOwn,
@@ -226,9 +255,9 @@ export default function CreateTablePage() {
         min_players: minPlayers,
         max_players: maxPlayers,
       });
-      router.push(`/tables/${t.id}`);
+      router.push(`/tables/${created.id}`);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -236,16 +265,16 @@ export default function CreateTablePage() {
 
   const noHoursForDate = Boolean(date && venue && !dayAvailability);
   const hoursHint = dayAvailability
-    ? `Open ${formatHoursLabel(dayAvailability)} · bookings 1–3 hours`
+    ? t("newTable.openHint", { hours: formatHoursLabel(dayAvailability) })
     : date
-      ? "Closed / no availability on this date"
-      : "Pick a date to see opening hours";
+      ? t("newTable.closedHint")
+      : t("newTable.pickDateHint");
 
   return (
-    <Shell title="New Table">
+    <Shell title={t("newTable.title")}>
       {error ? <Banner kind="error">{error}</Banner> : null}
       <form onSubmit={submit}>
-        <span className="label">Venue</span>
+        <span className="label">{t("newTable.venue")}</span>
         <select className="input" value={venue} onChange={(e) => setVenue(e.target.value)} required>
           {venues.map((v) => (
             <option key={v.id} value={v.id}>
@@ -268,22 +297,23 @@ export default function CreateTablePage() {
               selectedVenue.location
             )}
             {" · "}
-            {selectedVenue.min_players}–{selectedVenue.max_players} players
-            {" · "}
-            {minReservationMinutes}–{maxReservationMinutes} min
+            {t("newTable.venueMeta", {
+              min: selectedVenue.min_players,
+              max: selectedVenue.max_players,
+              minMin: minReservationMinutes,
+              maxMin: maxReservationMinutes,
+            })}
           </div>
         ) : null}
 
-        <span className="label">Date</span>
+        <span className="label">{t("newTable.date")}</span>
         <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
         <div className="mt-1 text-xs text-slate-500">{hoursHint}</div>
-        {noHoursForDate ? (
-          <Banner kind="error">No bookings possible on this date — venue is closed or unpublished.</Banner>
-        ) : null}
+        {noHoursForDate ? <Banner kind="error">{t("newTable.noBookingsDate")}</Banner> : null}
 
         <div className="flex gap-2">
           <div className="flex-1">
-            <span className="label">From</span>
+            <span className="label">{t("newTable.from")}</span>
             <select
               className="input"
               value={from}
@@ -291,15 +321,15 @@ export default function CreateTablePage() {
               disabled={!dayAvailability || fromSlots.length === 0}
               required
             >
-              {(fromSlots.length ? fromSlots : TIME_SLOTS).map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              {(fromSlots.length ? fromSlots : TIME_SLOTS).map((slot) => (
+                <option key={slot} value={slot}>
+                  {slot}
                 </option>
               ))}
             </select>
           </div>
           <div className="flex-1">
-            <span className="label">To</span>
+            <span className="label">{t("newTable.to")}</span>
             <select
               className="input"
               value={to}
@@ -307,9 +337,9 @@ export default function CreateTablePage() {
               disabled={!dayAvailability || toSlots.length === 0}
               required
             >
-              {(toSlots.length ? toSlots : TIME_SLOTS).map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              {(toSlots.length ? toSlots : TIME_SLOTS).map((slot) => (
+                <option key={slot} value={slot}>
+                  {slot}
                 </option>
               ))}
             </select>
@@ -317,14 +347,15 @@ export default function CreateTablePage() {
         </div>
         {dayAvailability && from && to && toSlots.includes(to) ? (
           <div className="mt-1 text-xs text-slate-500">
-            Duration {((parseHm(to) - parseHm(from)) / 60).toFixed(1).replace(/\.0$/, "")}h (min 1h, max
-            3h)
+            {t("newTable.durationLine", {
+              hours: ((parseHm(to) - parseHm(from)) / 60).toFixed(1).replace(/\.0$/, ""),
+            })}
           </div>
         ) : null}
 
         <div className="flex gap-2">
           <div className="flex-1">
-            <span className="label">Min players</span>
+            <span className="label">{t("newTable.minPlayers")}</span>
             <input
               className="input"
               type="number"
@@ -335,7 +366,7 @@ export default function CreateTablePage() {
             />
           </div>
           <div className="flex-1">
-            <span className="label">Max players</span>
+            <span className="label">{t("newTable.maxPlayers")}</span>
             <input
               className="input"
               type="number"
@@ -348,11 +379,14 @@ export default function CreateTablePage() {
         </div>
         {selectedVenue ? (
           <div className="mt-1 text-xs text-slate-500">
-            This venue allows {selectedVenue.min_players}–{selectedVenue.max_players} players.
+            {t("newTable.venueAllows", {
+              min: selectedVenue.min_players,
+              max: selectedVenue.max_players,
+            })}
           </div>
         ) : null}
 
-        <span className="label">Game</span>
+        <span className="label">{t("newTable.game")}</span>
         {hasVenueGames ? (
           <select className="input" value={game} onChange={(e) => setGame(e.target.value)} required>
             {venueGames.map((g) => (
@@ -367,24 +401,27 @@ export default function CreateTablePage() {
             value={game}
             onChange={(e) => setGame(e.target.value)}
             required
-            placeholder="e.g. Catan"
+            placeholder={t("newTable.gamePlaceholder")}
           />
         )}
         {selectedVenue && hasVenueGames ? (
-          <div className="mt-1 text-xs text-slate-500">Games available at {selectedVenue.name}.</div>
+          <div className="mt-1 text-xs text-slate-500">
+            {t("newTable.gamesAtVenue", { name: selectedVenue.name })}
+          </div>
         ) : null}
 
-        <span className="label">Who brings the game?</span>
+        <span className="label">{t("newTable.whoBrings")}</span>
         <div className="mt-1 space-y-1 text-sm">
           <label className="flex items-center gap-2">
-            <input type="radio" checked={bringOwn} onChange={() => setBringOwn(true)} /> I bring it
+            <input type="radio" checked={bringOwn} onChange={() => setBringOwn(true)} />{" "}
+            {t("newTable.iBringIt")}
           </label>
           {bringOwn ? (
             <>
               <select className="input" value={language} onChange={(e) => setLanguage(e.target.value)}>
-                <option value="en">English</option>
-                <option value="de">German</option>
-                <option value="other">Other…</option>
+                <option value="en">{t("lang.en")}</option>
+                <option value="de">{t("lang.de")}</option>
+                <option value="other">{t("lang.other")}</option>
               </select>
               {language === "other" ? (
                 <select
@@ -392,9 +429,9 @@ export default function CreateTablePage() {
                   value={languageOther}
                   onChange={(e) => setLanguageOther(e.target.value)}
                 >
-                  {OTHER_LANGUAGES.map((l) => (
-                    <option key={l} value={l}>
-                      {l}
+                  {OTHER_LANGUAGES.map((lang) => (
+                    <option key={lang} value={lang}>
+                      {t(OTHER_LANGUAGE_KEYS[lang])}
                     </option>
                   ))}
                 </select>
@@ -402,13 +439,13 @@ export default function CreateTablePage() {
             </>
           ) : null}
           <label className="flex items-center gap-2">
-            <input type="radio" checked={!bringOwn} onChange={() => setBringOwn(false)} /> Use a venue game
-            (venue confirms)
+            <input type="radio" checked={!bringOwn} onChange={() => setBringOwn(false)} />{" "}
+            {t("newTable.useVenueGame")}
           </label>
         </div>
 
         <button className="btn mt-4" disabled={busy || noHoursForDate || fromSlots.length === 0}>
-          {busy ? "…" : "Request table"}
+          {busy ? t("common.ellipsis") : t("newTable.requestTable")}
         </button>
       </form>
     </Shell>
