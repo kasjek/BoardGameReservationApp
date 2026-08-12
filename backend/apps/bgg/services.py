@@ -1,18 +1,24 @@
 """Resolve a board game title to its BoardGameGeek page and cover image.
 
-Links use the BGG XML API2 search endpoint (always the first result). Covers use the
-BGG cover when a token is configured, otherwise fall back to a Wikipedia box image
-(no token required). Successful resolutions are cached in the DB.
+Links/covers use the BGG XML API2 search endpoint, preferring an exact title match
+(ignoring a publishing year in brackets, e.g. "Calico (2020)"). Covers use the BGG
+thumbnail when a token is configured (or a known venue-inventory bgg_id), otherwise
+fall back to a Wikipedia box image. Successful resolutions are cached in the DB.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from urllib.parse import quote, quote_plus
+
+# Trailing / embedded publishing years BGG shows next to titles, e.g. "Calico (2020)".
+_YEAR_IN_BRACKETS = re.compile(r"\s*\(\d{4}\)")
+_LEADING_THE = re.compile(r"^the\s+", re.IGNORECASE)
 
 # BGG requires requests to boardgamegeek.com (no www) and, since mid-2025, an
 # approved application token via an Authorization: Bearer header. Set BGG_API_TOKEN
@@ -38,6 +44,25 @@ def _auth_headers() -> dict[str, str]:
 
 def normalize(name: str) -> str:
     return " ".join(name.strip().lower().split())
+
+
+def strip_year_brackets(name: str) -> str:
+    """Remove publishing years in brackets so 'Calico (2020)' → 'Calico'."""
+    return " ".join(_YEAR_IN_BRACKETS.sub("", name.strip()).split())
+
+
+# Common title variants → canonical form used for matching.
+_TITLE_ALIASES = {
+    "island of cats": "isle of cats",
+}
+
+
+def normalize_for_match(name: str) -> str:
+    """Normalize for fuzzy title equality: lowercase, no years, no leading 'the'."""
+    cleaned = strip_year_brackets(name).lower()
+    cleaned = _LEADING_THE.sub("", cleaned)
+    cleaned = " ".join(cleaned.split())
+    return _TITLE_ALIASES.get(cleaned, cleaned)
 
 
 def game_page_url(bgg_id: int) -> str:
@@ -104,7 +129,7 @@ def parse_search_results(xml_bytes: bytes) -> list[dict]:
 
 def search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
     """Return BGG search hits for a typed query (for admin venue-game pickers)."""
-    q = query.strip()
+    q = strip_year_brackets(query)
     if not q:
         return []
     url = f"{BGG_SEARCH_API}?query={quote_plus(q)}&type=boardgame"
@@ -112,6 +137,76 @@ def search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
     if body is None:
         return []
     return parse_search_results(body)[: max(1, min(limit, 50))]
+
+
+def pick_best_search_result(query: str, results: list[dict]) -> int | None:
+    """Prefer an exact (year-ignoring) title match over BGG's raw first hit."""
+    if not results:
+        return None
+    target = normalize_for_match(query)
+    if not target:
+        return results[0]["bgg_id"]
+
+    for hit in results:
+        if normalize_for_match(hit.get("name", "")) == target:
+            return hit["bgg_id"]
+
+    # Near-match: one title is a prefix of the other (handles "Isle of Cats"
+    # vs "The Isle of Cats" after leading-the stripping already failed somehow).
+    for hit in results:
+        candidate = normalize_for_match(hit.get("name", ""))
+        if candidate.startswith(target) or target.startswith(candidate):
+            return hit["bgg_id"]
+
+    return results[0]["bgg_id"]
+
+
+def _venue_game_match(name: str):
+    """Return a matching VenueGame (by exact/year-stripped/normalized title), or None."""
+    title = name.strip()
+    if not title:
+        return None
+    try:
+        from apps.venues.models import VenueGame
+    except ImportError:
+        return None
+
+    candidates = [title]
+    cleaned = strip_year_brackets(title)
+    if cleaned and cleaned.lower() != title.lower():
+        candidates.append(cleaned)
+    # Also try with/without a leading "The ".
+    for base in list(candidates):
+        no_the = _LEADING_THE.sub("", base).strip()
+        if no_the and no_the.lower() not in {c.lower() for c in candidates}:
+            candidates.append(no_the)
+        with_the = f"The {no_the}" if no_the and not _LEADING_THE.match(base) else ""
+        if with_the and with_the.lower() not in {c.lower() for c in candidates}:
+            candidates.append(with_the)
+
+    matches: list = []
+    for candidate in candidates:
+        matches.extend(list(VenueGame.objects.filter(title__iexact=candidate)))
+
+    if not matches:
+        target = normalize_for_match(title)
+        if target:
+            for vg in VenueGame.objects.only("id", "title", "bgg_id", "thumbnail_url").iterator():
+                if normalize_for_match(vg.title) == target:
+                    matches.append(vg)
+
+    if not matches:
+        return None
+
+    # Prefer a row that already has cover art, then one with a bgg_id.
+    matches.sort(key=lambda g: (not bool(g.thumbnail_url), g.bgg_id is None, g.id))
+    return matches[0]
+
+
+def _venue_game_bgg_id(name: str) -> int | None:
+    """Look up a stored VenueGame.bgg_id for this title (exact, then year-stripped)."""
+    vg = _venue_game_match(name)
+    return vg.bgg_id if vg and vg.bgg_id else None
 
 
 def fetch_thing(bgg_id: int) -> dict | None:
@@ -142,10 +237,11 @@ def fetch_thing(bgg_id: int) -> dict | None:
 
 
 def _bgg_search(name: str) -> int | None:
-    """Always take the first (top-ranked) BGG search result — no exact-match preference,
-    no user selection. Returns its id, or None if unreachable / no match."""
-    results = search_boardgames(name, limit=1)
-    return results[0]["bgg_id"] if results else None
+    """Search BGG and pick the best title match (exact preferred over first hit)."""
+    # Fetch a handful so we can prefer an exact name match over a wrong top hit
+    # (e.g. "Spicy" must not resolve to an unrelated first result).
+    results = search_boardgames(name, limit=10)
+    return pick_best_search_result(name, results)
 
 
 def resolve_bgg_id(name: str) -> int | None:
@@ -156,12 +252,15 @@ def resolve_bgg_id(name: str) -> int | None:
     if not norm:
         return None
     cached = BggResolution.objects.filter(query_norm=norm).first()
-    if cached is not None:
+    if cached is not None and cached.bgg_id:
         return cached.bgg_id
 
-    bgg_id = _bgg_search(name)
+    # Prefer a curated venue-inventory id (works even without a BGG API token).
+    bgg_id = _venue_game_bgg_id(name)
+    if bgg_id is None:
+        bgg_id = _bgg_search(name)
     if bgg_id is not None:
-        BggResolution.objects.get_or_create(
+        BggResolution.objects.update_or_create(
             query_norm=norm, defaults={"bgg_id": bgg_id, "matched_name": name}
         )
     return bgg_id
@@ -177,22 +276,7 @@ def resolve_url(name: str) -> str:
     bgg_id = resolve_bgg_id(name)
     if bgg_id:
         return game_page_url(bgg_id)
-    title = name.strip()
-    if title:
-        try:
-            from apps.venues.models import VenueGame
-
-            vg = (
-                VenueGame.objects.filter(title__iexact=title, bgg_id__isnull=False)
-                .order_by("id")
-                .first()
-            )
-            if vg and vg.bgg_id:
-                return game_page_url(vg.bgg_id)
-        except Exception:
-            # Venues app / table may be unavailable during early migrations.
-            pass
-    return search_url(name)
+    return search_url(strip_year_brackets(name) or name)
 
 
 def _bgg_thumbnail(bgg_id: int) -> str | None:
@@ -250,6 +334,7 @@ def resolve_cover_url(name: str) -> str | None:
     """Resolve (and cache) a game title to a cover thumbnail URL, or None.
 
     Prefers the BGG cover (needs a token), then falls back to a Wikipedia box image.
+    Years in brackets are ignored when matching ("Calico (2020)" → Calico).
     """
     from .models import BggResolution
 
@@ -258,15 +343,32 @@ def resolve_cover_url(name: str) -> str | None:
         return None
 
     cached = BggResolution.objects.filter(query_norm=norm).first()
-    if cached is not None and cached.thumbnail_url:
+    if cached is not None and cached.thumbnail_url and cached.bgg_id:
         return cached.thumbnail_url
 
-    bgg_id = cached.bgg_id if (cached is not None and cached.bgg_id) else resolve_bgg_id(name)
+    # Curated venue inventory often already has the right cover (and bgg_id).
+    venue_game = _venue_game_match(name)
+    if venue_game and venue_game.thumbnail_url:
+        defaults = {
+            "thumbnail_url": venue_game.thumbnail_url,
+            "matched_name": name,
+        }
+        if venue_game.bgg_id:
+            defaults["bgg_id"] = venue_game.bgg_id
+        BggResolution.objects.update_or_create(query_norm=norm, defaults=defaults)
+        return venue_game.thumbnail_url
+
+    bgg_id = (
+        (venue_game.bgg_id if venue_game and venue_game.bgg_id else None)
+        or (cached.bgg_id if (cached is not None and cached.bgg_id) else None)
+        or resolve_bgg_id(name)
+    )
     thumb = _bgg_thumbnail(bgg_id) if bgg_id else None
 
     # Fall back to a Wikipedia box cover (works without a BGG token).
+    # Search without the year suffix so Wikipedia lands on the game article.
     if not thumb:
-        thumb = _wikipedia_cover(name)
+        thumb = _wikipedia_cover(strip_year_brackets(name) or name)
 
     if thumb:
         defaults = {"thumbnail_url": thumb, "matched_name": name}

@@ -60,9 +60,79 @@ def test_bgg_search_takes_first_result_single_query(monkeypatch):
         return _SEARCH_XML
 
     monkeypatch.setattr(services, "_http_get", fake)
-    assert services._bgg_search("Catan") == 13  # first result
+    assert services._bgg_search("Catan") == 13  # first / exact result
     assert len(calls) == 1  # single search, no exact-match pre-check
     assert "exact=1" not in calls[0]
+
+
+def test_strip_year_brackets():
+    assert services.strip_year_brackets("Calico (2020)") == "Calico"
+    assert services.strip_year_brackets("Nekojima (2024)") == "Nekojima"
+    assert services.strip_year_brackets("Spicy") == "Spicy"
+
+
+def test_normalize_for_match_ignores_year_and_leading_the():
+    assert services.normalize_for_match("Calico (2020)") == "calico"
+    assert services.normalize_for_match("The Isle of Cats") == "isle of cats"
+    assert services.normalize_for_match("Isle of Cats") == "isle of cats"
+
+
+def test_pick_best_search_result_prefers_exact_title():
+    results = [
+        {"bgg_id": 1, "name": "Spicy Memories", "year": 2010},
+        {"bgg_id": 299169, "name": "Spicy", "year": 2020},
+        {"bgg_id": 2, "name": "Spicy Tacos", "year": 2021},
+    ]
+    assert services.pick_best_search_result("Spicy", results) == 299169
+    assert services.pick_best_search_result("Calico (2020)", [
+        {"bgg_id": 99, "name": "Calico Cats", "year": 1999},
+        {"bgg_id": 283155, "name": "Calico", "year": 2020},
+    ]) == 283155
+    assert services.pick_best_search_result("The Isle of Cats", [
+        {"bgg_id": 281259, "name": "The Isle of Cats", "year": 2019},
+    ]) == 281259
+
+
+def test_bgg_search_strips_year_from_query(monkeypatch):
+    calls = []
+
+    def fake(url, headers=None):
+        calls.append(url)
+        return (
+            b'<items total="1">'
+            b'<item type="boardgame" id="283155">'
+            b'<name type="primary" value="Calico"/>'
+            b'<yearpublished value="2020"/>'
+            b"</item></items>"
+        )
+
+    monkeypatch.setattr(services, "_http_get", fake)
+    assert services._bgg_search("Calico (2020)") == 283155
+    assert "Calico+%282020%29" not in calls[0]
+    assert "query=Calico" in calls[0]
+
+
+def test_resolve_uses_venue_game_bgg_id(db, monkeypatch):
+    from apps.venues.models import Venue, VenueGame
+
+    venue = Venue.objects.create(name="Cafe")
+    VenueGame.objects.create(venue=venue, title="Calico", bgg_id=283155)
+    monkeypatch.setattr(services, "_bgg_search", lambda name: pytest.fail("should use venue id"))
+    assert services.resolve_bgg_id("Calico (2020)") == 283155
+
+
+def test_cover_uses_venue_game_thumbnail(db, monkeypatch):
+    from apps.venues.models import Venue, VenueGame
+
+    venue = Venue.objects.create(name="Cafe")
+    VenueGame.objects.create(
+        venue=venue,
+        title="Spicy",
+        bgg_id=299169,
+        thumbnail_url="https://cf.geekdo-images.com/spicy.jpg",
+    )
+    monkeypatch.setattr(services, "_http_get", lambda url, headers=None: pytest.fail("no http"))
+    assert services.resolve_cover_url("Spicy") == "https://cf.geekdo-images.com/spicy.jpg"
 
 
 def test_search_boardgames_returns_multiple_hits(monkeypatch):

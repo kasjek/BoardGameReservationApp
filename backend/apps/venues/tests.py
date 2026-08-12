@@ -423,5 +423,8 @@ def test_seed_katzentempel(db):
     assert hours[4].start_time == dt_time(9, 30)
     assert hours[6].end_time == dt_time(19, 30)
     titles = set(VenueGame.objects.filter(venue=venue, is_active=True).values_list("title", flat=True))
-    assert titles == {"Island of Cats", "Nekojima", "Spicy", "Calico"}
-    assert VenueGame.objects.filter(venue=venue, title="Calico").first().bgg_id == 283929
+    assert titles == {"The Isle of Cats", "Nekojima", "Spicy", "Calico"}
+    assert VenueGame.objects.filter(venue=venue, title="Calico").first().bgg_id == 283155
+    assert VenueGame.objects.filter(venue=venue, title="Spicy").first().bgg_id == 299169
+    assert VenueGame.objects.filter(venue=venue, title="Nekojima").first().bgg_id == 359029
+    assert VenueGame.objects.filter(venue=venue, title="The Isle of Cats").first().bgg_id == 281259
