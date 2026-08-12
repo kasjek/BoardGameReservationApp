@@ -18,5 +18,7 @@ npm start
 
 - Root `server.js` listens on **`0.0.0.0`** and **`process.env.PORT`** (required for GoDaddy proxies)
 - Optional override: `HOST` / `BIND_HOST` / `LISTEN_ADDRESS` — never use `HOSTNAME` (that is the container name)
-- Set `BACKEND_URL` to the Django API origin (default `http://127.0.0.1:8000`)
+- **Required in production:** set `BACKEND_URL` to the live Django API origin (e.g. `https://api.example.com`). This is read at **runtime** by `server.js` (and the Next `/api` route) — not only at build time. If unset, `/api` proxies to `http://127.0.0.1:8000` inside the Node container and the app stays on Loading / cannot log in.
+- After deploy, open `/__backend` on the site — `backendUrlSet` should be `true` and `backendHost` should be your Django host (not `127.0.0.1:8000`)
+- Start log should show `Ready on http://0.0.0.0:<PORT>` and `API proxy -> <your Django origin>`
 - Do not upload `node_modules` or `frontend/.next` — the platform runs install/build
