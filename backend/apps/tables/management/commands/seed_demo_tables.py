@@ -5,7 +5,7 @@ from apps.tables.seed import ensure_demo_tables
 
 class Command(BaseCommand):
     help = (
-        "Seed (or refresh) demo tables at Date House Cafe and Katzentempel. "
+        "Seed (or refresh) demo tables at Date House Cafe, Katzentempel, and Hotel Knorz. "
         "Does not change existing usernames or passwords."
     )
 

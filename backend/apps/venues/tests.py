@@ -464,8 +464,8 @@ def test_seed_hotel_knorz(db, client):
     from apps.venues.demo_users import ensure_venue_managers
     from apps.venues.models import VenueGame, VenueWeeklyHours
     from apps.venues.seed import (
-        DATE_HOUSE_GAMES,
         HOTEL_KNORZ_ADDRESS,
+        HOTEL_KNORZ_GAMES,
         HOTEL_KNORZ_NAME,
         ensure_hotel_knorz,
     )
@@ -481,7 +481,10 @@ def test_seed_hotel_knorz(db, client):
     assert len(hours) == 7
     assert all(h.start_time == dt_time(8, 0) and h.end_time == dt_time(20, 0) for h in hours)
     titles = set(VenueGame.objects.filter(venue=venue, is_active=True).values_list("title", flat=True))
-    assert titles == {title for title, _ in DATE_HOUSE_GAMES}
+    assert titles == {title for title, _ in HOTEL_KNORZ_GAMES}
+    assert VenueGame.objects.filter(venue=venue, title="Secret Hitler").first().bgg_id == 188834
+    assert VenueGame.objects.filter(venue=venue, title="Cascadia").first().bgg_id == 295947
+    assert VenueGame.objects.filter(venue=venue, title="Verdant").first().bgg_id == 334065
 
     resp = client.get(f"/api/venues/{venue.id}")
     assert resp.status_code == 200

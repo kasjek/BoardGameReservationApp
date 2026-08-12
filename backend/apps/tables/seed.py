@@ -1,4 +1,4 @@
-"""Demo tables at Date House Cafe and Katzentempel for manual / QA testing.
+"""Demo tables at Date House Cafe, Katzentempel, and Hotel Knorz for QA testing.
 
 Existing user passwords and usernames are never changed — only brand-new
 host accounts get an initial password when first created.
@@ -14,7 +14,7 @@ from django.utils import timezone
 from apps.accounts.models import Role
 from apps.tables import services
 from apps.tables.models import Table, TableStatus
-from apps.venues.seed import ensure_date_house_cafe, ensure_katzentempel
+from apps.venues.seed import ensure_date_house_cafe, ensure_hotel_knorz, ensure_katzentempel
 
 User = get_user_model()
 
@@ -45,6 +45,14 @@ KATZENTEMPEL_DEMO_TABLES = (
     (2, time(15, 0), time(17, 0), "Nekojima", False, False, 3),  # leave pending for venue QA
     (3, time(12, 0), time(14, 0), "Wingspan", True, True, 4),
     (4, time(16, 0), time(18, 0), "Azul", True, True, 0),
+)
+
+HOTEL_KNORZ_DEMO_TABLES = (
+    (1, time(10, 0), time(12, 0), "Secret Hitler", False, True, 0),
+    (1, time(14, 0), time(16, 0), "Codenames Pictures", False, True, 1),
+    (2, time(11, 0), time(13, 0), "Cascadia", False, True, 2),
+    (2, time(15, 0), time(17, 0), "Verdant", False, False, 3),  # leave pending for venue QA
+    (3, time(12, 0), time(14, 0), "Let's Summon Demons", False, True, 4),
 )
 
 
@@ -149,9 +157,16 @@ def ensure_katzentempel_demo_tables() -> list[Table]:
     return _seed_demo_tables(venue, KATZENTEMPEL_DEMO_TABLES)
 
 
+def ensure_hotel_knorz_demo_tables() -> list[Table]:
+    """Create (or reuse) future demo tables at Hotel Knorz."""
+    venue = ensure_hotel_knorz()
+    return _seed_demo_tables(venue, HOTEL_KNORZ_DEMO_TABLES)
+
+
 def ensure_demo_tables() -> dict[str, list[Table]]:
     """Seed demo tables for all demo venues."""
     return {
         "Date House Cafe": ensure_date_house_demo_tables(),
         "Katzentempel": ensure_katzentempel_demo_tables(),
+        "Hotel Knorz": ensure_hotel_knorz_demo_tables(),
     }
