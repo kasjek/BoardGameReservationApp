@@ -55,3 +55,23 @@ class BggSearchView(APIView):
             limit = 20
         results = services.search_boardgames(q, limit=limit)
         return Response({"results": results})
+
+
+class BggThingView(APIView):
+    """JSON details for a BoardGameGeek thing id (includes recommended playtime)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "bgg"
+
+    def get(self, request):
+        raw = request.query_params.get("id", "").strip()
+        try:
+            bgg_id = int(raw)
+        except (TypeError, ValueError):
+            raise ValidationError("id must be a positive BoardGameGeek thing id.")
+        if bgg_id < 1:
+            raise ValidationError("id must be a positive BoardGameGeek thing id.")
+        thing = services.fetch_thing(bgg_id)
+        if not thing:
+            return Response({"detail": "Game not found on BoardGameGeek."}, status=404)
+        return Response(thing)

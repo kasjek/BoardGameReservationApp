@@ -1,6 +1,6 @@
 /**
  * Venue-game borrowing fee via hosted PayPal Checkout (_xclick).
- * Temporary recipient until a proper merchant integration lands (ADR-006).
+ * Recipient account is configured here; never shown in the UI.
  */
 export const PAYPAL_BUSINESS_EMAIL = "k.a.janowska@o2.pl";
 export const VENUE_GAME_FEE_EUR_PER_HOUR = 1;
@@ -12,7 +12,7 @@ export function tableDurationHours(startsAt: string | Date, endsAt: string | Dat
   return Math.max(0, hours);
 }
 
-/** €1 per hour of table duration (fractional hours allowed), rounded to cents. */
+/** €1 per hour per person (payer), rounded to cents. */
 export function venueGameFeeEur(startsAt: string | Date, endsAt: string | Date): number {
   const raw = tableDurationHours(startsAt, endsAt) * VENUE_GAME_FEE_EUR_PER_HOUR;
   return Math.round(raw * 100) / 100;
@@ -27,7 +27,9 @@ export function formatDurationHours(hours: number): string {
   return String(rounded).replace(/\.0$/, "");
 }
 
-/** Build a PayPal "Buy Now" URL that sends `amountEur` EUR to the venue fee inbox. */
+/**
+ * Build a PayPal "Buy Now" URL that opens checkout for the configured recipient account.
+ */
 export function paypalCheckoutUrl(opts: {
   amountEur: number;
   itemName: string;

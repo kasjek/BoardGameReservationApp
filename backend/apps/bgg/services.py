@@ -276,7 +276,7 @@ def _venue_game_bgg_id(name: str) -> int | None:
 
 
 def fetch_thing(bgg_id: int) -> dict | None:
-    """Load name + thumbnail for a BGG thing id."""
+    """Load name, thumbnail, and playtime for a BGG thing id."""
     body = _http_get(f"{BGG_THING_API}?id={bgg_id}", _auth_headers())
     if body is None:
         return None
@@ -299,7 +299,27 @@ def fetch_thing(bgg_id: int) -> dict | None:
         thumb = thumb_el.text.strip()
         if thumb.startswith("//"):
             thumb = "https:" + thumb
-    return {"bgg_id": bgg_id, "name": name, "thumbnail_url": thumb or ""}
+
+    def _int_attr(tag: str) -> int | None:
+        el = item.find(tag)
+        if el is None or not el.get("value"):
+            return None
+        try:
+            return int(el.get("value"))
+        except (TypeError, ValueError):
+            return None
+
+    playing_time = _int_attr("playingtime")
+    min_play_time = _int_attr("minplaytime")
+    max_play_time = _int_attr("maxplaytime")
+    return {
+        "bgg_id": bgg_id,
+        "name": name,
+        "thumbnail_url": thumb or "",
+        "playing_time": playing_time,
+        "min_play_time": min_play_time,
+        "max_play_time": max_play_time,
+    }
 
 
 def _bgg_search(name: str) -> int | None:

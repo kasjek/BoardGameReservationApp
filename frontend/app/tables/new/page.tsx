@@ -75,8 +75,11 @@ const OTHER_LANGUAGE_KEYS: Record<(typeof OTHER_LANGUAGES)[number], string> = {
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 180;
+/** Sentinel value in the venue-game dropdown for spontaneous choice. */
+const SPONTANEOUS_VALUE = "__spontaneous__";
+/** Stored game_title when the host picks spontaneous venue selection. */
+const SPONTANEOUS_TITLE = "Spontaneous selection";
 
-// Start/end times are restricted to full hour and half-hour slots.
 const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
   const m = i % 2 === 0 ? "00" : "30";
@@ -84,7 +87,6 @@ const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
 });
 
 function parseHm(value: string): number {
-  // Accept "HH:MM" or "HH:MM:SS".
   const [h, m] = value.split(":").map(Number);
   return h * 60 + (m || 0);
 }
@@ -95,23 +97,45 @@ function formatHoursLabel(row: Availability): string {
   return `${start}–${end}`;
 }
 
-/** Typeahead: type a game name; BGG search suggestions appear in a select below. */
-function BggGameTypeahead({
-  value,
-  onChange,
+function formatPlaytimeMinutes(
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  playing: number | null,
+  min: number | null,
+  max: number | null,
+): string | null {
+  if (min != null && max != null && min !== max) {
+    return t("newTable.playtimeRange", { min, max });
+  }
+  const mins = playing ?? min ?? max;
+  if (mins == null || mins <= 0) return null;
+  return t("newTable.playtimeMinutes", { minutes: mins });
+}
+
+/**
+ * Single BGG game dropdown: type to search, then pick from one select of results
+ * (never an input + select pair at the same time).
+ */
+function BggGameDropdown({
+  selectedId,
+  selectedName,
+  onPick,
   required,
 }: {
-  value: string;
-  onChange: (name: string) => void;
+  selectedId: number | null;
+  selectedName: string;
+  onPick: (hit: BggSearchHit | null) => void;
   required?: boolean;
 }) {
   const { t } = useI18n();
+  const [query, setQuery] = useState("");
   const [hits, setHits] = useState<BggSearchHit[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"search" | "pick">(selectedId ? "pick" : "search");
 
   useEffect(() => {
-    const q = value.trim();
+    if (mode !== "search") return;
+    const q = query.trim();
     if (q.length < 2) {
       setHits([]);
       setSearchError(null);
@@ -124,7 +148,9 @@ function BggGameTypeahead({
       bggApi
         .search(q)
         .then((res) => {
-          if (!cancelled) setHits(res.results);
+          if (cancelled) return;
+          setHits(res.results);
+          if (res.results.length > 0) setMode("pick");
         })
         .catch((e) => {
           if (!cancelled) {
@@ -140,52 +166,81 @@ function BggGameTypeahead({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [value, t]);
+  }, [query, mode, t]);
 
-  return (
-    <div>
-      <input
-        className="input"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-        placeholder={t("newTable.bggTypePlaceholder")}
-        autoComplete="off"
-      />
-      {searching ? <div className="mt-1 text-xs text-slate-400">{t("bgg.searching")}</div> : null}
-      {searchError ? <div className="mt-1 text-xs text-red-500">{searchError}</div> : null}
-      {hits.length > 0 ? (
+  if (mode === "pick" && (hits.length > 0 || selectedId)) {
+    const options =
+      selectedId && !hits.some((h) => h.bgg_id === selectedId) && selectedName
+        ? [{ bgg_id: selectedId, name: selectedName, year: null as number | null }, ...hits]
+        : hits;
+    return (
+      <div>
         <select
-          className="input mt-2"
-          defaultValue=""
-          aria-label={t("newTable.bggSuggestions")}
+          className="input"
+          value={selectedId ?? ""}
+          required={required}
+          aria-label={t("newTable.game")}
           onChange={(e) => {
-            const id = Number(e.target.value);
-            const hit = hits.find((h) => h.bgg_id === id);
-            if (hit) {
-              onChange(hit.name);
+            const raw = e.target.value;
+            if (!raw) {
+              onPick(null);
+              setMode("search");
+              setQuery("");
               setHits([]);
-              e.target.value = "";
+              return;
             }
+            const id = Number(raw);
+            const hit = options.find((h) => h.bgg_id === id);
+            if (hit) onPick(hit);
           }}
         >
-          <option value="" disabled>
-            {t("newTable.bggSuggestions")}
-          </option>
-          {hits.map((h) => (
+          <option value="">{t("newTable.bggSelectPrompt")}</option>
+          {options.map((h) => (
             <option key={h.bgg_id} value={h.bgg_id}>
               {h.name}
               {h.year ? ` (${h.year})` : ""}
             </option>
           ))}
         </select>
-      ) : null}
-      {!searching && value.trim().length >= 2 && hits.length === 0 && !searchError ? (
-        <div className="mt-1 text-xs text-slate-400">{t("newTable.bggNoMatchesKeep")}</div>
+        <button
+          type="button"
+          className="mt-1 text-xs font-semibold text-brand"
+          onClick={() => {
+            onPick(null);
+            setMode("search");
+            setQuery(selectedName || query);
+            setHits([]);
+          }}
+        >
+          {t("newTable.bggSearchAgain")}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <input
+        className="input"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        required={required && !selectedId}
+        placeholder={t("newTable.bggTypePlaceholder")}
+        autoComplete="off"
+        aria-label={t("newTable.game")}
+      />
+      {searching ? <div className="mt-1 text-xs text-slate-400">{t("bgg.searching")}</div> : null}
+      {searchError ? <div className="mt-1 text-xs text-red-500">{searchError}</div> : null}
+      {!searching && query.trim().length >= 2 && hits.length === 0 && !searchError ? (
+        <div className="mt-1 text-xs text-slate-400">{t("bgg.noMatches")}</div>
       ) : null}
     </div>
   );
 }
+
+type FieldErrors = Partial<
+  Record<"venue" | "date" | "from" | "to" | "minPlayers" | "maxPlayers" | "game" | "language", string>
+>;
 
 export default function CreateTablePage() {
   const { user, loading } = useAuth();
@@ -195,6 +250,7 @@ export default function CreateTablePage() {
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [venueGames, setVenueGames] = useState<VenueGame[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
   const [feePrompt, setFeePrompt] = useState<Table | null>(null);
 
@@ -205,9 +261,12 @@ export default function CreateTablePage() {
   const [minPlayers, setMinPlayers] = useState(2);
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [game, setGame] = useState("");
+  const [bggId, setBggId] = useState<number | null>(null);
   const [bringOwn, setBringOwn] = useState(true);
   const [language, setLanguage] = useState("en");
   const [languageOther, setLanguageOther] = useState<string>(OTHER_LANGUAGES[0]);
+  const [playtimeLabel, setPlaytimeLabel] = useState<string | null>(null);
+  const [playtimeLoading, setPlaytimeLoading] = useState(false);
 
   const selectedVenue = venues.find((v) => String(v.id) === venue);
   const hasVenueGames = venueGames.length > 0;
@@ -217,6 +276,7 @@ export default function CreateTablePage() {
     selectedVenue?.min_reservation_minutes ?? MIN_DURATION_MINUTES;
   const maxReservationMinutes =
     selectedVenue?.max_reservation_minutes ?? MAX_DURATION_MINUTES;
+  const isSpontaneous = !bringOwn && game === SPONTANEOUS_TITLE;
 
   const dayAvailability = useMemo(() => {
     if (!date) return null;
@@ -229,7 +289,6 @@ export default function CreateTablePage() {
     const close = parseHm(dayAvailability.end_time);
     return TIME_SLOTS.filter((slot) => {
       const mins = parseHm(slot);
-      // Need room for the venue's minimum booking before close.
       return mins >= open && mins + minReservationMinutes <= close;
     });
   }, [dayAvailability, minReservationMinutes]);
@@ -274,14 +333,12 @@ export default function CreateTablePage() {
       .catch((e) => setError(errorMessage(e, t)));
   }, [venue, t]);
 
-  // Keep party size inside the selected venue's limits.
   useEffect(() => {
     if (!selectedVenue) return;
     setMinPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
     setMaxPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
   }, [selectedVenue]);
 
-  // Load games offered at the selected venue (for "Use a venue game").
   useEffect(() => {
     if (!venue) {
       setVenueGames([]);
@@ -293,16 +350,16 @@ export default function CreateTablePage() {
       .catch((e) => setError(errorMessage(e, t)));
   }, [venue, t]);
 
-  // When switching to venue game (or venue changes while using venue games), sync selection.
   useEffect(() => {
     if (bringOwn) return;
     setGame((current) => {
+      if (current === SPONTANEOUS_TITLE) return current;
       if (venueGames.some((g) => g.title === current)) return current;
       return venueGames[0]?.title ?? "";
     });
+    setBggId(null);
   }, [bringOwn, venueGames]);
 
-  // Keep From/To inside the day's opening hours and venue duration limits.
   useEffect(() => {
     if (!dayAvailability) return;
     if (fromSlots.length === 0) return;
@@ -316,6 +373,46 @@ export default function CreateTablePage() {
     }
   }, [dayAvailability, fromSlots, toSlots, from, to]);
 
+  // Load BGG recommended playtime when a concrete game (with bgg id) is selected.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPlaytime(id: number) {
+      setPlaytimeLoading(true);
+      try {
+        const thing = await bggApi.thing(id);
+        if (cancelled) return;
+        setPlaytimeLabel(
+          formatPlaytimeMinutes(t, thing.playing_time, thing.min_play_time, thing.max_play_time),
+        );
+      } catch {
+        if (!cancelled) setPlaytimeLabel(null);
+      } finally {
+        if (!cancelled) setPlaytimeLoading(false);
+      }
+    }
+
+    setPlaytimeLabel(null);
+    if (bringOwn && bggId) {
+      loadPlaytime(bggId);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!bringOwn && !isSpontaneous && game) {
+      const vg = venueGames.find((g) => g.title === game);
+      if (vg?.bgg_id) {
+        loadPlaytime(vg.bgg_id);
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+    setPlaytimeLoading(false);
+    return () => {
+      cancelled = true;
+    };
+  }, [bringOwn, bggId, game, isSpontaneous, venueGames, t]);
+
   if (loading || !user) return null;
   if (user.role === "VENUE_USER") {
     return (
@@ -325,28 +422,50 @@ export default function CreateTablePage() {
     );
   }
 
+  function validate(): FieldErrors {
+    const next: FieldErrors = {};
+    if (!venue) next.venue = t("newTable.errVenue");
+    if (!date) next.date = t("newTable.errDate");
+    else if (!dayAvailability) next.date = t("newTable.errNoHours");
+    if (!from) next.from = t("newTable.errFrom");
+    else if (dayAvailability && fromSlots.length > 0 && !fromSlots.includes(from)) {
+      next.from = t("newTable.errFrom");
+    }
+    if (!to) next.to = t("newTable.errTo");
+    else if (dayAvailability && toSlots.length > 0 && !toSlots.includes(to)) {
+      next.to = t("newTable.errTo");
+    }
+    if (minPlayers < venueMin || minPlayers > venueMax) {
+      next.minPlayers = t("newTable.errPlayers");
+    }
+    if (maxPlayers < venueMin || maxPlayers > venueMax || maxPlayers < minPlayers) {
+      next.maxPlayers = t("newTable.errPlayers");
+    }
+    if (bringOwn) {
+      if (!bggId || !game.trim()) next.game = t("newTable.errGameRequired");
+      if (language === "other" && !languageOther) next.language = t("newTable.errLanguage");
+    } else if (!hasVenueGames) {
+      next.game = t("newTable.errNoVenueGames");
+    } else if (!game.trim()) {
+      next.game = t("newTable.errGameRequired");
+    }
+    if (date && from && to) {
+      const duration = parseHm(to) - parseHm(from);
+      if (duration < MIN_DURATION_MINUTES || duration > MAX_DURATION_MINUTES) {
+        next.to = t("newTable.errDuration");
+      }
+    }
+    return next;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    if (!dayAvailability) {
-      setError(t("newTable.errNoHours"));
-      setBusy(false);
-      return;
-    }
-    if (!bringOwn && !hasVenueGames) {
-      setError(t("newTable.errNoVenueGames"));
-      setBusy(false);
-      return;
-    }
-    if (!game.trim()) {
-      setError(t("newTable.errGameRequired"));
-      setBusy(false);
-      return;
-    }
-    const duration = parseHm(to) - parseHm(from);
-    if (duration < MIN_DURATION_MINUTES || duration > MAX_DURATION_MINUTES) {
-      setError(t("newTable.errDuration"));
+    const nextErrors = validate();
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      setError(t("newTable.errFixFields"));
       setBusy(false);
       return;
     }
@@ -389,24 +508,33 @@ export default function CreateTablePage() {
       ? t("newTable.closedHint")
       : t("newTable.pickDateHint");
 
-  const canSubmit =
-    !busy &&
-    !noHoursForDate &&
-    fromSlots.length > 0 &&
-    (bringOwn ? Boolean(game.trim()) : hasVenueGames);
+  const venueSelectValue = isSpontaneous
+    ? SPONTANEOUS_VALUE
+    : venueGames.some((g) => g.title === game)
+      ? game
+      : "";
 
   return (
     <Shell title={t("newTable.title")}>
       {error ? <Banner kind="error">{error}</Banner> : null}
-      <form onSubmit={submit}>
+      <form onSubmit={submit} noValidate>
         <span className="label">{t("newTable.venue")}</span>
-        <select className="input" value={venue} onChange={(e) => setVenue(e.target.value)} required>
+        <select
+          className="input"
+          value={venue}
+          onChange={(e) => {
+            setVenue(e.target.value);
+            setFieldErrors((f) => ({ ...f, venue: undefined }));
+          }}
+        >
+          {venues.length === 0 ? <option value="">{t("newTable.errVenue")}</option> : null}
           {venues.map((v) => (
             <option key={v.id} value={v.id}>
               {v.name}
             </option>
           ))}
         </select>
+        {fieldErrors.venue ? <div className="mt-1 text-xs text-red-500">{fieldErrors.venue}</div> : null}
         {selectedVenue?.location ? (
           <div className="mt-1 text-xs text-slate-500">
             {selectedVenue.maps_url ? (
@@ -432,8 +560,17 @@ export default function CreateTablePage() {
         ) : null}
 
         <span className="label">{t("newTable.date")}</span>
-        <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        <input
+          className="input"
+          type="date"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value);
+            setFieldErrors((f) => ({ ...f, date: undefined }));
+          }}
+        />
         <div className="mt-1 text-xs text-slate-500">{hoursHint}</div>
+        {fieldErrors.date ? <div className="mt-1 text-xs text-red-500">{fieldErrors.date}</div> : null}
         {noHoursForDate ? <Banner kind="error">{t("newTable.noBookingsDate")}</Banner> : null}
 
         <div className="flex gap-2">
@@ -442,9 +579,11 @@ export default function CreateTablePage() {
             <select
               className="input"
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={(e) => {
+                setFrom(e.target.value);
+                setFieldErrors((f) => ({ ...f, from: undefined, to: undefined }));
+              }}
               disabled={!dayAvailability || fromSlots.length === 0}
-              required
             >
               {(fromSlots.length ? fromSlots : TIME_SLOTS).map((slot) => (
                 <option key={slot} value={slot}>
@@ -452,15 +591,20 @@ export default function CreateTablePage() {
                 </option>
               ))}
             </select>
+            {fieldErrors.from ? (
+              <div className="mt-1 text-xs text-red-500">{fieldErrors.from}</div>
+            ) : null}
           </div>
           <div className="flex-1">
             <span className="label">{t("newTable.to")}</span>
             <select
               className="input"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => {
+                setTo(e.target.value);
+                setFieldErrors((f) => ({ ...f, to: undefined }));
+              }}
               disabled={!dayAvailability || toSlots.length === 0}
-              required
             >
               {(toSlots.length ? toSlots : TIME_SLOTS).map((slot) => (
                 <option key={slot} value={slot}>
@@ -468,6 +612,7 @@ export default function CreateTablePage() {
                 </option>
               ))}
             </select>
+            {fieldErrors.to ? <div className="mt-1 text-xs text-red-500">{fieldErrors.to}</div> : null}
           </div>
         </div>
         {dayAvailability && from && to && toSlots.includes(to) ? (
@@ -487,8 +632,14 @@ export default function CreateTablePage() {
               min={venueMin}
               max={venueMax}
               value={minPlayers}
-              onChange={(e) => setMinPlayers(Number(e.target.value))}
+              onChange={(e) => {
+                setMinPlayers(Number(e.target.value));
+                setFieldErrors((f) => ({ ...f, minPlayers: undefined, maxPlayers: undefined }));
+              }}
             />
+            {fieldErrors.minPlayers ? (
+              <div className="mt-1 text-xs text-red-500">{fieldErrors.minPlayers}</div>
+            ) : null}
           </div>
           <div className="flex-1">
             <span className="label">{t("newTable.maxPlayers")}</span>
@@ -498,8 +649,14 @@ export default function CreateTablePage() {
               min={venueMin}
               max={venueMax}
               value={maxPlayers}
-              onChange={(e) => setMaxPlayers(Number(e.target.value))}
+              onChange={(e) => {
+                setMaxPlayers(Number(e.target.value));
+                setFieldErrors((f) => ({ ...f, maxPlayers: undefined }));
+              }}
             />
+            {fieldErrors.maxPlayers ? (
+              <div className="mt-1 text-xs text-red-500">{fieldErrors.maxPlayers}</div>
+            ) : null}
           </div>
         </div>
         {selectedVenue ? (
@@ -520,13 +677,22 @@ export default function CreateTablePage() {
               onChange={() => {
                 setBringOwn(true);
                 setGame("");
+                setBggId(null);
+                setFieldErrors((f) => ({ ...f, game: undefined }));
               }}
             />{" "}
             {t("newTable.iBringIt")}
           </label>
           {bringOwn ? (
             <>
-              <select className="input" value={language} onChange={(e) => setLanguage(e.target.value)}>
+              <select
+                className="input"
+                value={language}
+                onChange={(e) => {
+                  setLanguage(e.target.value);
+                  setFieldErrors((f) => ({ ...f, language: undefined }));
+                }}
+              >
                 <option value="en">{t("lang.en")}</option>
                 <option value="de">{t("lang.de")}</option>
                 <option value="other">{t("lang.other")}</option>
@@ -544,6 +710,9 @@ export default function CreateTablePage() {
                   ))}
                 </select>
               ) : null}
+              {fieldErrors.language ? (
+                <div className="mt-1 text-xs text-red-500">{fieldErrors.language}</div>
+              ) : null}
             </>
           ) : null}
           <label className="flex items-center gap-2">
@@ -552,7 +721,9 @@ export default function CreateTablePage() {
               checked={!bringOwn}
               onChange={() => {
                 setBringOwn(false);
+                setBggId(null);
                 setGame(venueGames[0]?.title ?? "");
+                setFieldErrors((f) => ({ ...f, game: undefined }));
               }}
             />{" "}
             {t("newTable.useVenueGame")}
@@ -563,17 +734,49 @@ export default function CreateTablePage() {
         <span className="label">{t("newTable.game")}</span>
         {bringOwn ? (
           <>
-            <BggGameTypeahead value={game} onChange={setGame} required />
+            <BggGameDropdown
+              selectedId={bggId}
+              selectedName={game}
+              required
+              onPick={(hit) => {
+                if (!hit) {
+                  setBggId(null);
+                  setGame("");
+                } else {
+                  setBggId(hit.bgg_id);
+                  setGame(hit.name);
+                }
+                setFieldErrors((f) => ({ ...f, game: undefined }));
+              }}
+            />
             <div className="mt-1 text-xs text-slate-500">{t("newTable.bggTypeaheadHint")}</div>
           </>
         ) : hasVenueGames ? (
           <>
-            <select className="input" value={game} onChange={(e) => setGame(e.target.value)} required>
+            <select
+              className="input"
+              value={venueSelectValue}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === SPONTANEOUS_VALUE) {
+                  setGame(SPONTANEOUS_TITLE);
+                  setBggId(null);
+                } else {
+                  setGame(v);
+                  setBggId(venueGames.find((g) => g.title === v)?.bgg_id ?? null);
+                }
+                setFieldErrors((f) => ({ ...f, game: undefined }));
+              }}
+            >
+              <option value="" disabled>
+                {t("newTable.selectVenueGame")}
+              </option>
               {venueGames.map((g) => (
                 <option key={g.id} value={g.title}>
                   {g.title}
                 </option>
               ))}
+              <option value={SPONTANEOUS_VALUE}>{t("newTable.spontaneous")}</option>
             </select>
             {selectedVenue ? (
               <div className="mt-1 text-xs text-slate-500">
@@ -589,8 +792,20 @@ export default function CreateTablePage() {
             <div className="mt-1 text-xs text-slate-500">{t("newTable.noVenueGamesHint")}</div>
           </>
         )}
+        {fieldErrors.game ? <div className="mt-1 text-xs text-red-500">{fieldErrors.game}</div> : null}
 
-        <button className="btn mt-4" disabled={!canSubmit}>
+        {playtimeLoading ? (
+          <div className="mt-3 text-xs text-slate-400">{t("newTable.playtimeLoading")}</div>
+        ) : playtimeLabel ? (
+          <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {t("newTable.recommendedPlaytime")}
+            </div>
+            <div className="mt-0.5 font-semibold">{playtimeLabel}</div>
+          </div>
+        ) : null}
+
+        <button className="btn mt-4" disabled={busy}>
           {busy ? t("common.ellipsis") : t("newTable.requestTable")}
         </button>
       </form>

@@ -115,6 +115,15 @@ export interface BggSearchHit {
   year: number | null;
 }
 
+export interface BggThing {
+  bgg_id: number;
+  name: string;
+  thumbnail_url: string;
+  playing_time: number | null;
+  min_play_time: number | null;
+  max_play_time: number | null;
+}
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -240,6 +249,7 @@ export const bggApi = {
     request<{ results: BggSearchHit[] }>(
       `/bgg/search?q=${encodeURIComponent(q)}&limit=${limit}`,
     ),
+  thing: (bggId: number) => request<BggThing>(`/bgg/thing?id=${bggId}`),
 };
 
 // --- Reviews ---

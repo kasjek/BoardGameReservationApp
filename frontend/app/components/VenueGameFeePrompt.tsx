@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { useI18n } from "../lib/i18n";
 import {
   formatDurationHours,
   formatEur,
   paypalCheckoutUrl,
-  PAYPAL_BUSINESS_EMAIL,
   tableDurationHours,
   venueGameFeeEur,
   VENUE_GAME_FEE_EUR_PER_HOUR,
@@ -23,7 +24,7 @@ export type VenueGameFeePromptProps = {
 
 /**
  * Soft paywall after creating a venue-game table (host) or taking a reserved seat (guest).
- * Opens hosted PayPal Checkout; payment is not verified server-side yet.
+ * Opens hosted PayPal Checkout automatically; payment is not verified server-side yet.
  */
 export function VenueGameFeePrompt({
   open,
@@ -35,8 +36,6 @@ export function VenueGameFeePrompt({
   onClose,
 }: VenueGameFeePromptProps) {
   const { t } = useI18n();
-  if (!open) return null;
-
   const hours = tableDurationHours(startsAt, endsAt);
   const amount = venueGameFeeEur(startsAt, endsAt);
   const amountLabel = formatEur(amount);
@@ -53,6 +52,17 @@ export function VenueGameFeePrompt({
     returnUrl,
     cancelUrl: returnUrl,
   });
+
+  useEffect(() => {
+    if (!open) return;
+    // Open PayPal checkout to the configured recipient as soon as the fee is due.
+    const win = window.open(payUrl, "_blank", "noopener,noreferrer");
+    if (!win) {
+      // Popup blocked — user can still tap the button.
+    }
+  }, [open, payUrl]);
+
+  if (!open) return null;
 
   return (
     <div
@@ -71,7 +81,7 @@ export function VenueGameFeePrompt({
         <div className="card mt-4 space-y-1 text-sm">
           <div className="flex justify-between gap-2">
             <span className="text-slate-500">{t("paypal.rate")}</span>
-            <span>€{VENUE_GAME_FEE_EUR_PER_HOUR} / hour</span>
+            <span>{t("paypal.rateValue", { rate: VENUE_GAME_FEE_EUR_PER_HOUR })}</span>
           </div>
           <div className="flex justify-between gap-2">
             <span className="text-slate-500">{t("paypal.duration")}</span>
@@ -81,7 +91,6 @@ export function VenueGameFeePrompt({
             <span>{t("paypal.total")}</span>
             <span>€{amountLabel}</span>
           </div>
-          <div className="pt-1 text-xs text-slate-400">PayPal · {PAYPAL_BUSINESS_EMAIL}</div>
         </div>
         <a href={payUrl} target="_blank" rel="noreferrer noopener" className="btn mt-4 block">
           {t("paypal.payWithPaypal", { amount: amountLabel })}
@@ -125,7 +134,6 @@ export function VenueGameFeeHint({
         amount: formatEur(amount),
         hours: formatDurationHours(hours),
         rate,
-        email: PAYPAL_BUSINESS_EMAIL,
       })}
     </div>
   );

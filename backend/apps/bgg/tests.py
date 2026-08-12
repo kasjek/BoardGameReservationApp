@@ -188,9 +188,45 @@ def test_bgg_search_api_requires_auth(db, client, monkeypatch):
 _SEARCH_XML = b'<items><item type="boardgame" id="13"><name type="primary" value="Catan"/></item></items>'
 _THING_XML = (
     b'<items><item type="boardgame" id="13">'
+    b'<name type="primary" value="Catan"/>'
     b"<thumbnail>//cf.geekdo-images.com/abc__thumb/img/catan.jpg</thumbnail>"
+    b'<playingtime value="90"/>'
+    b'<minplaytime value="60"/>'
+    b'<maxplaytime value="120"/>'
     b"</item></items>"
 )
+
+
+def test_fetch_thing_includes_playtime(monkeypatch):
+    monkeypatch.setattr(services, "_http_get", lambda url, headers=None: _THING_XML)
+    thing = services.fetch_thing(13)
+    assert thing["name"] == "Catan"
+    assert thing["playing_time"] == 90
+    assert thing["min_play_time"] == 60
+    assert thing["max_play_time"] == 120
+
+
+def test_bgg_thing_api_requires_auth(db, client, monkeypatch):
+    monkeypatch.setattr(
+        services,
+        "fetch_thing",
+        lambda bgg_id: {
+            "bgg_id": bgg_id,
+            "name": "Catan",
+            "thumbnail_url": "",
+            "playing_time": 90,
+            "min_play_time": 60,
+            "max_play_time": 120,
+        },
+    )
+    assert client.get("/api/bgg/thing?id=13").status_code in (401, 403)
+    from apps.accounts.models import Role, User
+
+    user = User.objects.create_user(username="thinger", password="pw-testing-123", role=Role.USER)
+    client.force_authenticate(user=user)
+    resp = client.get("/api/bgg/thing?id=13")
+    assert resp.status_code == 200
+    assert resp.data["playing_time"] == 90
 
 
 def _fake_http(monkeypatch):
