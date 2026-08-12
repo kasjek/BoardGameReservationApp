@@ -183,6 +183,46 @@ def test_bgg_search_api_requires_auth(db, client, monkeypatch):
     assert resp.data["results"][0]["name"] == "Catan"
 
 
+def test_list_directory_boardgames_uniques_by_bgg_id(db):
+    from apps.bgg.models import BggResolution
+    from apps.venues.models import Venue, VenueGame
+
+    venue = Venue.objects.create(name="Cafe", location="Here")
+    VenueGame.objects.create(venue=venue, title="Patchwork", bgg_id=163412, is_active=True)
+    VenueGame.objects.create(venue=venue, title="Love Letter", bgg_id=129622, is_active=True)
+    BggResolution.objects.create(
+        query_norm="patchwork",
+        bgg_id=163412,
+        matched_name="Patchwork",
+    )
+    BggResolution.objects.create(
+        query_norm="catan",
+        bgg_id=13,
+        matched_name="Catan",
+    )
+    hits = services.list_directory_boardgames()
+    by_id = {h["bgg_id"]: h["name"] for h in hits}
+    assert by_id[163412] == "Patchwork"
+    assert by_id[129622] == "Love Letter"
+    assert by_id[13] == "Catan"
+    assert [h["name"] for h in hits] == sorted(by_id.values(), key=services.normalize)
+
+
+def test_bgg_directory_api_requires_auth(db, client):
+    from apps.accounts.models import Role, User
+    from apps.venues.models import Venue, VenueGame
+
+    venue = Venue.objects.create(name="Cafe", location="Here")
+    VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13, is_active=True)
+    assert client.get("/api/bgg/directory").status_code in (401, 403)
+    user = User.objects.create_user(username="diruser", password="pw-testing-123", role=Role.USER)
+    client.force_authenticate(user=user)
+    resp = client.get("/api/bgg/directory")
+    assert resp.status_code == 200
+    by_id = {row["bgg_id"]: row["name"] for row in resp.data["results"]}
+    assert by_id[13] == "Catan"
+
+
 # --- Cover images ---------------------------------------------------------
 
 _SEARCH_XML = b'<items><item type="boardgame" id="13"><name type="primary" value="Catan"/></item></items>'

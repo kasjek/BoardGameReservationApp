@@ -245,10 +245,11 @@ export const venueApi = {
 };
 
 export const bggApi = {
-  search: (q: string, limit = 20) =>
+  search: (q: string, limit = 50) =>
     request<{ results: BggSearchHit[] }>(
       `/bgg/search?q=${encodeURIComponent(q)}&limit=${limit}`,
     ),
+  directory: () => request<{ results: BggSearchHit[] }>("/bgg/directory"),
   thing: (bggId: number) => request<BggThing>(`/bgg/thing?id=${bggId}`),
 };
 

@@ -19,7 +19,12 @@ import {
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 
-// Languages selectable when "Other" is chosen (English and German have their own options).
+const GAME_LANGUAGE_FLAGS: { code: "en" | "de"; flag: string; labelKey: string }[] = [
+  { code: "en", flag: "🇬🇧", labelKey: "lang.en" },
+  { code: "de", flag: "🇩🇪", labelKey: "lang.de" },
+];
+
+// Languages selectable when "Other" is chosen (English and German have flag buttons).
 // API values stay in English; display uses lang.* keys.
 const OTHER_LANGUAGES = [
   "French",
@@ -112,8 +117,8 @@ function formatPlaytimeMinutes(
 }
 
 /**
- * Single BGG game dropdown: type to search, then pick from one select of results
- * (never an input + select pair at the same time).
+ * Single BGG game dropdown: open/focus shows the local BGG directory;
+ * typing searches BoardGameGeek and lists all matching games in the same dropdown.
  */
 function BggGameDropdown({
   selectedId,
@@ -127,18 +132,49 @@ function BggGameDropdown({
   required?: boolean;
 }) {
   const { t } = useI18n();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(selectedName);
   const [hits, setHits] = useState<BggSearchHit[]>([]);
+  const [directory, setDirectory] = useState<BggSearchHit[]>([]);
+  const [open, setOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"search" | "pick">(selectedId ? "pick" : "search");
+  const [loadedDirectory, setLoadedDirectory] = useState(false);
 
   useEffect(() => {
-    if (mode !== "search") return;
+    setQuery(selectedName);
+  }, [selectedName, selectedName]);
+
+  useEffect(() => {
+    let cancelled = false;
+    bggApi
+      .directory()
+      .then((res) => {
+        if (!cancelled) {
+          setDirectory(res.results);
+          setLoadedDirectory(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadedDirectory(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
     const q = query.trim();
-    if (q.length < 2) {
-      setHits([]);
+    // Selected game name alone should not re-trigger search.
+    if (selectedId && q === selectedName.trim()) {
+      setHits(directory);
       setSearchError(null);
+      return;
+    }
+    if (q.length < 2) {
+      setHits(directory);
+      setSearchError(null);
+      setSearching(false);
       return;
     }
     let cancelled = false;
@@ -146,11 +182,10 @@ function BggGameDropdown({
       setSearching(true);
       setSearchError(null);
       bggApi
-        .search(q)
+        .search(q, 50)
         .then((res) => {
           if (cancelled) return;
           setHits(res.results);
-          if (res.results.length > 0) setMode("pick");
         })
         .catch((e) => {
           if (!cancelled) {
@@ -166,73 +201,76 @@ function BggGameDropdown({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query, mode, t]);
+  }, [query, open, directory, selectedId, selectedName, t]);
 
-  if (mode === "pick" && (hits.length > 0 || selectedId)) {
-    const options =
-      selectedId && !hits.some((h) => h.bgg_id === selectedId) && selectedName
-        ? [{ bgg_id: selectedId, name: selectedName, year: null as number | null }, ...hits]
-        : hits;
-    return (
-      <div>
-        <select
-          className="input"
-          value={selectedId ?? ""}
-          required={required}
-          aria-label={t("newTable.game")}
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (!raw) {
-              onPick(null);
-              setMode("search");
-              setQuery("");
-              setHits([]);
-              return;
-            }
-            const id = Number(raw);
-            const hit = options.find((h) => h.bgg_id === id);
-            if (hit) onPick(hit);
-          }}
-        >
-          <option value="">{t("newTable.bggSelectPrompt")}</option>
-          {options.map((h) => (
-            <option key={h.bgg_id} value={h.bgg_id}>
-              {h.name}
-              {h.year ? ` (${h.year})` : ""}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="mt-1 text-xs font-semibold text-brand"
-          onClick={() => {
-            onPick(null);
-            setMode("search");
-            setQuery(selectedName || query);
-            setHits([]);
-          }}
-        >
-          {t("newTable.bggSearchAgain")}
-        </button>
-      </div>
-    );
-  }
+  const options =
+    selectedId && selectedName && !hits.some((h) => h.bgg_id === selectedId)
+      ? [{ bgg_id: selectedId, name: selectedName, year: null as number | null }, ...hits]
+      : hits;
 
   return (
-    <div>
+    <div className="relative">
       <input
         className="input"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
         required={required && !selectedId}
         placeholder={t("newTable.bggTypePlaceholder")}
         autoComplete="off"
         aria-label={t("newTable.game")}
+        aria-expanded={open}
+        aria-controls="bgg-game-directory"
+        role="combobox"
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          const next = e.target.value;
+          setQuery(next);
+          setOpen(true);
+          if (selectedId && next.trim() !== selectedName.trim()) {
+            onPick(null);
+          }
+        }}
+        onBlur={() => {
+          // Allow option click to register before closing.
+          window.setTimeout(() => setOpen(false), 150);
+        }}
       />
-      {searching ? <div className="mt-1 text-xs text-slate-400">{t("bgg.searching")}</div> : null}
-      {searchError ? <div className="mt-1 text-xs text-red-500">{searchError}</div> : null}
-      {!searching && query.trim().length >= 2 && hits.length === 0 && !searchError ? (
-        <div className="mt-1 text-xs text-slate-400">{t("bgg.noMatches")}</div>
+      {open ? (
+        <ul
+          id="bgg-game-directory"
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          {searching || !loadedDirectory ? (
+            <li className="px-3 py-2 text-xs text-slate-400">{t("bgg.searching")}</li>
+          ) : searchError ? (
+            <li className="px-3 py-2 text-xs text-red-500">{searchError}</li>
+          ) : options.length === 0 ? (
+            <li className="px-3 py-2 text-xs text-slate-400">{t("bgg.noMatches")}</li>
+          ) : (
+            options.map((h) => {
+              const active = selectedId === h.bgg_id;
+              return (
+                <li key={h.bgg_id} role="option" aria-selected={active}>
+                  <button
+                    type="button"
+                    className={`block w-full px-3 py-2 text-left text-sm hover:bg-brand/10 ${
+                      active ? "bg-brand/10 font-semibold text-brand" : "text-slate-800"
+                    }`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onPick(h);
+                      setQuery(h.name);
+                      setOpen(false);
+                    }}
+                  >
+                    {h.name}
+                    {h.year ? ` (${h.year})` : ""}
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
       ) : null}
     </div>
   );
@@ -263,7 +301,7 @@ export default function CreateTablePage() {
   const [game, setGame] = useState("");
   const [bggId, setBggId] = useState<number | null>(null);
   const [bringOwn, setBringOwn] = useState(true);
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState<"en" | "de" | "other">("en");
   const [languageOther, setLanguageOther] = useState<string>(OTHER_LANGUAGES[0]);
   const [playtimeLabel, setPlaytimeLabel] = useState<string | null>(null);
   const [playtimeLoading, setPlaytimeLoading] = useState(false);
@@ -443,7 +481,9 @@ export default function CreateTablePage() {
     }
     if (bringOwn) {
       if (!bggId || !game.trim()) next.game = t("newTable.errGameRequired");
-      if (language === "other" && !languageOther) next.language = t("newTable.errLanguage");
+      if (language === "other" && !languageOther.trim()) {
+        next.language = t("newTable.errLanguage");
+      }
     } else if (!hasVenueGames) {
       next.game = t("newTable.errNoVenueGames");
     } else if (!game.trim()) {
@@ -477,7 +517,7 @@ export default function CreateTablePage() {
         game_title: game.trim(),
         bring_own_game: bringOwn,
         game_language: language,
-        game_language_other: language === "other" ? languageOther : "",
+        game_language_other: language === "other" ? languageOther.trim() : "",
         starts_at,
         ends_at,
         min_players: minPlayers,
@@ -684,24 +724,61 @@ export default function CreateTablePage() {
             {t("newTable.iBringIt")}
           </label>
           {bringOwn ? (
-            <>
-              <select
-                className="input"
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value);
-                  setFieldErrors((f) => ({ ...f, language: undefined }));
-                }}
+            <div className="mt-2 pl-6">
+              <span className="label">{t("newTable.language")}</span>
+              <div
+                className="mt-1 flex flex-wrap items-center gap-2"
+                role="group"
+                aria-label={t("newTable.language")}
               >
-                <option value="en">{t("lang.en")}</option>
-                <option value="de">{t("lang.de")}</option>
-                <option value="other">{t("lang.other")}</option>
-              </select>
+                {GAME_LANGUAGE_FLAGS.map(({ code, flag, labelKey }) => {
+                  const active = language === code;
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      title={t(labelKey)}
+                      aria-label={t(labelKey)}
+                      aria-pressed={active}
+                      onClick={() => {
+                        setLanguage(code);
+                        setFieldErrors((f) => ({ ...f, language: undefined }));
+                      }}
+                      className={`flex h-10 w-10 items-center justify-center rounded-lg text-xl leading-none transition ${
+                        active
+                          ? "bg-brand/10 ring-2 ring-brand"
+                          : "bg-slate-50 opacity-80 hover:bg-slate-100 hover:opacity-100"
+                      }`}
+                    >
+                      <span aria-hidden>{flag}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  aria-pressed={language === "other"}
+                  onClick={() => {
+                    setLanguage("other");
+                    setFieldErrors((f) => ({ ...f, language: undefined }));
+                  }}
+                  className={`h-10 rounded-lg px-3 text-sm font-semibold transition ${
+                    language === "other"
+                      ? "bg-brand/10 text-brand ring-2 ring-brand"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {t("lang.other")}
+                </button>
+              </div>
               {language === "other" ? (
                 <select
-                  className="input mt-1"
+                  className="input mt-2"
                   value={languageOther}
-                  onChange={(e) => setLanguageOther(e.target.value)}
+                  onChange={(e) => {
+                    setLanguageOther(e.target.value);
+                    setFieldErrors((f) => ({ ...f, language: undefined }));
+                  }}
+                  aria-label={t("lang.other")}
                 >
                   {OTHER_LANGUAGES.map((lang) => (
                     <option key={lang} value={lang}>
@@ -713,7 +790,7 @@ export default function CreateTablePage() {
               {fieldErrors.language ? (
                 <div className="mt-1 text-xs text-red-500">{fieldErrors.language}</div>
               ) : null}
-            </>
+            </div>
           ) : null}
           <label className="flex items-center gap-2">
             <input
@@ -749,7 +826,6 @@ export default function CreateTablePage() {
                 setFieldErrors((f) => ({ ...f, game: undefined }));
               }}
             />
-            <div className="mt-1 text-xs text-slate-500">{t("newTable.bggTypeaheadHint")}</div>
           </>
         ) : hasVenueGames ? (
           <>
