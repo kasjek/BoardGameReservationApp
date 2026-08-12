@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { AuthHero, Banner } from "../components/ui";
+import { AuthHero, Banner, PasswordField } from "../components/ui";
 import { errorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
@@ -68,12 +68,10 @@ export default function RegisterPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <input
-            className="input"
-            type="password"
+          <PasswordField
             placeholder={t("auth.password")}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             autoComplete="new-password"
           />
           <div className="text-xs text-slate-500">{t("auth.passwordRules")}</div>
