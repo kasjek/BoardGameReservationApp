@@ -115,7 +115,14 @@ HOTEL_KNORZ_DESCRIPTION = (
     "• Mon–Sun 08:00–20:00\n\n"
     "Tables for 2–8 players. Bookings 1–3 hours."
 )
-HOTEL_KNORZ_GAMES = DATE_HOUSE_GAMES
+HOTEL_KNORZ_GAMES = (
+    ("Secret Hitler", 188834),
+    ("Codenames Pictures", 198773),
+    ("Let's Summon Demons", 325829),  # user request: "Let's summon deamons"
+    ("Cascadia", 295947),
+    ("Verdant", 334065),
+    ("The Fake Artist in New York", 135779),  # BGG: A Fake Artist Goes to New York
+)
 HOTEL_KNORZ_OPEN_BY_WEEKDAY: dict[int, time] = {d: time(8, 0) for d in range(7)}
 HOTEL_KNORZ_END_BY_WEEKDAY: dict[int, time] = {d: time(20, 0) for d in range(7)}
 
