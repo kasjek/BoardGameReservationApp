@@ -54,11 +54,11 @@ class VenueSerializer(serializers.ModelSerializer):
         return average_rating_for_venue(obj.id)
 
     def get_maps_url(self, obj):
-        if not obj.location:
+        if not obj.location and not obj.name:
             return None
         from .seed import google_maps_url
 
-        return google_maps_url(obj.location)
+        return google_maps_url(obj.location or "", name=obj.name or "")
 
 
 class VenueAvailabilitySerializer(serializers.ModelSerializer):
