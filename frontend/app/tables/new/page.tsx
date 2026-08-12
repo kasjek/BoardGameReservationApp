@@ -24,6 +24,60 @@ const GAME_LANGUAGE_FLAGS: { code: "en" | "de"; flag: string; labelKey: string }
   { code: "de", flag: "🇩🇪", labelKey: "lang.de" },
 ];
 
+// Languages selectable when "Other" is chosen (English and German have flag buttons).
+// API values stay in English; display uses lang.* keys.
+const OTHER_LANGUAGES = [
+  "French",
+  "Spanish",
+  "Italian",
+  "Portuguese",
+  "Dutch",
+  "Polish",
+  "Czech",
+  "Hungarian",
+  "Romanian",
+  "Swedish",
+  "Norwegian",
+  "Danish",
+  "Finnish",
+  "Greek",
+  "Turkish",
+  "Russian",
+  "Ukrainian",
+  "Chinese",
+  "Japanese",
+  "Korean",
+  "Arabic",
+  "Hebrew",
+  "Hindi",
+] as const;
+
+const OTHER_LANGUAGE_KEYS: Record<(typeof OTHER_LANGUAGES)[number], string> = {
+  French: "lang.french",
+  Spanish: "lang.spanish",
+  Italian: "lang.italian",
+  Portuguese: "lang.portuguese",
+  Dutch: "lang.dutch",
+  Polish: "lang.polish",
+  Czech: "lang.czech",
+  Hungarian: "lang.hungarian",
+  Romanian: "lang.romanian",
+  Swedish: "lang.swedish",
+  Norwegian: "lang.norwegian",
+  Danish: "lang.danish",
+  Finnish: "lang.finnish",
+  Greek: "lang.greek",
+  Turkish: "lang.turkish",
+  Russian: "lang.russian",
+  Ukrainian: "lang.ukrainian",
+  Chinese: "lang.chinese",
+  Japanese: "lang.japanese",
+  Korean: "lang.korean",
+  Arabic: "lang.arabic",
+  Hebrew: "lang.hebrew",
+  Hindi: "lang.hindi",
+};
+
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 180;
 /** Sentinel value in the venue-game dropdown for spontaneous choice. */
@@ -215,7 +269,7 @@ export default function CreateTablePage() {
   const [bggId, setBggId] = useState<number | null>(null);
   const [bringOwn, setBringOwn] = useState(true);
   const [language, setLanguage] = useState<"en" | "de" | "other">("en");
-  const [languageOther, setLanguageOther] = useState("");
+  const [languageOther, setLanguageOther] = useState<string>(OTHER_LANGUAGES[0]);
   const [playtimeLabel, setPlaytimeLabel] = useState<string | null>(null);
   const [playtimeLoading, setPlaytimeLoading] = useState(false);
 
@@ -684,17 +738,21 @@ export default function CreateTablePage() {
                 </button>
               </div>
               {language === "other" ? (
-                <input
+                <select
                   className="input mt-2"
                   value={languageOther}
                   onChange={(e) => {
                     setLanguageOther(e.target.value);
                     setFieldErrors((f) => ({ ...f, language: undefined }));
                   }}
-                  placeholder={t("newTable.languageOtherPlaceholder")}
-                  autoComplete="off"
-                  aria-label={t("newTable.languageOtherPlaceholder")}
-                />
+                  aria-label={t("lang.other")}
+                >
+                  {OTHER_LANGUAGES.map((lang) => (
+                    <option key={lang} value={lang}>
+                      {t(OTHER_LANGUAGE_KEYS[lang])}
+                    </option>
+                  ))}
+                </select>
               ) : null}
               {fieldErrors.language ? (
                 <div className="mt-1 text-xs text-red-500">{fieldErrors.language}</div>
