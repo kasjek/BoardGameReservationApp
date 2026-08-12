@@ -8,6 +8,7 @@ from apps.venues.seed import (
     DATE_HOUSE_NAME,
     end_time_for,
     ensure_date_house_cafe,
+    ensure_katzentempel,
 )
 
 
@@ -88,8 +89,20 @@ def test_venue_detail_includes_maps_url_and_capacity(db, client):
     assert resp.status_code == 200
     assert resp.data["min_players"] == 2
     assert resp.data["max_players"] == 8
-    assert "google.com/maps" in resp.data["maps_url"]
+    assert "google.com/search" in resp.data["maps_url"]
+    # Venue name leads the query so Google shows the business, not a bare street.
+    assert "Date" in resp.data["maps_url"] or "House" in resp.data["maps_url"]
     assert "Breite" in resp.data["maps_url"]
+
+
+def test_katzentempel_maps_url_searches_venue_name(db, client):
+    venue = ensure_katzentempel(horizon_days=1)
+    resp = client.get(f"/api/venues/{venue.id}")
+    assert resp.status_code == 200
+    url = resp.data["maps_url"]
+    assert "google.com/search" in url
+    assert "Katzentempel" in url
+    assert "Peter-Vischer" in url or "Nürnberg" in url or "Nurnberg" in url
 
 
 def test_create_table_respects_venue_player_limits(db):
