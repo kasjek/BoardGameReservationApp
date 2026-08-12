@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { VenueGameFeeHint, VenueGameFeePrompt } from "../../components/VenueGameFeePrompt";
 import { Banner, Shell } from "../../components/ui";
 import {
   bggApi,
@@ -11,6 +12,7 @@ import {
   venueApi,
   type Availability,
   type BggSearchHit,
+  type Table,
   type Venue,
   type VenueGame,
 } from "../../lib/api";
@@ -164,6 +166,7 @@ export default function CreateTablePage() {
   const [venueGames, setVenueGames] = useState<VenueGame[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [feePrompt, setFeePrompt] = useState<Table | null>(null);
 
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState("");
@@ -320,7 +323,7 @@ export default function CreateTablePage() {
     try {
       const starts_at = new Date(`${date}T${from}:00`).toISOString();
       const ends_at = new Date(`${date}T${to}:00`).toISOString();
-      const t = await tableApi.create({
+      const created = await tableApi.create({
         venue: Number(venue),
         game_title: game.trim(),
         bring_own_game: bringOwn,
@@ -331,12 +334,22 @@ export default function CreateTablePage() {
         min_players: minPlayers,
         max_players: maxPlayers,
       });
-      router.push(`/tables/${t.id}`);
+      if (!bringOwn) {
+        setFeePrompt(created);
+      } else {
+        router.push(`/tables/${created.id}`);
+      }
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
+  }
+
+  function finishAfterFeePrompt() {
+    const created = feePrompt;
+    setFeePrompt(null);
+    if (created) router.push(`/tables/${created.id}`);
   }
 
   const noHoursForDate = Boolean(date && venue && !dayAvailability);
@@ -509,6 +522,7 @@ export default function CreateTablePage() {
             />{" "}
             Use a venue game (venue confirms)
           </label>
+          {!bringOwn ? <VenueGameFeeHint date={date} fromHm={from} toHm={to} /> : null}
         </div>
 
         <span className="label">Game</span>
@@ -547,6 +561,17 @@ export default function CreateTablePage() {
           {busy ? "…" : "Request table"}
         </button>
       </form>
+      {feePrompt ? (
+        <VenueGameFeePrompt
+          open
+          role="host"
+          gameTitle={feePrompt.game_title}
+          startsAt={feePrompt.starts_at}
+          endsAt={feePrompt.ends_at}
+          tableId={feePrompt.id}
+          onClose={finishAfterFeePrompt}
+        />
+      ) : null}
     </Shell>
   );
 }
