@@ -277,7 +277,22 @@ export const tableApi = {
   cancelSeat: (id: number) => request<Seat>(`/tables/${id}/seats/cancel`, { method: "POST" }),
 };
 
-export function errorMessage(e: unknown): string {
+type TranslateFn = (key: string, vars?: Record<string, string | number>) => string;
+
+/** Map API / network errors to a user-facing string. Pass `t` to localize fallbacks. */
+export function errorMessage(e: unknown, t?: TranslateFn): string {
+  const tr = t ?? ((key: string, vars?: Record<string, string | number>) => {
+    // English fallbacks when called outside a locale context.
+    const en: Record<string, string> = {
+      "errors.loginFailed": "Unable to log in with those credentials.",
+      "errors.forbidden": "You don't have permission to do that.",
+      "errors.conflict": "That action conflicts with the current state.",
+      "errors.requestFailed": `Request failed (${vars?.status ?? "?"}).`,
+      "errors.generic": "Something went wrong.",
+    };
+    return en[key] ?? key;
+  });
+
   if (e instanceof ApiError) {
     const d = e.data;
     if (typeof d === "string" && d.trim()) return d;
@@ -305,10 +320,10 @@ export function errorMessage(e: unknown): string {
         if (Array.isArray(field) && typeof field[0] === "string") return field[0];
       }
     }
-    if (e.status === 400) return "Unable to log in with those credentials.";
-    if (e.status === 403) return "You don't have permission to do that.";
-    if (e.status === 409) return "That action conflicts with the current state.";
-    return `Request failed (${e.status}).`;
+    if (e.status === 400) return tr("errors.loginFailed");
+    if (e.status === 403) return tr("errors.forbidden");
+    if (e.status === 409) return tr("errors.conflict");
+    return tr("errors.requestFailed", { status: e.status });
   }
-  return "Something went wrong.";
+  return tr("errors.generic");
 }

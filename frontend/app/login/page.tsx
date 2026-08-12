@@ -7,9 +7,11 @@ import { useState } from "react";
 import { AuthHero, Banner } from "../components/ui";
 import { errorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useI18n } from "../lib/i18n";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +26,7 @@ export default function LoginPage() {
       await login(username, password);
       router.push("/");
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -38,7 +40,7 @@ export default function LoginPage() {
         <form onSubmit={submit} className="space-y-2">
           <input
             className="input"
-            placeholder="Username"
+            placeholder={t("auth.username")}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoCapitalize="none"
@@ -46,18 +48,18 @@ export default function LoginPage() {
           <input
             className="input"
             type="password"
-            placeholder="Password"
+            placeholder={t("auth.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
           <button className="btn" disabled={busy}>
-            {busy ? "…" : "Log in"}
+            {busy ? t("common.ellipsis") : t("auth.logIn")}
           </button>
         </form>
         <div className="mt-4 text-center text-sm text-slate-500">
-          New here?{" "}
+          {t("auth.newHere")}{" "}
           <Link href="/register" className="font-semibold text-brand">
-            Sign up ›
+            {t("auth.signUp")} ›
           </Link>
         </div>
       </div>

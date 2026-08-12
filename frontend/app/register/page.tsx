@@ -7,9 +7,11 @@ import { useState } from "react";
 import { AuthHero, Banner } from "../components/ui";
 import { errorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useI18n } from "../lib/i18n";
 
 export default function RegisterPage() {
   const { register } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -22,17 +24,17 @@ export default function RegisterPage() {
     setBusy(true);
     setError(null);
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("auth.passwordMin"));
       setBusy(false);
       return;
     }
     if (!/[A-Z]/.test(password)) {
-      setError("Password must include at least one capital letter.");
+      setError(t("auth.passwordCapital"));
       setBusy(false);
       return;
     }
     if (!/[^A-Za-z0-9]/.test(password)) {
-      setError("Password must include at least one special character.");
+      setError(t("auth.passwordSpecial"));
       setBusy(false);
       return;
     }
@@ -40,7 +42,7 @@ export default function RegisterPage() {
       await register(username, email, password);
       router.push("/");
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -54,14 +56,14 @@ export default function RegisterPage() {
         <form onSubmit={submit} className="space-y-2">
           <input
             className="input"
-            placeholder="Username"
+            placeholder={t("auth.username")}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoCapitalize="none"
           />
           <input
             className="input"
-            placeholder="Email"
+            placeholder={t("auth.email")}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -69,22 +71,20 @@ export default function RegisterPage() {
           <input
             className="input"
             type="password"
-            placeholder="Password"
+            placeholder={t("auth.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
           />
-          <div className="text-xs text-slate-500">
-            At least 8 characters, one capital letter, and one special character.
-          </div>
+          <div className="text-xs text-slate-500">{t("auth.passwordRules")}</div>
           <button className="btn" disabled={busy}>
-            {busy ? "…" : "Sign up"}
+            {busy ? t("common.ellipsis") : t("auth.signUp")}
           </button>
         </form>
         <div className="mt-4 text-center text-sm text-slate-500">
-          Already have an account?{" "}
+          {t("auth.alreadyHaveAccount")}{" "}
           <Link href="/login" className="font-semibold text-brand">
-            Log in ›
+            {t("auth.logIn")} ›
           </Link>
         </div>
       </div>
