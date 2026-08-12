@@ -2,11 +2,11 @@
 
 Idempotent helpers used by the management command and data migration.
 
-Date House Café hours match publicly listed Google/RestaurantGuru hours
-(Bindergasse / Nürnberg old town), updated Jul 2026:
+Date House Café (Breite Gasse 88) hours match Google / Apple Maps listings:
   Mon–Thu 10:00–20:00
-  Fri–Sat 10:00–22:00
-  Sun     10:00–20:00
+  Fri     10:00–22:00
+  Sat     09:00–22:00
+  Sun     09:00–20:00
 """
 
 from __future__ import annotations
@@ -22,11 +22,11 @@ DATE_HOUSE_NAME = "Date House Cafe"
 DATE_HOUSE_ADDRESS = "Breite G. 88, 90402 Nürnberg"
 DATE_HOUSE_DESCRIPTION = (
     "Board-game-friendly cafe in Nürnberg's old town.\n\n"
-    "Opening hours (table bookings):\n"
-    "• Every day from 10:00\n"
-    "• Mon–Thu until 20:00\n"
-    "• Fri–Sat until 22:00\n"
-    "• Sun until 20:00\n\n"
+    "Opening hours:\n"
+    "• Mon–Thu 10:00–20:00\n"
+    "• Fri 10:00–22:00\n"
+    "• Sat 09:00–22:00\n"
+    "• Sun 09:00–20:00\n\n"
     "Tables for 2–8 players. Bookings 1–3 hours."
 )
 # (title, BoardGameGeek id) — id links straight to the game page, not search.
@@ -39,8 +39,16 @@ DATE_HOUSE_GAMES = (
     ("Onitama", 158138),
 )
 
-# Weekday → last moment a reservation may end (Python: Mon=0 … Sun=6).
-# Sourced from Google / RestaurantGuru listing for Date House Café.
+# Weekday → open / close (Python: Mon=0 … Sun=6). Sourced from Google / Apple Maps.
+DATE_HOUSE_OPEN_BY_WEEKDAY: dict[int, time] = {
+    0: time(10, 0),  # Monday
+    1: time(10, 0),  # Tuesday
+    2: time(10, 0),  # Wednesday
+    3: time(10, 0),  # Thursday
+    4: time(10, 0),  # Friday
+    5: time(9, 0),  # Saturday
+    6: time(9, 0),  # Sunday
+}
 END_BY_WEEKDAY: dict[int, time] = {
     0: time(20, 0),  # Monday
     1: time(20, 0),  # Tuesday
@@ -50,7 +58,8 @@ END_BY_WEEKDAY: dict[int, time] = {
     5: time(22, 0),  # Saturday
     6: time(20, 0),  # Sunday
 }
-OPEN_FROM = time(10, 0)
+# Backward-compatible alias (weekday open time for Mon–Fri).
+OPEN_FROM = DATE_HOUSE_OPEN_BY_WEEKDAY[0]
 # Concurrent physical tables the venue can confirm in overlapping slots.
 TABLES_AVAILABLE = 3
 DEFAULT_HORIZON_DAYS = 120
@@ -98,6 +107,10 @@ def end_time_for(day: date) -> time:
     return END_BY_WEEKDAY[day.weekday()]
 
 
+def open_time_for(day: date) -> time:
+    return DATE_HOUSE_OPEN_BY_WEEKDAY[day.weekday()]
+
+
 def _legacy_seed_availability(venue: Venue, *, horizon_days: int) -> None:
     today = timezone.localdate()
     for offset in range(horizon_days):
@@ -106,7 +119,7 @@ def _legacy_seed_availability(venue: Venue, *, horizon_days: int) -> None:
             venue=venue,
             date=day,
             defaults={
-                "start_time": OPEN_FROM,
+                "start_time": open_time_for(day),
                 "end_time": end_time_for(day),
                 "tables_available": TABLES_AVAILABLE,
             },
@@ -135,7 +148,7 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
             {
                 "weekday": d,
                 "is_closed": False,
-                "start_time": OPEN_FROM,
+                "start_time": DATE_HOUSE_OPEN_BY_WEEKDAY[d],
                 "end_time": END_BY_WEEKDAY[d],
             }
             for d in range(7)
