@@ -14,15 +14,11 @@ def backwards(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    """Seed Hotel Knorz and link Katzentempel + Knorz VENUE_USER managers.
-
-    Also merges the three parallel venues.0013_* leaf migrations.
-    """
+    """Seed Hotel Knorz and link Katzentempel + Knorz VENUE_USER managers."""
 
     dependencies = [
-        ("venues", "0013_fix_isle_spicy_covers"),
-        ("venues", "0013_refresh_date_house_google_hours"),
-        ("venues", "0013_rename_katzentempel"),
+        ("venues", "0014_merge_0013_leaves"),
+        ("venues", "0014_fix_patchwork_onitama_catan_covers"),
         ("accounts", "0002_user_avatar_seed"),
     ]
 
