@@ -297,17 +297,15 @@ export function errorMessage(e: unknown): string {
         "username",
         "email",
         "non_field_errors",
-<<<<<<< HEAD
         "bgg_id",
         "title",
-=======
->>>>>>> 5f5732f (feat(auth): let users change their password from profile)
       ]) {
         const field = (d as Record<string, unknown>)[key];
         if (typeof field === "string" && field.trim()) return field;
         if (Array.isArray(field) && typeof field[0] === "string") return field[0];
       }
     }
+    if (e.status === 400) return "Unable to log in with those credentials.";
     if (e.status === 403) return "You don't have permission to do that.";
     if (e.status === 409) return "That action conflicts with the current state.";
     return `Request failed (${e.status}).`;
