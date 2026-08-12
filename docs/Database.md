@@ -67,6 +67,8 @@ A cafe/restaurant that hosts tables. *(stories 3, 36, 53, 54)*
 | v_1 | Board & Brew | Cozy board game cafe with 20+ tables | Berlin, DE | 2 | 8 | 4.7 | true | false |
 | v_2 | Meeple Corner | Quiet spot, great coffee | Munich, DE | 2 | 6 | 4.2 | false | false |
 | v_3 | Date House Cafe | Board-game-friendly cafe in the old town | Breite G. 88, 90402 Nürnberg | 2 | 8 | — | false | false |
+| v_4 | Katzentempel | Vegan cat café restaurant in the old town | Peter-Vischer-Straße 21, 90403 Nürnberg | 2 | 8 | — | false | false |
+| v_5 | Hotel Knorz | Family hotel near Playmobil FunPark | Volkhardtstraße 18, 90513 Zirndorf | 2 | 8 | — | false | false |
 
 ### VenuePhoto
 
