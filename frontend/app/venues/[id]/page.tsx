@@ -16,6 +16,7 @@ import {
   type VenueGame,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
 
 const PLANNED_STATUSES = new Set([
   "waiting_for_venue_confirmation",
@@ -23,7 +24,7 @@ const PLANNED_STATUSES = new Set([
   "confirmed",
 ]);
 
-function TableRow({ table }: { table: Table }) {
+function TableRow({ table, localeTag, t }: { table: Table; localeTag: string; t: (key: string, vars?: Record<string, string | number>) => string }) {
   const router = useRouter();
   return (
     <div
@@ -46,9 +47,15 @@ function TableRow({ table }: { table: Table }) {
           </div>
           <StatusChip status={table.status} />
         </div>
-        <div className="mt-1 text-xs text-slate-500">{formatWhen(table.starts_at, table.ends_at)}</div>
         <div className="mt-1 text-xs text-slate-500">
-          {table.seats_taken}/{table.max_players} seats · min {table.min_players}
+          {formatWhen(table.starts_at, table.ends_at, localeTag)}
+        </div>
+        <div className="mt-1 text-xs text-slate-500">
+          {t("venueDetail.seatsLine", {
+            taken: table.seats_taken,
+            max: table.max_players,
+            min: table.min_players,
+          })}
         </div>
       </div>
     </div>
@@ -57,6 +64,7 @@ function TableRow({ table }: { table: Table }) {
 
 export default function VenueDetailPage() {
   const { user, loading } = useAuth();
+  const { t, localeTag } = useI18n();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
@@ -80,25 +88,25 @@ export default function VenueDetailPage() {
       reviewApi.forVenue(id),
       venueApi.games(id),
     ])
-      .then(([v, t, r, g]) => {
+      .then(([v, tbls, r, g]) => {
         setVenue(v);
-        setTables(t);
+        setTables(tbls);
         setReviews(r);
         setGames(g);
       })
-      .catch((e) => setError(errorMessage(e)));
-  }, [user, id]);
+      .catch((e) => setError(errorMessage(e, t)));
+  }, [user, id, t]);
 
   const { planned, past } = useMemo(() => {
     const now = Date.now();
     const plannedList: Table[] = [];
     const pastList: Table[] = [];
-    for (const t of tables) {
-      const ended = new Date(t.ends_at).getTime() < now;
-      const isPlanned = !ended && PLANNED_STATUSES.has(t.status);
-      if (isPlanned) plannedList.push(t);
-      else if (t.status === "completed" || ended || t.status === "cancelled") pastList.push(t);
-      else plannedList.push(t);
+    for (const tbl of tables) {
+      const ended = new Date(tbl.ends_at).getTime() < now;
+      const isPlanned = !ended && PLANNED_STATUSES.has(tbl.status);
+      if (isPlanned) plannedList.push(tbl);
+      else if (tbl.status === "completed" || ended || tbl.status === "cancelled") pastList.push(tbl);
+      else plannedList.push(tbl);
     }
     plannedList.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
     pastList.sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
@@ -107,12 +115,17 @@ export default function VenueDetailPage() {
 
   if (loading || !user || !venue) {
     return (
-      <Shell title="Venue">
+      <Shell title={t("venueDetail.title")}>
         {error ? <Banner kind="error">{error}</Banner> : null}
-        {!error ? <div className="text-sm text-slate-400">Loading…</div> : null}
+        {!error ? <div className="text-sm text-slate-400">{t("common.loading")}</div> : null}
       </Shell>
     );
   }
+
+  const reviewsLabel =
+    reviews.length === 1
+      ? t("venueDetail.reviewsCount", { count: reviews.length })
+      : t("venueDetail.reviewsCountPlural", { count: reviews.length });
 
   return (
     <Shell title={venue.name}>
@@ -120,7 +133,7 @@ export default function VenueDetailPage() {
         onClick={() => router.back()}
         className="mb-3 flex items-center gap-1 text-sm font-semibold text-brand"
       >
-        <span aria-hidden>←</span> Back
+        <span aria-hidden>←</span> {t("common.back")}
       </button>
 
       {error ? <Banner kind="error">{error}</Banner> : null}
@@ -131,19 +144,17 @@ export default function VenueDetailPage() {
         {venue.rating_avg != null ? (
           <span className="font-semibold text-yellow-600">★ {venue.rating_avg.toFixed(1)}</span>
         ) : (
-          <span className="text-slate-400">No ratings yet</span>
+          <span className="text-slate-400">{t("venueDetail.noRatings")}</span>
         )}
-        <span className="text-slate-400">
-          {reviews.length} review{reviews.length === 1 ? "" : "s"}
-        </span>
+        <span className="text-slate-400">{reviewsLabel}</span>
         <span className="text-slate-500">
-          Tables for {venue.min_players}–{venue.max_players} players
+          {t("venueDetail.tablesFor", { min: venue.min_players, max: venue.max_players })}
         </span>
       </div>
 
       {venue.location ? (
         <div className="mt-4">
-          <div className="label">Address</div>
+          <div className="label">{t("venueDetail.address")}</div>
           {venue.maps_url ? (
             <a
               href={venue.maps_url}
@@ -161,17 +172,17 @@ export default function VenueDetailPage() {
 
       {venue.description ? (
         <div className="mt-3">
-          <div className="label">About</div>
+          <div className="label">{t("venueDetail.about")}</div>
           <p className="whitespace-pre-line text-sm text-slate-700">{venue.description}</p>
         </div>
       ) : null}
 
       <section className="mt-5">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
-          Games available ({games.length})
+          {t("venueDetail.gamesAvailable", { count: games.length })}
         </h3>
         {games.length === 0 ? (
-          <div className="mt-2 text-sm text-slate-400">No games listed for this venue yet.</div>
+          <div className="mt-2 text-sm text-slate-400">{t("venueDetail.noGames")}</div>
         ) : (
           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {games.map((g) => (
@@ -191,14 +202,14 @@ export default function VenueDetailPage() {
 
       <section className="mt-5">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
-          Planned tables ({planned.length})
+          {t("venueDetail.planned", { count: planned.length })}
         </h3>
         {planned.length === 0 ? (
-          <div className="mt-2 text-sm text-slate-400">No upcoming tables at this venue.</div>
+          <div className="mt-2 text-sm text-slate-400">{t("venueDetail.noPlanned")}</div>
         ) : (
           <div className="mt-2 space-y-2">
-            {planned.map((t) => (
-              <TableRow key={t.id} table={t} />
+            {planned.map((tbl) => (
+              <TableRow key={tbl.id} table={tbl} localeTag={localeTag} t={t} />
             ))}
           </div>
         )}
@@ -206,14 +217,14 @@ export default function VenueDetailPage() {
 
       <section className="mt-5">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
-          Past tables ({past.length})
+          {t("venueDetail.past", { count: past.length })}
         </h3>
         {past.length === 0 ? (
-          <div className="mt-2 text-sm text-slate-400">No past tables here yet.</div>
+          <div className="mt-2 text-sm text-slate-400">{t("venueDetail.noPast")}</div>
         ) : (
           <div className="mt-2 space-y-2">
-            {past.map((t) => (
-              <TableRow key={t.id} table={t} />
+            {past.map((tbl) => (
+              <TableRow key={tbl.id} table={tbl} localeTag={localeTag} t={t} />
             ))}
           </div>
         )}
@@ -221,7 +232,9 @@ export default function VenueDetailPage() {
 
       {reviews.length > 0 ? (
         <section className="mt-5">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">Reviews</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700">
+            {t("venueDetail.reviews")}
+          </h3>
           <div className="mt-2 space-y-2">
             {reviews.map((r) => (
               <div key={r.id} className="rounded-xl border border-slate-100 px-3 py-2 text-sm">
@@ -238,7 +251,7 @@ export default function VenueDetailPage() {
       ) : null}
 
       <Link href="/tables/new" className="btn mt-6 block">
-        Book a table here
+        {t("venueDetail.bookHere")}
       </Link>
     </Shell>
   );

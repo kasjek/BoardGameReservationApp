@@ -24,9 +24,23 @@ import {
   type Venue,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { useI18n } from "../../lib/i18n";
+
+function formatGameLanguage(
+  table: Table,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  if (table.game_language === "other") {
+    return table.game_language_other || t("tableDetail.other");
+  }
+  if (table.game_language === "en") return t("lang.en");
+  if (table.game_language === "de") return t("lang.de");
+  return table.game_language;
+}
 
 export default function TableDetailPage() {
   const { user, loading } = useAuth();
+  const { t, localeTag } = useI18n();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = Number(params.id);
@@ -47,18 +61,18 @@ export default function TableDetailPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const t = await tableApi.get(id);
-      setTable(t);
-      setVenue(await venueApi.get(t.venue));
+      const tbl = await tableApi.get(id);
+      setTable(tbl);
+      setVenue(await venueApi.get(tbl.venue));
       setSeats(await tableApi.seats(id));
       if (user) {
         const mine = await tableApi.list({ attendeeId: String(user.id) });
         setHasSeat(mine.some((m) => m.id === id));
       }
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e, t));
     }
-  }, [id, user]);
+  }, [id, user, t]);
 
   useEffect(() => {
     if (user) load();
@@ -86,7 +100,7 @@ export default function TableDetailPage() {
       setInfo(ok);
       await load();
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -98,7 +112,7 @@ export default function TableDetailPage() {
         onClick={() => router.push("/")}
         className="mb-3 flex items-center gap-1 text-sm font-semibold text-brand"
       >
-        <span aria-hidden>←</span> All Tables
+        <span aria-hidden>←</span> {t("tableDetail.back")}
       </button>
 
       {error ? <Banner kind="error">{error}</Banner> : null}
@@ -125,7 +139,7 @@ export default function TableDetailPage() {
             ) : null}
           </>
         ) : (
-          `Venue #${table.venue}`
+          t("tableDetail.venueFallback", { id: table.venue })
         )}
       </div>
       {venue?.location ? (
@@ -144,30 +158,31 @@ export default function TableDetailPage() {
           )}
         </div>
       ) : null}
-      <h2 className="mt-2 text-lg font-bold">{formatWhen(table.starts_at, table.ends_at)}</h2>
+      <h2 className="mt-2 text-lg font-bold">{formatWhen(table.starts_at, table.ends_at, localeTag)}</h2>
       <div className="text-sm text-slate-500">
-        Language:{" "}
-        {table.game_language === "other"
-          ? table.game_language_other || "Other"
-          : table.game_language.toUpperCase()}
-        {table.bring_own_game ? " · host brings game" : " · venue game"}
+        {t("tableDetail.language")}: {formatGameLanguage(table, t)}
+        {table.bring_own_game ? ` · ${t("tableDetail.hostBrings")}` : ` · ${t("tableDetail.venueGame")}`}
       </div>
 
       <div className="card mt-3 space-y-2 text-sm">
         <div className="flex justify-between">
-          <span>Status</span>
+          <span>{t("tableDetail.status")}</span>
           <StatusChip status={table.status} />
         </div>
         <div className="flex justify-between">
-          <span>Seats</span>
+          <span>{t("tableDetail.seats")}</span>
           <span>
-            {table.seats_taken}/{table.max_players} (min {table.min_players})
+            {t("tableDetail.seatsValue", {
+              taken: table.seats_taken,
+              max: table.max_players,
+              min: table.min_players,
+            })}
           </span>
         </div>
       </div>
 
       <div className="card mt-3">
-        <div className="label">Who&apos;s at the table</div>
+        <div className="label">{t("tableDetail.whosAtTable")}</div>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {reservedSeats.map((s) => {
             const isMe = s.user === user.id;
@@ -185,8 +200,8 @@ export default function TableDetailPage() {
                 />
                 <div className="mt-1 w-full truncate text-xs font-semibold">{s.username}</div>
                 <div className="flex gap-1 text-[10px] font-bold uppercase tracking-wide">
-                  {s.is_organizer ? <span className="text-brand">host</span> : null}
-                  {isMe ? <span className="text-fun-pink">you</span> : null}
+                  {s.is_organizer ? <span className="text-brand">{t("common.host")}</span> : null}
+                  {isMe ? <span className="text-fun-pink">{t("common.you")}</span> : null}
                 </div>
               </div>
             );
@@ -199,20 +214,22 @@ export default function TableDetailPage() {
               <div className="flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-slate-300">
                 <ChairIcon className="h-4 w-4" />
               </div>
-              <div className="mt-1 text-xs">Open</div>
+              <div className="mt-1 text-xs">{t("common.open")}</div>
             </div>
           ))}
         </div>
         {waitlistSeats.length > 0 ? (
           <div className="mt-2 text-xs text-slate-500">
-            Waitlist: {waitlistSeats.map((s) => s.username).join(", ")}
+            {t("tableDetail.waitlist", {
+              names: waitlistSeats.map((s) => s.username).join(", "),
+            })}
           </div>
         ) : null}
       </div>
 
       <div className="mt-4 space-y-2">
         {table.status === "waiting_for_venue_confirmation" && !canManageVenue ? (
-          <Banner kind="info">Waiting for the venue to confirm before seats can be booked.</Banner>
+          <Banner kind="info">{t("tableDetail.waitingVenue")}</Banner>
         ) : null}
 
         {canManageVenue && table.status === "waiting_for_venue_confirmation" ? (
@@ -220,16 +237,16 @@ export default function TableDetailPage() {
             <button
               className="btn-ghost"
               disabled={busy}
-              onClick={() => act(() => tableApi.reject(id), "Table rejected.")}
+              onClick={() => act(() => tableApi.reject(id), t("tableDetail.rejected"))}
             >
-              Reject
+              {t("tableDetail.reject")}
             </button>
             <button
               className="btn"
               disabled={busy}
-              onClick={() => act(() => tableApi.confirm(id), "Table confirmed.")}
+              onClick={() => act(() => tableApi.confirm(id), t("tableDetail.confirmed"))}
             >
-              Confirm
+              {t("tableDetail.confirm")}
             </button>
           </div>
         ) : null}
@@ -238,13 +255,18 @@ export default function TableDetailPage() {
           <button
             className="btn"
             disabled={busy}
-            onClick={() => act(() => tableApi.reserve(id), full ? "Added to waitlist." : "Seat reserved!")}
+            onClick={() =>
+              act(
+                () => tableApi.reserve(id),
+                full ? t("tableDetail.waitlistedOk") : t("tableDetail.reservedOk"),
+              )
+            }
           >
             {full ? (
-              "Join waitlist"
+              t("tableDetail.joinWaitlist")
             ) : (
               <span className="inline-flex items-center justify-center gap-2">
-                <ChairIcon /> Take a Seat
+                <ChairIcon /> {t("tableDetail.takeASeat")}
               </span>
             )}
           </button>
@@ -254,9 +276,9 @@ export default function TableDetailPage() {
           <button
             className="btn-ghost"
             disabled={busy}
-            onClick={() => act(() => tableApi.cancelSeat(id), "Seat cancelled.")}
+            onClick={() => act(() => tableApi.cancelSeat(id), t("tableDetail.seatCancelled"))}
           >
-            Cancel my seat
+            {t("tableDetail.cancelSeat")}
           </button>
         ) : null}
 
@@ -264,15 +286,15 @@ export default function TableDetailPage() {
           <button
             className="w-full rounded-xl border border-red-400 py-3 text-sm font-semibold text-red-500"
             disabled={busy}
-            onClick={() => act(() => tableApi.cancel(id), "Table cancelled.")}
+            onClick={() => act(() => tableApi.cancel(id), t("tableDetail.tableCancelled"))}
           >
-            Cancel table
+            {t("tableDetail.cancelTable")}
           </button>
         ) : null}
       </div>
 
       <div className="card mt-4">
-        <div className="label">Rate this venue</div>
+        <div className="label">{t("tableDetail.rateVenue")}</div>
         {eventEnded && table.status !== "cancelled" && (hasSeat || isOrganizer) ? (
           <div className="mt-1 flex items-center gap-2">
             <select
@@ -298,20 +320,20 @@ export default function TableDetailPage() {
                       target_venue: table.venue,
                       rating,
                     }),
-                  "Thanks for your review!",
+                  t("tableDetail.thanksReview"),
                 )
               }
             >
-              Submit review
+              {t("tableDetail.submitReview")}
             </button>
           </div>
         ) : (
           <div className="mt-1 text-sm text-slate-500">
             {table.status === "cancelled"
-              ? "This event was cancelled — reviews are not available."
+              ? t("tableDetail.reviewCancelled")
               : !eventEnded
-                ? "You can review this venue after the event has ended."
-                : "Only people who attended this table can review it."}
+                ? t("tableDetail.reviewAfter")
+                : t("tableDetail.reviewAttendeesOnly")}
           </div>
         )}
       </div>
