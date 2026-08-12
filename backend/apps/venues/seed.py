@@ -67,11 +67,12 @@ KATZENTEMPEL_DESCRIPTION = (
     "• Sun 09:30–19:30\n\n"
     "Tables for 2–8 players."
 )
+# Correct BGG thing ids (previous seed accidentally used unrelated games).
 KATZENTEMPEL_GAMES = (
-    ("Island of Cats", 284210),
-    ("Nekojima", 359871),
-    ("Spicy", 350933),
-    ("Calico", 283929),
+    ("The Isle of Cats", 281259),
+    ("Nekojima", 359029),
+    ("Spicy", 299169),
+    ("Calico", 283155),
 )
 KATZENTEMPEL_OPEN_BY_WEEKDAY: dict[int, time] = {
     0: time(10, 0),
@@ -206,6 +207,9 @@ def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
             )
 
     if "venues_venuegame" in tables:
+        wanted_titles = {title for title, _ in KATZENTEMPEL_GAMES}
+        # Drop obsolete titles from earlier incorrect seeds (e.g. "Island of Cats").
+        VenueGame.objects.filter(venue=venue).exclude(title__in=wanted_titles).delete()
         for title, bgg_id in KATZENTEMPEL_GAMES:
             VenueGame.objects.update_or_create(
                 venue=venue,
