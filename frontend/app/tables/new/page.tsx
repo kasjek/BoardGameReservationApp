@@ -19,59 +19,10 @@ import {
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 
-// Languages selectable when "Other" is chosen (English and German have their own options).
-// API values stay in English; display uses lang.* keys.
-const OTHER_LANGUAGES = [
-  "French",
-  "Spanish",
-  "Italian",
-  "Portuguese",
-  "Dutch",
-  "Polish",
-  "Czech",
-  "Hungarian",
-  "Romanian",
-  "Swedish",
-  "Norwegian",
-  "Danish",
-  "Finnish",
-  "Greek",
-  "Turkish",
-  "Russian",
-  "Ukrainian",
-  "Chinese",
-  "Japanese",
-  "Korean",
-  "Arabic",
-  "Hebrew",
-  "Hindi",
-] as const;
-
-const OTHER_LANGUAGE_KEYS: Record<(typeof OTHER_LANGUAGES)[number], string> = {
-  French: "lang.french",
-  Spanish: "lang.spanish",
-  Italian: "lang.italian",
-  Portuguese: "lang.portuguese",
-  Dutch: "lang.dutch",
-  Polish: "lang.polish",
-  Czech: "lang.czech",
-  Hungarian: "lang.hungarian",
-  Romanian: "lang.romanian",
-  Swedish: "lang.swedish",
-  Norwegian: "lang.norwegian",
-  Danish: "lang.danish",
-  Finnish: "lang.finnish",
-  Greek: "lang.greek",
-  Turkish: "lang.turkish",
-  Russian: "lang.russian",
-  Ukrainian: "lang.ukrainian",
-  Chinese: "lang.chinese",
-  Japanese: "lang.japanese",
-  Korean: "lang.korean",
-  Arabic: "lang.arabic",
-  Hebrew: "lang.hebrew",
-  Hindi: "lang.hindi",
-};
+const GAME_LANGUAGE_FLAGS: { code: "en" | "de"; flag: string; labelKey: string }[] = [
+  { code: "en", flag: "🇬🇧", labelKey: "lang.en" },
+  { code: "de", flag: "🇩🇪", labelKey: "lang.de" },
+];
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 180;
@@ -263,8 +214,8 @@ export default function CreateTablePage() {
   const [game, setGame] = useState("");
   const [bggId, setBggId] = useState<number | null>(null);
   const [bringOwn, setBringOwn] = useState(true);
-  const [language, setLanguage] = useState("en");
-  const [languageOther, setLanguageOther] = useState<string>(OTHER_LANGUAGES[0]);
+  const [language, setLanguage] = useState<"en" | "de" | "other">("en");
+  const [languageOther, setLanguageOther] = useState("");
   const [playtimeLabel, setPlaytimeLabel] = useState<string | null>(null);
   const [playtimeLoading, setPlaytimeLoading] = useState(false);
 
@@ -443,7 +394,9 @@ export default function CreateTablePage() {
     }
     if (bringOwn) {
       if (!bggId || !game.trim()) next.game = t("newTable.errGameRequired");
-      if (language === "other" && !languageOther) next.language = t("newTable.errLanguage");
+      if (language === "other" && !languageOther.trim()) {
+        next.language = t("newTable.errLanguage");
+      }
     } else if (!hasVenueGames) {
       next.game = t("newTable.errNoVenueGames");
     } else if (!game.trim()) {
@@ -477,7 +430,7 @@ export default function CreateTablePage() {
         game_title: game.trim(),
         bring_own_game: bringOwn,
         game_language: language,
-        game_language_other: language === "other" ? languageOther : "",
+        game_language_other: language === "other" ? languageOther.trim() : "",
         starts_at,
         ends_at,
         min_players: minPlayers,
@@ -684,36 +637,69 @@ export default function CreateTablePage() {
             {t("newTable.iBringIt")}
           </label>
           {bringOwn ? (
-            <>
-              <select
-                className="input"
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value);
-                  setFieldErrors((f) => ({ ...f, language: undefined }));
-                }}
+            <div className="mt-2 pl-6">
+              <span className="label">{t("newTable.language")}</span>
+              <div
+                className="mt-1 flex flex-wrap items-center gap-2"
+                role="group"
+                aria-label={t("newTable.language")}
               >
-                <option value="en">{t("lang.en")}</option>
-                <option value="de">{t("lang.de")}</option>
-                <option value="other">{t("lang.other")}</option>
-              </select>
-              {language === "other" ? (
-                <select
-                  className="input mt-1"
-                  value={languageOther}
-                  onChange={(e) => setLanguageOther(e.target.value)}
+                {GAME_LANGUAGE_FLAGS.map(({ code, flag, labelKey }) => {
+                  const active = language === code;
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      title={t(labelKey)}
+                      aria-label={t(labelKey)}
+                      aria-pressed={active}
+                      onClick={() => {
+                        setLanguage(code);
+                        setFieldErrors((f) => ({ ...f, language: undefined }));
+                      }}
+                      className={`flex h-10 w-10 items-center justify-center rounded-lg text-xl leading-none transition ${
+                        active
+                          ? "bg-brand/10 ring-2 ring-brand"
+                          : "bg-slate-50 opacity-80 hover:bg-slate-100 hover:opacity-100"
+                      }`}
+                    >
+                      <span aria-hidden>{flag}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  aria-pressed={language === "other"}
+                  onClick={() => {
+                    setLanguage("other");
+                    setFieldErrors((f) => ({ ...f, language: undefined }));
+                  }}
+                  className={`h-10 rounded-lg px-3 text-sm font-semibold transition ${
+                    language === "other"
+                      ? "bg-brand/10 text-brand ring-2 ring-brand"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                  }`}
                 >
-                  {OTHER_LANGUAGES.map((lang) => (
-                    <option key={lang} value={lang}>
-                      {t(OTHER_LANGUAGE_KEYS[lang])}
-                    </option>
-                  ))}
-                </select>
+                  {t("lang.other")}
+                </button>
+              </div>
+              {language === "other" ? (
+                <input
+                  className="input mt-2"
+                  value={languageOther}
+                  onChange={(e) => {
+                    setLanguageOther(e.target.value);
+                    setFieldErrors((f) => ({ ...f, language: undefined }));
+                  }}
+                  placeholder={t("newTable.languageOtherPlaceholder")}
+                  autoComplete="off"
+                  aria-label={t("newTable.languageOtherPlaceholder")}
+                />
               ) : null}
               {fieldErrors.language ? (
                 <div className="mt-1 text-xs text-red-500">{fieldErrors.language}</div>
               ) : null}
-            </>
+            </div>
           ) : null}
           <label className="flex items-center gap-2">
             <input
@@ -749,7 +735,6 @@ export default function CreateTablePage() {
                 setFieldErrors((f) => ({ ...f, game: undefined }));
               }}
             />
-            <div className="mt-1 text-xs text-slate-500">{t("newTable.bggTypeaheadHint")}</div>
           </>
         ) : hasVenueGames ? (
           <>
