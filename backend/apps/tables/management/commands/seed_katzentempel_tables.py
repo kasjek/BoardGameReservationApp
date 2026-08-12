@@ -4,7 +4,7 @@ from apps.tables.seed import ensure_katzentempel_demo_tables
 
 
 class Command(BaseCommand):
-    help = "Seed (or refresh) at least five demo tables at Katzentempel Nürnberg."
+    help = "Seed (or refresh) at least five demo tables at Katzentempel."
 
     def handle(self, *args, **options):
         tables = ensure_katzentempel_demo_tables()
