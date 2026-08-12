@@ -538,7 +538,7 @@ export default function ManageVenuePage() {
             </div>
             <div className="flex gap-2">
               <div className="flex-1">
-                <span className="label">Minimum reservation time (minutes)</span>
+                <span className="label">Min reservation time (min)</span>
                 <input
                   className="input"
                   type="number"
@@ -550,7 +550,7 @@ export default function ManageVenuePage() {
                 />
               </div>
               <div className="flex-1">
-                <span className="label">Maximum duration (minutes)</span>
+                <span className="label">Max duration (min)</span>
                 <input
                   className="input"
                   type="number"
@@ -659,7 +659,7 @@ export default function ManageVenuePage() {
                 </div>
                 <div className="mt-2 flex gap-2">
                   <div className="flex-1">
-                    <span className="label">Minimum reservation time (minutes)</span>
+                    <span className="label">Min reservation time (min)</span>
                     <input
                       className="input"
                       type="number"
@@ -671,7 +671,7 @@ export default function ManageVenuePage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <span className="label">Maximum duration (minutes)</span>
+                    <span className="label">Max duration (min)</span>
                     <input
                       className="input"
                       type="number"
