@@ -127,16 +127,82 @@ def parse_search_results(xml_bytes: bytes) -> list[dict]:
     return out
 
 
+def _local_search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
+    """Fallback suggestions from venue inventory + resolution cache when live BGG is down.
+
+    Used when ``BGG_API_TOKEN`` is missing or the XML API is unreachable so hosts can
+    still get typeahead hits from games already known to the app.
+    """
+    q = normalize(strip_year_brackets(query))
+    if not q:
+        return []
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    def add(name: str, bgg_id: int | None) -> None:
+        key = normalize(name)
+        if not key or key in seen:
+            return
+        if q not in key:
+            return
+        seen.add(key)
+        # Synthetic negative ids keep the API shape when we only know a title.
+        out.append(
+            {
+                "bgg_id": bgg_id if bgg_id else -(abs(hash(key)) % (10**9) + 1),
+                "name": name,
+                "year": None,
+            }
+        )
+
+    try:
+        from apps.venues.models import VenueGame
+    except ImportError:
+        VenueGame = None  # type: ignore[misc, assignment]
+
+    if VenueGame is not None:
+        for title, bgg_id in (
+            VenueGame.objects.filter(is_active=True)
+            .order_by("title")
+            .values_list("title", "bgg_id")
+            .iterator()
+        ):
+            add(title, bgg_id)
+            if len(out) >= limit:
+                return out
+
+    try:
+        from .models import BggResolution
+    except ImportError:
+        BggResolution = None  # type: ignore[misc, assignment]
+
+    if BggResolution is not None:
+        for matched_name, bgg_id in (
+            BggResolution.objects.exclude(matched_name="")
+            .order_by("matched_name")
+            .values_list("matched_name", "bgg_id")
+            .iterator()
+        ):
+            add(matched_name, bgg_id)
+            if len(out) >= limit:
+                return out
+
+    return out
+
+
 def search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
-    """Return BGG search hits for a typed query (for admin venue-game pickers)."""
+    """Return BGG search hits for a typed query (venue pickers + New Table typeahead)."""
     q = strip_year_brackets(query)
     if not q:
         return []
+    cap = max(1, min(limit, 50))
     url = f"{BGG_SEARCH_API}?query={quote_plus(q)}&type=boardgame"
     body = _http_get(url, _auth_headers())
-    if body is None:
-        return []
-    return parse_search_results(body)[: max(1, min(limit, 50))]
+    if body is not None:
+        hits = parse_search_results(body)[:cap]
+        if hits:
+            return hits
+    return _local_search_boardgames(q, limit=cap)[:cap]
 
 
 def pick_best_search_result(query: str, results: list[dict]) -> int | None:

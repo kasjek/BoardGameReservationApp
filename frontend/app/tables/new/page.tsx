@@ -3,12 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { VenueGameFeeHint, VenueGameFeePrompt } from "../../components/VenueGameFeePrompt";
 import { Banner, Shell } from "../../components/ui";
 import {
+  bggApi,
   errorMessage,
   tableApi,
   venueApi,
   type Availability,
+  type BggSearchHit,
+  type Table,
   type Venue,
   type VenueGame,
 } from "../../lib/api";
@@ -91,6 +95,98 @@ function formatHoursLabel(row: Availability): string {
   return `${start}–${end}`;
 }
 
+/** Typeahead: type a game name; BGG search suggestions appear in a select below. */
+function BggGameTypeahead({
+  value,
+  onChange,
+  required,
+}: {
+  value: string;
+  onChange: (name: string) => void;
+  required?: boolean;
+}) {
+  const { t } = useI18n();
+  const [hits, setHits] = useState<BggSearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = value.trim();
+    if (q.length < 2) {
+      setHits([]);
+      setSearchError(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      setSearchError(null);
+      bggApi
+        .search(q)
+        .then((res) => {
+          if (!cancelled) setHits(res.results);
+        })
+        .catch((e) => {
+          if (!cancelled) {
+            setHits([]);
+            setSearchError(errorMessage(e, t));
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [value, t]);
+
+  return (
+    <div>
+      <input
+        className="input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        placeholder={t("newTable.bggTypePlaceholder")}
+        autoComplete="off"
+      />
+      {searching ? <div className="mt-1 text-xs text-slate-400">{t("bgg.searching")}</div> : null}
+      {searchError ? <div className="mt-1 text-xs text-red-500">{searchError}</div> : null}
+      {hits.length > 0 ? (
+        <select
+          className="input mt-2"
+          defaultValue=""
+          aria-label={t("newTable.bggSuggestions")}
+          onChange={(e) => {
+            const id = Number(e.target.value);
+            const hit = hits.find((h) => h.bgg_id === id);
+            if (hit) {
+              onChange(hit.name);
+              setHits([]);
+              e.target.value = "";
+            }
+          }}
+        >
+          <option value="" disabled>
+            {t("newTable.bggSuggestions")}
+          </option>
+          {hits.map((h) => (
+            <option key={h.bgg_id} value={h.bgg_id}>
+              {h.name}
+              {h.year ? ` (${h.year})` : ""}
+            </option>
+          ))}
+        </select>
+      ) : null}
+      {!searching && value.trim().length >= 2 && hits.length === 0 && !searchError ? (
+        <div className="mt-1 text-xs text-slate-400">{t("newTable.bggNoMatchesKeep")}</div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function CreateTablePage() {
   const { user, loading } = useAuth();
   const { t } = useI18n();
@@ -100,6 +196,7 @@ export default function CreateTablePage() {
   const [venueGames, setVenueGames] = useState<VenueGame[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [feePrompt, setFeePrompt] = useState<Table | null>(null);
 
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState("");
@@ -184,24 +281,26 @@ export default function CreateTablePage() {
     setMaxPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
   }, [selectedVenue]);
 
-  // Load games offered at the selected venue for the Game dropdown.
+  // Load games offered at the selected venue (for "Use a venue game").
   useEffect(() => {
     if (!venue) {
       setVenueGames([]);
-      setGame("");
       return;
     }
     venueApi
       .games(Number(venue))
-      .then((games) => {
-        setVenueGames(games);
-        setGame((current) => {
-          if (games.some((g) => g.title === current)) return current;
-          return games[0]?.title ?? "";
-        });
-      })
+      .then(setVenueGames)
       .catch((e) => setError(errorMessage(e, t)));
   }, [venue, t]);
+
+  // When switching to venue game (or venue changes while using venue games), sync selection.
+  useEffect(() => {
+    if (bringOwn) return;
+    setGame((current) => {
+      if (venueGames.some((g) => g.title === current)) return current;
+      return venueGames[0]?.title ?? "";
+    });
+  }, [bringOwn, venueGames]);
 
   // Keep From/To inside the day's opening hours and venue duration limits.
   useEffect(() => {
@@ -235,6 +334,16 @@ export default function CreateTablePage() {
       setBusy(false);
       return;
     }
+    if (!bringOwn && !hasVenueGames) {
+      setError(t("newTable.errNoVenueGames"));
+      setBusy(false);
+      return;
+    }
+    if (!game.trim()) {
+      setError(t("newTable.errGameRequired"));
+      setBusy(false);
+      return;
+    }
     const duration = parseHm(to) - parseHm(from);
     if (duration < MIN_DURATION_MINUTES || duration > MAX_DURATION_MINUTES) {
       setError(t("newTable.errDuration"));
@@ -246,7 +355,7 @@ export default function CreateTablePage() {
       const ends_at = new Date(`${date}T${to}:00`).toISOString();
       const created = await tableApi.create({
         venue: Number(venue),
-        game_title: game,
+        game_title: game.trim(),
         bring_own_game: bringOwn,
         game_language: language,
         game_language_other: language === "other" ? languageOther : "",
@@ -255,12 +364,22 @@ export default function CreateTablePage() {
         min_players: minPlayers,
         max_players: maxPlayers,
       });
-      router.push(`/tables/${created.id}`);
+      if (!bringOwn) {
+        setFeePrompt(created);
+      } else {
+        router.push(`/tables/${created.id}`);
+      }
     } catch (err) {
       setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
+  }
+
+  function finishAfterFeePrompt() {
+    const created = feePrompt;
+    setFeePrompt(null);
+    if (created) router.push(`/tables/${created.id}`);
   }
 
   const noHoursForDate = Boolean(date && venue && !dayAvailability);
@@ -269,6 +388,12 @@ export default function CreateTablePage() {
     : date
       ? t("newTable.closedHint")
       : t("newTable.pickDateHint");
+
+  const canSubmit =
+    !busy &&
+    !noHoursForDate &&
+    fromSlots.length > 0 &&
+    (bringOwn ? Boolean(game.trim()) : hasVenueGames);
 
   return (
     <Shell title={t("newTable.title")}>
@@ -386,34 +511,17 @@ export default function CreateTablePage() {
           </div>
         ) : null}
 
-        <span className="label">{t("newTable.game")}</span>
-        {hasVenueGames ? (
-          <select className="input" value={game} onChange={(e) => setGame(e.target.value)} required>
-            {venueGames.map((g) => (
-              <option key={g.id} value={g.title}>
-                {g.title}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            className="input"
-            value={game}
-            onChange={(e) => setGame(e.target.value)}
-            required
-            placeholder={t("newTable.gamePlaceholder")}
-          />
-        )}
-        {selectedVenue && hasVenueGames ? (
-          <div className="mt-1 text-xs text-slate-500">
-            {t("newTable.gamesAtVenue", { name: selectedVenue.name })}
-          </div>
-        ) : null}
-
         <span className="label">{t("newTable.whoBrings")}</span>
         <div className="mt-1 space-y-1 text-sm">
           <label className="flex items-center gap-2">
-            <input type="radio" checked={bringOwn} onChange={() => setBringOwn(true)} />{" "}
+            <input
+              type="radio"
+              checked={bringOwn}
+              onChange={() => {
+                setBringOwn(true);
+                setGame("");
+              }}
+            />{" "}
             {t("newTable.iBringIt")}
           </label>
           {bringOwn ? (
@@ -439,15 +547,64 @@ export default function CreateTablePage() {
             </>
           ) : null}
           <label className="flex items-center gap-2">
-            <input type="radio" checked={!bringOwn} onChange={() => setBringOwn(false)} />{" "}
+            <input
+              type="radio"
+              checked={!bringOwn}
+              onChange={() => {
+                setBringOwn(false);
+                setGame(venueGames[0]?.title ?? "");
+              }}
+            />{" "}
             {t("newTable.useVenueGame")}
           </label>
+          {!bringOwn ? <VenueGameFeeHint date={date} fromHm={from} toHm={to} /> : null}
         </div>
 
-        <button className="btn mt-4" disabled={busy || noHoursForDate || fromSlots.length === 0}>
+        <span className="label">{t("newTable.game")}</span>
+        {bringOwn ? (
+          <>
+            <BggGameTypeahead value={game} onChange={setGame} required />
+            <div className="mt-1 text-xs text-slate-500">{t("newTable.bggTypeaheadHint")}</div>
+          </>
+        ) : hasVenueGames ? (
+          <>
+            <select className="input" value={game} onChange={(e) => setGame(e.target.value)} required>
+              {venueGames.map((g) => (
+                <option key={g.id} value={g.title}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
+            {selectedVenue ? (
+              <div className="mt-1 text-xs text-slate-500">
+                {t("newTable.gamesAtVenue", { name: selectedVenue.name })}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <select className="input" value="" disabled>
+              <option value="">{t("newTable.noVenueGames")}</option>
+            </select>
+            <div className="mt-1 text-xs text-slate-500">{t("newTable.noVenueGamesHint")}</div>
+          </>
+        )}
+
+        <button className="btn mt-4" disabled={!canSubmit}>
           {busy ? t("common.ellipsis") : t("newTable.requestTable")}
         </button>
       </form>
+      {feePrompt ? (
+        <VenueGameFeePrompt
+          open
+          role="host"
+          gameTitle={feePrompt.game_title}
+          startsAt={feePrompt.starts_at}
+          endsAt={feePrompt.ends_at}
+          tableId={feePrompt.id}
+          onClose={finishAfterFeePrompt}
+        />
+      ) : null}
     </Shell>
   );
 }

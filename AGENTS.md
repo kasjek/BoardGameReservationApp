@@ -34,6 +34,9 @@ script runs you do NOT need to reinstall dependencies.
   logic, not the locking.
 - Auth is DRF **token** auth. `POST /api/auth/register` always creates a `USER`;
   promotion to `VENUE_USER`/`ADMIN` is done via the Django admin or a shell.
+- **BGG:** live search/covers need env secret `BGG_API_TOKEN` (Bearer for
+  boardgamegeek.com XML API). The configured application token is named
+  `TestVersion260812`. Without the secret, search falls back to local inventory.
 
 ### Frontend (`frontend/`)
 

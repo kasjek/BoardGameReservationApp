@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { VenueGameFeePrompt } from "./components/VenueGameFeePrompt";
 import { Banner, ChairIcon, Cover, formatWhen, GameLink, Shell, StatusChip } from "./components/ui";
 import { errorMessage, tableApi, type Table } from "./lib/api";
 import { useAuth } from "./lib/auth";
@@ -19,6 +20,7 @@ export default function BrowsePage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [feePrompt, setFeePrompt] = useState<Table | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -53,6 +55,10 @@ export default function BrowsePage() {
         msg: seat.status === "waitlisted" ? t("browse.waitlistedOk") : t("browse.reservedOk"),
       });
       await load();
+      // Venue-game fee applies to reserved seats only (not waitlist).
+      if (!tbl.bring_own_game && seat.status === "reserved") {
+        setFeePrompt(tbl);
+      }
     } catch (e) {
       setNotice({ kind: "error", msg: errorMessage(e, t) });
     } finally {
@@ -167,6 +173,17 @@ export default function BrowsePage() {
           })}
         </div>
       )}
+      {feePrompt ? (
+        <VenueGameFeePrompt
+          open
+          role="guest"
+          gameTitle={feePrompt.game_title}
+          startsAt={feePrompt.starts_at}
+          endsAt={feePrompt.ends_at}
+          tableId={feePrompt.id}
+          onClose={() => setFeePrompt(null)}
+        />
+      ) : null}
     </Shell>
   );
 }

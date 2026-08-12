@@ -176,6 +176,34 @@ export const en: Messages = {
     durationLine: "Duration {hours}h (min 1h, max 3h)",
     errNoHours: "This venue has no opening hours on the selected date.",
     errDuration: "Tables must be booked for between 1 and 3 hours.",
+    errNoVenueGames: "This venue has no games listed. Bring your own game, or pick another venue.",
+    errGameRequired: "Please choose or enter a game name.",
+    bggTypeaheadHint: "Type to search BoardGameGeek; pick a suggestion or keep your typed name.",
+    bggTypePlaceholder: "Start typing a game name…",
+    bggSuggestions: "Suggestions from BoardGameGeek…",
+    bggNoMatchesKeep: "No BGG matches — you can still use the typed name.",
+    noVenueGames: "No venue games listed",
+    noVenueGamesHint:
+      "This venue has no games in its library. Switch to “I bring it” or pick another venue.",
+  },
+  paypal: {
+    title: "Pay venue game fee",
+    hostBody:
+      "You’re borrowing a game from the venue. Please pay the fee now that your table is created.",
+    guestBody: "You’re borrowing a venue game for this table. Please pay the fee for your seat.",
+    rate: "Rate",
+    duration: "Duration",
+    total: "Total",
+    payWithPaypal: "Pay €{amount} with PayPal",
+    continueLater: "Continue without paying now",
+    opensInPaypal: "Payment opens in PayPal. You can continue in the app afterwards.",
+    hintNoDate:
+      "Venue game fee: €{rate}/hour (paid via PayPal when you create the table; joiners pay after taking a seat).",
+    hintShort: "Venue game fee: €{rate}/hour via PayPal.",
+    hintWithAmount:
+      "Venue game fee for this booking: €{amount} ({hours} h × €{rate}/h) — PayPal to {email}. Joiners pay the same rate after taking a seat.",
+    itemHost: "Venue game fee (host) – {game}",
+    itemGuest: "Venue game fee (seat) – {game}",
   },
   tableDetail: {
     back: "All Tables",
@@ -459,6 +487,37 @@ export const de: Messages = {
     durationLine: "Dauer {hours} Std. (min. 1 Std., max. 3 Std.)",
     errNoHours: "Diese Location hat am gewählten Datum keine Öffnungszeiten.",
     errDuration: "Tische müssen zwischen 1 und 3 Stunden gebucht werden.",
+    errNoVenueGames:
+      "Diese Location hat keine Spiele hinterlegt. Bringe dein eigenes Spiel mit oder wähle eine andere Location.",
+    errGameRequired: "Bitte wähle oder gib einen Spielnamen ein.",
+    bggTypeaheadHint:
+      "Tippe, um BoardGameGeek zu durchsuchen; wähle einen Vorschlag oder behalte den eingegebenen Namen.",
+    bggTypePlaceholder: "Spielnamen tippen…",
+    bggSuggestions: "Vorschläge von BoardGameGeek…",
+    bggNoMatchesKeep: "Keine BGG-Treffer — du kannst den getippten Namen trotzdem verwenden.",
+    noVenueGames: "Keine Location-Spiele hinterlegt",
+    noVenueGamesHint:
+      "Diese Location hat keine Spiele in der Bibliothek. Wechsle zu „Ich bringe es mit“ oder wähle eine andere Location.",
+  },
+  paypal: {
+    title: "Location-Spielgebühr bezahlen",
+    hostBody:
+      "Du leihst ein Spiel von der Location. Bitte zahle die Gebühr jetzt, da dein Tisch angelegt wurde.",
+    guestBody:
+      "Du leihst ein Location-Spiel für diesen Tisch. Bitte zahle die Gebühr für deinen Platz.",
+    rate: "Tarif",
+    duration: "Dauer",
+    total: "Summe",
+    payWithPaypal: "€{amount} mit PayPal zahlen",
+    continueLater: "Ohne Zahlung fortfahren",
+    opensInPaypal: "Die Zahlung öffnet sich in PayPal. Danach kannst du in der App weitermachen.",
+    hintNoDate:
+      "Location-Spielgebühr: €{rate}/Stunde (per PayPal beim Anlegen des Tisches; Mitspieler zahlen nach Platznahme).",
+    hintShort: "Location-Spielgebühr: €{rate}/Stunde per PayPal.",
+    hintWithAmount:
+      "Location-Spielgebühr für diese Buchung: €{amount} ({hours} Std. × €{rate}/Std.) — PayPal an {email}. Mitspieler zahlen denselben Tarif nach Platznahme.",
+    itemHost: "Location-Spielgebühr (Host) – {game}",
+    itemGuest: "Location-Spielgebühr (Platz) – {game}",
   },
   tableDetail: {
     back: "Alle Tische",

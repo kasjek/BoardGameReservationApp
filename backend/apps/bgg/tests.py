@@ -155,6 +155,18 @@ def test_search_boardgames_returns_multiple_hits(monkeypatch):
     assert hits[0]["year"] == 1995
 
 
+def test_search_boardgames_falls_back_to_venue_inventory(db, monkeypatch):
+    from apps.venues.models import Venue, VenueGame
+
+    monkeypatch.setattr(services, "_http_get", lambda url, headers=None: None)
+    venue = Venue.objects.create(name="Cafe", location="Here")
+    VenueGame.objects.create(venue=venue, title="Patchwork", bgg_id=163412, is_active=True)
+    VenueGame.objects.create(venue=venue, title="Love Letter", bgg_id=129622, is_active=True)
+    hits = services.search_boardgames("pat", limit=10)
+    assert hits[0]["name"] == "Patchwork"
+    assert hits[0]["bgg_id"] == 163412
+
+
 def test_bgg_search_api_requires_auth(db, client, monkeypatch):
     monkeypatch.setattr(
         services,

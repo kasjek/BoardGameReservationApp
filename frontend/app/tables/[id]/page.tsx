@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { VenueGameFeePrompt } from "../../components/VenueGameFeePrompt";
 import {
   Avatar,
   Banner,
@@ -53,6 +54,7 @@ export default function TableDetailPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [rating, setRating] = useState(5);
+  const [feePrompt, setFeePrompt] = useState<"host" | "guest" | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -99,6 +101,28 @@ export default function TableDetailPage() {
       await fn();
       setInfo(ok);
       await load();
+    } catch (e) {
+      setError(errorMessage(e, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reserveSeat() {
+    const current = table;
+    if (!current) return;
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const seat = await tableApi.reserve(id);
+      setInfo(
+        seat.status === "waitlisted" ? t("tableDetail.waitlistedOk") : t("tableDetail.reservedOk"),
+      );
+      await load();
+      if (!current.bring_own_game && seat.status === "reserved") {
+        setFeePrompt("guest");
+      }
     } catch (e) {
       setError(errorMessage(e, t));
     } finally {
@@ -252,16 +276,7 @@ export default function TableDetailPage() {
         ) : null}
 
         {canHost && bookable && !hasSeat ? (
-          <button
-            className="btn"
-            disabled={busy}
-            onClick={() =>
-              act(
-                () => tableApi.reserve(id),
-                full ? t("tableDetail.waitlistedOk") : t("tableDetail.reservedOk"),
-              )
-            }
-          >
+          <button className="btn" disabled={busy} onClick={() => reserveSeat()}>
             {full ? (
               t("tableDetail.joinWaitlist")
             ) : (
@@ -337,6 +352,17 @@ export default function TableDetailPage() {
           </div>
         )}
       </div>
+      {feePrompt ? (
+        <VenueGameFeePrompt
+          open
+          role={feePrompt}
+          gameTitle={table.game_title}
+          startsAt={table.starts_at}
+          endsAt={table.ends_at}
+          tableId={table.id}
+          onClose={() => setFeePrompt(null)}
+        />
+      ) : null}
     </Shell>
   );
 }
