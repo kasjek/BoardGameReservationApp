@@ -28,6 +28,9 @@ _LEADING_THE = re.compile(r"^the\s+", re.IGNORECASE)
 BGG_SEARCH_API = "https://boardgamegeek.com/xmlapi2/search"
 BGG_THING_API = "https://boardgamegeek.com/xmlapi2/thing"
 BGG_GAME_URL = "https://boardgamegeek.com/boardgame/{id}"
+# Public Geekdo JSON (no Bearer token) — used as a cover/thing fallback when the
+# XML API returns 401 without BGG_API_TOKEN.
+GEEKDO_ITEM_API = "https://api.geekdo.com/api/geekitems"
 WIKI_SEARCH_API = "https://en.wikipedia.org/w/api.php"
 WIKI_SUMMARY_API = "https://en.wikipedia.org/api/rest_v1/page/summary/"
 _UA = {"User-Agent": "BoardGameReservationApp/0.1"}
@@ -258,26 +261,40 @@ def search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
     return _local_search_boardgames(q, limit=cap)[:cap]
 
 
+def _positive_bgg_id(value) -> int | None:
+    """Return a real BGG thing id, or None for missing/synthetic (negative) ids."""
+    try:
+        bgg_id = int(value)
+    except (TypeError, ValueError):
+        return None
+    return bgg_id if bgg_id > 0 else None
+
+
 def pick_best_search_result(query: str, results: list[dict]) -> int | None:
-    """Prefer an exact (year-ignoring) title match over BGG's raw first hit."""
-    if not results:
+    """Prefer an exact (year-ignoring) title match over BGG's raw first hit.
+
+    Ignores synthetic negative ids from the local search fallback — those must
+    never be written to ``BggResolution.bgg_id`` (SQLite CHECK / PositiveInteger).
+    """
+    positive = [hit for hit in results if _positive_bgg_id(hit.get("bgg_id"))]
+    if not positive:
         return None
     target = normalize_for_match(query)
     if not target:
-        return results[0]["bgg_id"]
+        return _positive_bgg_id(positive[0]["bgg_id"])
 
-    for hit in results:
+    for hit in positive:
         if normalize_for_match(hit.get("name", "")) == target:
-            return hit["bgg_id"]
+            return _positive_bgg_id(hit["bgg_id"])
 
     # Near-match: one title is a prefix of the other (handles "Isle of Cats"
     # vs "The Isle of Cats" after leading-the stripping already failed somehow).
-    for hit in results:
+    for hit in positive:
         candidate = normalize_for_match(hit.get("name", ""))
         if candidate.startswith(target) or target.startswith(candidate):
-            return hit["bgg_id"]
+            return _positive_bgg_id(hit["bgg_id"])
 
-    return results[0]["bgg_id"]
+    return _positive_bgg_id(positive[0]["bgg_id"])
 
 
 def _venue_game_match(name: str):
@@ -328,51 +345,96 @@ def _venue_game_bgg_id(name: str) -> int | None:
     return vg.bgg_id if vg and vg.bgg_id else None
 
 
-def fetch_thing(bgg_id: int) -> dict | None:
-    """Load name, thumbnail, and playtime for a BGG thing id."""
-    body = _http_get(f"{BGG_THING_API}?id={bgg_id}", _auth_headers())
+def _geekdo_item(bgg_id: int) -> dict | None:
+    """Load name/thumbnail/playtime from the public Geekdo JSON API (no token)."""
+    body = _http_get(f"{GEEKDO_ITEM_API}?objectid={int(bgg_id)}&objecttype=thing", _UA)
     if body is None:
         return None
     try:
-        root = ET.fromstring(body)
-    except ET.ParseError:
+        payload = json.loads(body)
+    except ValueError:
         return None
-    item = root.find("item")
-    if item is None:
+    item = payload.get("item") if isinstance(payload, dict) else None
+    if not isinstance(item, dict):
         return None
-    name_el = item.find("name[@type='primary']")
-    if name_el is None:
-        name_el = item.find("name")
-    name = (name_el.get("value") if name_el is not None else None) or ""
+    name = (item.get("name") or "").strip()
     if not name:
         return None
-    thumb = None
-    thumb_el = item.find("thumbnail")
-    if thumb_el is not None and thumb_el.text:
-        thumb = thumb_el.text.strip()
-        if thumb.startswith("//"):
-            thumb = "https:" + thumb
+    thumb = (
+        (item.get("imageurl") or "").strip()
+        or ((item.get("images") or {}).get("thumb") or "").strip()
+        or ((item.get("images") or {}).get("previewthumb") or "").strip()
+    )
+    if thumb.startswith("//"):
+        thumb = "https:" + thumb
 
-    def _int_attr(tag: str) -> int | None:
-        el = item.find(tag)
-        if el is None or not el.get("value"):
-            return None
-        try:
-            return int(el.get("value"))
-        except (TypeError, ValueError):
-            return None
+    def _int_field(*keys: str) -> int | None:
+        for key in keys:
+            raw = item.get(key)
+            if raw in (None, ""):
+                continue
+            try:
+                return int(raw)
+            except (TypeError, ValueError):
+                continue
+        return None
 
-    playing_time = _int_attr("playingtime")
-    min_play_time = _int_attr("minplaytime")
-    max_play_time = _int_attr("maxplaytime")
+    min_play = _int_field("minplaytime")
+    max_play = _int_field("maxplaytime")
+    playing = _int_field("playingtime")
+    if playing is None:
+        playing = max_play or min_play
     return {
-        "bgg_id": bgg_id,
+        "bgg_id": int(bgg_id),
         "name": name,
         "thumbnail_url": thumb or "",
-        "playing_time": playing_time,
-        "min_play_time": min_play_time,
-        "max_play_time": max_play_time,
+        "playing_time": playing,
+        "min_play_time": min_play,
+        "max_play_time": max_play,
     }
+
+
+def fetch_thing(bgg_id: int) -> dict | None:
+    """Load name, thumbnail, and playtime for a BGG thing id."""
+    body = _http_get(f"{BGG_THING_API}?id={bgg_id}", _auth_headers())
+    if body is not None:
+        try:
+            root = ET.fromstring(body)
+        except ET.ParseError:
+            root = None
+        if root is not None:
+            item = root.find("item")
+            if item is not None:
+                name_el = item.find("name[@type='primary']")
+                if name_el is None:
+                    name_el = item.find("name")
+                name = (name_el.get("value") if name_el is not None else None) or ""
+                if name:
+                    thumb = None
+                    thumb_el = item.find("thumbnail")
+                    if thumb_el is not None and thumb_el.text:
+                        thumb = thumb_el.text.strip()
+                        if thumb.startswith("//"):
+                            thumb = "https:" + thumb
+
+                    def _int_attr(tag: str) -> int | None:
+                        el = item.find(tag)
+                        if el is None or not el.get("value"):
+                            return None
+                        try:
+                            return int(el.get("value"))
+                        except (TypeError, ValueError):
+                            return None
+
+                    return {
+                        "bgg_id": bgg_id,
+                        "name": name,
+                        "thumbnail_url": thumb or "",
+                        "playing_time": _int_attr("playingtime"),
+                        "min_play_time": _int_attr("minplaytime"),
+                        "max_play_time": _int_attr("maxplaytime"),
+                    }
+    return _geekdo_item(bgg_id)
 
 
 def _bgg_search(name: str) -> int | None:
@@ -381,6 +443,15 @@ def _bgg_search(name: str) -> int | None:
     # (e.g. "Spicy" must not resolve to an unrelated first result).
     results = search_boardgames(name, limit=10)
     return pick_best_search_result(name, results)
+
+
+# Common titles that appear as hosted tables but may not be in venue inventory.
+# Lets cover resolution hit Geekdo/XML without a live search token.
+_WELL_KNOWN_BGG_IDS = {
+    "catan": 13,
+    "settlers of catan": 13,
+    "the settlers of catan": 13,
+}
 
 
 def resolve_bgg_id(name: str) -> int | None:
@@ -395,9 +466,13 @@ def resolve_bgg_id(name: str) -> int | None:
         return cached.bgg_id
 
     # Prefer a curated venue-inventory id (works even without a BGG API token).
-    bgg_id = _venue_game_bgg_id(name)
+    bgg_id = _positive_bgg_id(_venue_game_bgg_id(name))
     if bgg_id is None:
-        bgg_id = _bgg_search(name)
+        bgg_id = _WELL_KNOWN_BGG_IDS.get(normalize_for_match(name)) or _WELL_KNOWN_BGG_IDS.get(
+            norm
+        )
+    if bgg_id is None:
+        bgg_id = _positive_bgg_id(_bgg_search(name))
     if bgg_id is not None:
         BggResolution.objects.update_or_create(
             query_norm=norm, defaults={"bgg_id": bgg_id, "matched_name": name}
@@ -420,19 +495,22 @@ def resolve_url(name: str) -> str:
 
 def _bgg_thumbnail(bgg_id: int) -> str | None:
     body = _http_get(f"{BGG_THING_API}?id={bgg_id}", _auth_headers())
-    if body is None:
-        return None
-    try:
-        root = ET.fromstring(body)
-    except ET.ParseError:
-        return None
-    thumb = root.find(".//thumbnail")
-    if thumb is not None and thumb.text:
-        url = thumb.text.strip()
-        if url.startswith("//"):  # BGG returns protocol-relative URLs
-            url = "https:" + url
-        return url
-    return None
+    if body is not None:
+        try:
+            root = ET.fromstring(body)
+        except ET.ParseError:
+            root = None
+        if root is not None:
+            thumb = root.find(".//thumbnail")
+            if thumb is not None and thumb.text:
+                url = thumb.text.strip()
+                if url.startswith("//"):  # BGG returns protocol-relative URLs
+                    url = "https:" + url
+                return url
+    # XML API often 401s without a token — Geekdo JSON still serves the cover.
+    thing = _geekdo_item(int(bgg_id))
+    thumb = (thing or {}).get("thumbnail_url") or ""
+    return thumb or None
 
 
 def _is_bgg_cover_url(url: str | None) -> bool:
@@ -514,11 +592,16 @@ def resolve_cover_url(name: str) -> str | None:
     ):
         return cached.thumbnail_url
 
+    # Keep a previously resolved cover (including Wikipedia) if we cannot look up
+    # a BGG id — avoids 500s when local search only has synthetic negative ids.
     bgg_id = (
         (venue_game.bgg_id if venue_game and venue_game.bgg_id else None)
         or (cached.bgg_id if (cached is not None and cached.bgg_id) else None)
         or resolve_bgg_id(name)
     )
+    if not bgg_id and cached is not None and cached.thumbnail_url:
+        return cached.thumbnail_url
+
     thumb = _bgg_thumbnail(bgg_id) if bgg_id else None
 
     # Fall back to a Wikipedia box cover (works without a BGG token).

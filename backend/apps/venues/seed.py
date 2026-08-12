@@ -36,7 +36,7 @@ DATE_HOUSE_GAMES = (
     ("Patchwork", 163412),
     ("7 Wonders Duel", 173346),
     ("Chronicles of Crime", 239188),
-    ("Onitama", 158138),
+    ("Onitama", 160477),
 )
 
 # Weekday → open / close (Python: Mon=0 … Sun=6). Sourced from Google / Apple Maps.
@@ -165,12 +165,16 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
         _legacy_seed_availability(venue, horizon_days=horizon_days)
 
     if "venues_venuegame" in tables:
+        from apps.bgg import services as bgg_services
+
         for title, bgg_id in DATE_HOUSE_GAMES:
-            VenueGame.objects.update_or_create(
+            game, _ = VenueGame.objects.update_or_create(
                 venue=venue,
                 title=title,
                 defaults={"is_active": True, "bgg_id": bgg_id},
             )
+            if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
+                bgg_services.refresh_venue_game_cover(game)
     return venue
 
 
