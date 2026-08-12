@@ -334,3 +334,43 @@ export function Banner({ kind, children }: { kind: "error" | "info"; children: R
   const cls = kind === "error" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700";
   return <div className={`mb-3 rounded-xl px-3 py-2 text-sm ${cls}`}>{children}</div>;
 }
+
+/** Password input with a show/hide toggle for login and registration. */
+export function PasswordField({
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  id,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  autoComplete?: string;
+  id?: string;
+}) {
+  const { t } = useI18n();
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        className="input pr-20"
+        type={visible ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        className="absolute inset-y-0 right-0 px-3 text-xs font-semibold text-brand hover:text-brand/80"
+        aria-pressed={visible}
+        aria-label={visible ? t("auth.hidePassword") : t("auth.showPassword")}
+      >
+        {visible ? t("auth.hidePassword") : t("auth.showPassword")}
+      </button>
+    </div>
+  );
+}
