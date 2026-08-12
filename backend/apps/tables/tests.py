@@ -359,3 +359,15 @@ def test_create_allows_slot_inside_opening_hours(db, venue):
         ends_at=future_dt(hour=12),
     )
     assert table.status == TableStatus.WAITING_FOR_VENUE_CONFIRMATION
+
+
+def test_ensure_katzentempel_demo_tables_creates_at_least_five(db):
+    from apps.tables.seed import ensure_katzentempel_demo_tables
+    from apps.venues.seed import KATZENTEMPEL_NAME
+
+    first = ensure_katzentempel_demo_tables()
+    assert len(first) >= 5
+    assert all(t.venue.name == KATZENTEMPEL_NAME for t in first)
+    # Idempotent: second run reuses the same rows.
+    second = ensure_katzentempel_demo_tables()
+    assert {t.id for t in second} == {t.id for t in first}
