@@ -516,7 +516,7 @@ export default function CreateTablePage() {
           <>
             <BggGameTypeahead value={game} onChange={setGame} required />
             <div className="mt-1 text-xs text-slate-500">
-              Suggestions come from the BoardGameGeek library as you type.
+              Type to search BoardGameGeek; pick a suggestion or keep your typed name.
             </div>
           </>
         ) : hasVenueGames ? (
