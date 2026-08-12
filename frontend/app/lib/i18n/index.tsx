@@ -85,12 +85,12 @@ export function useI18n(): I18nContextValue {
   return ctx;
 }
 
-const FLAG: Record<Locale, string> = {
-  en: "🇬🇧",
-  de: "🇩🇪",
+const LOCALE_CODE: Record<Locale, string> = {
+  en: "EN",
+  de: "DE",
 };
 
-/** Compact flag buttons for the top-right of BrandBanner / auth screens. */
+/** Compact EN/DE buttons for the top-right of BrandBanner / auth screens. */
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
   const { locale, setLocale, t } = useI18n();
   return (
@@ -109,13 +109,13 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
             title={LOCALE_LABEL[code]}
             aria-label={LOCALE_LABEL[code]}
             aria-pressed={active}
-            className={`flex h-9 w-9 items-center justify-center rounded-lg text-xl leading-none transition ${
+            className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-1.5 text-xs font-bold tracking-wide transition ${
               active
-                ? "bg-brand/10 ring-2 ring-brand"
-                : "opacity-70 hover:bg-slate-100 hover:opacity-100"
+                ? "bg-brand/10 text-brand ring-2 ring-brand"
+                : "text-slate-600 opacity-70 hover:bg-slate-100 hover:opacity-100"
             }`}
           >
-            <span aria-hidden>{FLAG[code]}</span>
+            <span aria-hidden>{LOCALE_CODE[code]}</span>
           </button>
         );
       })}
