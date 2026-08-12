@@ -4,7 +4,7 @@ from apps.venues.seed import DEFAULT_HORIZON_DAYS, ensure_demo_venues
 
 
 class Command(BaseCommand):
-    help = "Seed (or refresh) all demo venues, availability, and game catalogs."
+    help = "Seed (or refresh) all demo venues, availability, games, and example tables."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -23,12 +23,13 @@ class Command(BaseCommand):
                     f"with {options['days']} days of availability."
                 )
             )
-        from apps.tables.seed import ensure_katzentempel_demo_tables
+        from apps.tables.seed import ensure_demo_tables
 
-        tables = ensure_katzentempel_demo_tables()
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Katzentempel demo tables: {len(tables)} "
-                f"({', '.join(t.game_title for t in tables)})"
+        by_venue = ensure_demo_tables()
+        for venue_name, tables in by_venue.items():
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"{venue_name} demo tables: {len(tables)} "
+                    f"({', '.join(t.game_title for t in tables)})"
+                )
             )
-        )
