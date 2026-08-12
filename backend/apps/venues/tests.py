@@ -138,18 +138,27 @@ def test_create_table_respects_venue_player_limits(db):
 
 
 def test_seed_date_house_hours_match_google(db):
-    """Mon–Thu/Sun close 20:00; Fri–Sat close 22:00; always open 10:00."""
+    """Google/Apple Maps: Mon–Fri open 10:00; Sat–Sun open 09:00; Fri–Sat close 22:00."""
     from datetime import time as dt_time
 
-    from apps.venues.seed import OPEN_FROM
+    from apps.venues.seed import DATE_HOUSE_DESCRIPTION, DATE_HOUSE_OPEN_BY_WEEKDAY
 
     venue = ensure_date_house_cafe(horizon_days=14)
+    assert "Every day from 10:00" not in venue.description
+    assert "Mon–Thu 10:00–20:00" in venue.description
+    assert venue.description == DATE_HOUSE_DESCRIPTION
+
     monday = next(r for r in venue.availability.all() if r.date.weekday() == 0)
     friday = next(r for r in venue.availability.all() if r.date.weekday() == 4)
+    saturday = next(r for r in venue.availability.all() if r.date.weekday() == 5)
     sunday = next(r for r in venue.availability.all() if r.date.weekday() == 6)
-    assert monday.start_time == OPEN_FROM
+    assert monday.start_time == DATE_HOUSE_OPEN_BY_WEEKDAY[0]
     assert monday.end_time == dt_time(20, 0)
+    assert friday.start_time == dt_time(10, 0)
     assert friday.end_time == dt_time(22, 0)
+    assert saturday.start_time == dt_time(9, 0)
+    assert saturday.end_time == dt_time(22, 0)
+    assert sunday.start_time == dt_time(9, 0)
     assert sunday.end_time == dt_time(20, 0)
 
 
