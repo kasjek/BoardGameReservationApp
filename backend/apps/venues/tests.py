@@ -66,6 +66,8 @@ def test_seed_date_house_cafe(db):
 
     from django.utils import timezone
 
+    from apps.venues.seed import open_time_for
+
     venue = ensure_date_house_cafe(horizon_days=14)
     assert venue.name == DATE_HOUSE_NAME
     assert venue.location == DATE_HOUSE_ADDRESS
@@ -78,8 +80,8 @@ def test_seed_date_house_cafe(db):
         ).order_by("date")
     )
     assert len(rows) == 14
-    assert all(r.start_time.hour == 10 and r.start_time.minute == 0 for r in rows)
     for r in rows:
+        assert r.start_time == open_time_for(r.date)
         assert r.end_time == end_time_for(r.date)
 
 
