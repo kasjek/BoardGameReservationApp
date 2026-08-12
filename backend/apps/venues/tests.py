@@ -435,11 +435,14 @@ def test_bgg_redirect_uses_venue_game_bgg_id_when_api_unavailable(db, client, mo
 def test_seed_katzentempel(db):
     from datetime import time as dt_time
 
-    from apps.venues.models import VenueGame, VenueWeeklyHours
+    from apps.venues.models import Venue, VenueGame, VenueWeeklyHours
     from apps.venues.seed import KATZENTEMPEL_NAME, ensure_katzentempel
 
+    Venue.objects.create(name="Katzentempel Nürnberg", location="Old")
     venue = ensure_katzentempel(horizon_days=7)
     assert venue.name == KATZENTEMPEL_NAME
+    assert venue.name == "Katzentempel"
+    assert Venue.objects.filter(name__icontains="Katzen").count() == 1
     assert "Peter-Vischer" in venue.location
     hours = list(VenueWeeklyHours.objects.filter(venue=venue).order_by("weekday"))
     assert len(hours) == 7
