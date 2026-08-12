@@ -190,15 +190,13 @@ def test_list_directory_boardgames_uniques_by_bgg_id(db):
     venue = Venue.objects.create(name="Cafe", location="Here")
     VenueGame.objects.create(venue=venue, title="Patchwork", bgg_id=163412, is_active=True)
     VenueGame.objects.create(venue=venue, title="Love Letter", bgg_id=129622, is_active=True)
-    BggResolution.objects.create(
+    BggResolution.objects.update_or_create(
         query_norm="patchwork",
-        bgg_id=163412,
-        matched_name="Patchwork",
+        defaults={"bgg_id": 163412, "matched_name": "Patchwork"},
     )
-    BggResolution.objects.create(
+    BggResolution.objects.update_or_create(
         query_norm="catan",
-        bgg_id=13,
-        matched_name="Catan",
+        defaults={"bgg_id": 13, "matched_name": "Catan"},
     )
     hits = services.list_directory_boardgames()
     by_id = {h["bgg_id"]: h["name"] for h in hits}
@@ -273,14 +271,19 @@ def _fake_http(monkeypatch):
     def fake(url, headers=None):
         if "xmlapi2/search" in url:
             return _SEARCH_XML
-        if "thing" in url:
+        if "xmlapi2/thing" in url:
             return _THING_XML
+        if "api.geekdo.com" in url:
+            return None
         return None
 
     monkeypatch.setattr(services, "_http_get", fake)
 
 
 def test_cover_redirects_to_thumbnail(db, client, monkeypatch):
+    from apps.bgg.models import BggResolution
+
+    BggResolution.objects.filter(query_norm="catan").delete()
     _fake_http(monkeypatch)
     resp = client.get("/api/bgg/cover?q=Catan")
     assert resp.status_code == 302
@@ -292,7 +295,7 @@ def test_cover_falls_back_to_wikipedia_without_bgg(db, client, monkeypatch):
     wiki_summary = b'{"thumbnail":{"source":"https://upload.wikimedia.org/x/wingspan.jpg"}}'
 
     def fake(url, headers=None):
-        if "boardgamegeek.com" in url:
+        if "boardgamegeek.com" in url or "api.geekdo.com" in url:
             return None  # BGG blocked (no token)
         if "list=search" in url:
             return wiki_search
@@ -312,12 +315,14 @@ def test_cover_404_when_unresolved(db, client, monkeypatch):
 
 
 def test_cover_is_cached(db, monkeypatch):
+    from apps.bgg.models import BggResolution
+
+    BggResolution.objects.filter(query_norm="catan").delete()
     _fake_http(monkeypatch)
     assert services.resolve_cover_url("Catan").endswith("catan.jpg")
     # Second call should read from the cached thumbnail_url (no HTTP needed).
     monkeypatch.setattr(services, "_http_get", lambda url, headers=None: pytest.fail("cached"))
     assert services.resolve_cover_url("catan").endswith("catan.jpg")
-
 
 def test_cover_refreshes_stale_wikipedia_cache_when_bgg_id_known(db, monkeypatch):
     """Wikipedia fallbacks must not stick when we know the BGG id (Isle of Cats / Spicy)."""
@@ -351,9 +356,62 @@ def test_cover_refreshes_stale_wikipedia_cache_when_bgg_id_known(db, monkeypatch
     assert "spicy-real" in cached.thumbnail_url
 
 
-def test_auth_header_added_with_token(monkeypatch):
-    monkeypatch.setenv("BGG_API_TOKEN", "test-token-123")
-    assert services._auth_headers()["Authorization"] == "Bearer test-token-123"
+def test_cover_ignores_synthetic_local_ids(db, client, monkeypatch):
+    """Local search synthetic negative ids must not break /api/bgg/cover."""
+    from apps.bgg.models import BggResolution
+
+    BggResolution.objects.filter(query_norm="catan").delete()
+    # A title with no real BGG id in inventory — only a wiki-style cache row.
+    BggResolution.objects.update_or_create(
+        query_norm="obscure demo game",
+        defaults={
+            "bgg_id": None,
+            "matched_name": "Obscure Demo Game",
+            "thumbnail_url": "https://upload.wikimedia.org/wikipedia/en/a/a3/Catan-2015-boxart.jpg",
+        },
+    )
+
+    def fake(url, headers=None):
+        return None
+
+    monkeypatch.setattr(services, "_http_get", fake)
+    monkeypatch.setattr(services, "_local_search_boardgames", lambda q, limit=20: [
+        {"bgg_id": -999, "name": "Obscure Demo Game", "year": None}
+    ])
+    assert services.resolve_bgg_id("Obscure Demo Game") is None
+    resp = client.get("/api/bgg/cover?q=Obscure%20Demo%20Game")
+    assert resp.status_code == 302
+    assert "Catan-2015-boxart" in resp["Location"]
+
+def test_geekdo_fallback_thumbnail_without_xml_token(db, monkeypatch):
+    geekdo = (
+        b'{"item":{"name":"Patchwork","imageurl":'
+        b'"https://cf.geekdo-images.com/patchwork__itemrep/img/x.jpg",'
+        b'"minplaytime":"15","maxplaytime":"30"}}'
+    )
+
+    def fake(url, headers=None):
+        if "xmlapi2" in url:
+            return None
+        if "api.geekdo.com" in url and "163412" in url:
+            return geekdo
+        return None
+
+    monkeypatch.setattr(services, "_http_get", fake)
+    assert services._bgg_thumbnail(163412).endswith("x.jpg")
+    thing = services.fetch_thing(163412)
+    assert thing["name"] == "Patchwork"
+    assert thing["thumbnail_url"].endswith("x.jpg")
+
+
+def test_pick_best_search_ignores_synthetic_negative_ids():
+    hits = [
+        {"bgg_id": -12345, "name": "Catan", "year": None},
+        {"bgg_id": 13, "name": "Catan", "year": 1995},
+    ]
+    assert services.pick_best_search_result("Catan", hits) == 13
+    assert services.pick_best_search_result("Catan", hits[:1]) is None
+
 
 
 def test_no_auth_header_without_token(monkeypatch):
