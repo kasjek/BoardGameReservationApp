@@ -19,12 +19,12 @@ import {
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 
-const GAME_LANGUAGE_FLAGS: { code: "en" | "de"; flag: string; labelKey: string }[] = [
-  { code: "en", flag: "🇬🇧", labelKey: "lang.en" },
-  { code: "de", flag: "🇩🇪", labelKey: "lang.de" },
+const GAME_LANGUAGE_CODES: { code: "en" | "de"; short: string; labelKey: string }[] = [
+  { code: "en", short: "EN", labelKey: "lang.en" },
+  { code: "de", short: "DE", labelKey: "lang.de" },
 ];
 
-// Languages selectable when "Other" is chosen (English and German have flag buttons).
+// Languages selectable when "Other" is chosen (English and German have code buttons).
 // API values stay in English; display uses lang.* keys.
 const OTHER_LANGUAGES = [
   "French",
@@ -734,7 +734,7 @@ export default function CreateTablePage() {
                 role="group"
                 aria-label={t("newTable.language")}
               >
-                {GAME_LANGUAGE_FLAGS.map(({ code, flag, labelKey }) => {
+                {GAME_LANGUAGE_CODES.map(({ code, short, labelKey }) => {
                   const active = language === code;
                   return (
                     <button
@@ -747,13 +747,13 @@ export default function CreateTablePage() {
                         setLanguage(code);
                         setFieldErrors((f) => ({ ...f, language: undefined }));
                       }}
-                      className={`flex h-10 w-10 items-center justify-center rounded-lg text-xl leading-none transition ${
+                      className={`flex h-10 min-w-10 items-center justify-center rounded-lg px-2 text-xs font-bold tracking-wide transition ${
                         active
-                          ? "bg-brand/10 ring-2 ring-brand"
-                          : "bg-slate-50 opacity-80 hover:bg-slate-100 hover:opacity-100"
+                          ? "bg-brand/10 text-brand ring-2 ring-brand"
+                          : "bg-slate-50 text-slate-600 opacity-80 hover:bg-slate-100 hover:opacity-100"
                       }`}
                     >
-                      <span aria-hidden>{flag}</span>
+                      <span aria-hidden>{short}</span>
                     </button>
                   );
                 })}
