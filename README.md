@@ -13,7 +13,7 @@ npm start
 - Start command: `npm start` (or `NODE_ENV=production node server.js`)
 - No `BACKEND_URL` / Django required
 - SQLite DB is created automatically under `data/app.sqlite3` on first start
-- Optional: `BGG_API_TOKEN` (BoardGameGeek) for richer live game search/covers
+- **For board-game cover images:** set `BGG_API_TOKEN` (BoardGameGeek application Bearer token). Without it, covers fall back to Geekdo/Wikipedia when possible.
 
 ## Local
 

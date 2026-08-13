@@ -9,6 +9,7 @@ const {
   serializeSeat,
   validPassword,
 } = require("./db");
+const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -656,7 +657,7 @@ async function handleApi(req, res) {
       });
     }
 
-    // ---- BGG (local / redirect fallbacks; BGG_API_TOKEN optional) ----
+    // ---- BGG (BGG_API_TOKEN enables live XML; Geekdo/Wikipedia fallbacks otherwise) ----
     if (method === "GET" && path === "/api/bgg/directory") {
       if (!requireUser(req, res)) return;
       const rows = db
@@ -672,54 +673,31 @@ async function handleApi(req, res) {
       if (!requireUser(req, res)) return;
       const q = (url.searchParams.get("q") || "").trim();
       if (q.length < 2) return send(res, 200, { results: [] });
-      const rows = db
-        .prepare(
-          `SELECT DISTINCT title AS name, bgg_id FROM venue_games
-           WHERE is_active=1 AND bgg_id IS NOT NULL AND title LIKE ?
-           ORDER BY title LIMIT ?`,
-        )
-        .all(`%${q}%`, Number(url.searchParams.get("limit") || 20))
-        .map((r) => ({ bgg_id: r.bgg_id, name: r.name, year: null }));
+      const rows = await liveSearch(q, Number(url.searchParams.get("limit") || 20));
       return send(res, 200, { results: rows });
     }
 
     if (method === "GET" && path === "/api/bgg/thing") {
       if (!requireUser(req, res)) return;
       const id = Number(url.searchParams.get("id"));
-      const g = db.prepare("SELECT * FROM venue_games WHERE bgg_id=? LIMIT 1").get(id);
-      return send(res, 200, {
-        bgg_id: id,
-        name: g?.title || `Game ${id}`,
-        thumbnail_url: g?.thumbnail_url || "",
-        playing_time: null,
-        min_play_time: null,
-        max_play_time: null,
-      });
+      if (!id) return send(res, 400, { detail: "id required." });
+      return send(res, 200, await resolveThing(id));
     }
 
     if (method === "GET" && path === "/api/bgg/cover") {
       const q = url.searchParams.get("q") || "";
-      const g = db
-        .prepare(
-          `SELECT bgg_id, thumbnail_url FROM venue_games WHERE title LIKE ? AND is_active=1 LIMIT 1`,
-        )
-        .get(q);
-      if (g?.thumbnail_url) return redirect(res, g.thumbnail_url);
-      if (g?.bgg_id) {
-        return redirect(
-          res,
-          `https://cf.geekdo-images.com/placeholder/s/${g.bgg_id}`,
-        );
-      }
-      // Transparent 1x1 gif so UI fallback can show letter tile via onError — use 404
+      const cover = await resolveCoverUrl(q);
+      if (cover) return redirect(res, cover);
       return send(res, 404, { detail: "No cover." });
     }
 
     if (method === "GET" && path === "/api/bgg/redirect") {
       const q = url.searchParams.get("q") || "";
       const g = db
-        .prepare(`SELECT bgg_id FROM venue_games WHERE title LIKE ? AND bgg_id IS NOT NULL LIMIT 1`)
-        .get(q);
+        .prepare(
+          `SELECT bgg_id FROM venue_games WHERE title LIKE ? AND bgg_id IS NOT NULL LIMIT 1`,
+        )
+        .get(`%${q}%`);
       if (g?.bgg_id) return redirect(res, `https://boardgamegeek.com/boardgame/${g.bgg_id}`);
       return redirect(
         res,
