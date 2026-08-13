@@ -153,9 +153,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const t = getToken();
   if (t) headers["Authorization"] = `Token ${t}`;
 
-  // Abort hung API calls (e.g. GoDaddy proxy / missing BACKEND_URL) so the UI
-  // does not stay on a loading screen forever.
-  const timeoutMs = 6_000;
+  // BGG search can return hundreds of hits; allow a longer window than CRUD calls.
+  const timeoutMs = path.startsWith("/bgg/") ? 25_000 : 12_000;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
@@ -269,7 +268,8 @@ export const venueApi = {
 };
 
 export const bggApi = {
-  search: (q: string, limit = 50) =>
+  /** Live BGG results (up to `limit`; default returns a large page so rare titles like ICE appear). */
+  search: (q: string, limit = 500) =>
     request<{ results: BggSearchHit[] }>(
       `/bgg/search?q=${encodeURIComponent(q)}&limit=${limit}`,
     ),

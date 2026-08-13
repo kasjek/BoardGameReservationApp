@@ -673,7 +673,10 @@ async function handleApi(req, res) {
       if (!requireUser(req, res)) return;
       const q = (url.searchParams.get("q") || "").trim();
       if (q.length < 2) return send(res, 200, { results: [] });
-      const rows = await liveSearch(q, Number(url.searchParams.get("limit") || 20));
+      // Default high so rare exact titles (e.g. ICE) are not cut off by a tiny page.
+      const raw = Number(url.searchParams.get("limit") || 500);
+      const limit = Math.min(Math.max(Number.isFinite(raw) ? raw : 500, 1), 1000);
+      const rows = await liveSearch(q, limit);
       return send(res, 200, { results: rows });
     }
 

@@ -18,9 +18,9 @@ function authHeaders() {
   return headers;
 }
 
-async function httpGet(url, headers = authHeaders()) {
+async function httpGet(url, headers = authHeaders(), timeoutMs = 8000) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 8000);
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, { headers, signal: ctrl.signal, redirect: "follow" });
     if (!res.ok) return null;
@@ -69,23 +69,52 @@ function parsePlayTimes(xml) {
   };
 }
 
+function decodeXmlEntities(s) {
+  return String(s)
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
 function parseSearchResults(xml) {
   const out = [];
+  const seen = new Set();
   const re = /<item[^>]*id="(\d+)"[^>]*>[\s\S]*?<\/item>/gi;
   let m;
-  while ((m = re.exec(String(xml))) && out.length < 40) {
+  while ((m = re.exec(String(xml)))) {
     const id = Number(m[1]);
+    if (!id || seen.has(id)) continue;
     const block = m[0];
     const nameM = block.match(/<name[^>]*type="primary"[^>]*value="([^"]+)"/i);
     const yearM = block.match(/<yearpublished[^>]*value="(\d+)"/i);
     if (!nameM) continue;
+    seen.add(id);
     out.push({
       bgg_id: id,
-      name: nameM[1],
+      name: decodeXmlEntities(nameM[1]),
       year: yearM ? Number(yearM[1]) : null,
     });
   }
   return out;
+}
+
+/** Prefer exact title, then prefix matches, then the rest (BGG order). */
+function rankSearchHits(hits, query) {
+  const want = normalize(query);
+  const score = (name) => {
+    const n = normalize(name);
+    if (n === want) return 0;
+    if (n.startsWith(want)) return 1;
+    if (n.includes(want)) return 2;
+    return 3;
+  };
+  return hits
+    .map((h, i) => ({ h, i, s: score(h.name) }))
+    .sort((a, b) => a.s - b.s || a.i - b.i)
+    .map((x) => x.h);
 }
 
 async function geekdoItem(bggId) {
@@ -184,19 +213,9 @@ async function resolveCoverUrl(name) {
   }
   if (game?.thumbnail_url) return game.thumbnail_url;
 
-  let bggId = game?.bgg_id || null;
-  if (!bggId && process.env.BGG_API_TOKEN) {
-    const xml = await httpGet(
-      `${BGG_SEARCH}?query=${encodeURIComponent(stripYear(q))}&type=boardgame`,
-    );
-    if (xml) {
-      const hits = parseSearchResults(xml.toString("utf8"));
-      const want = normalize(q);
-      const exact = hits.find((h) => normalize(h.name) === want);
-      bggId = (exact || hits[0])?.bgg_id || null;
-    }
-  }
-
+  // Prefer known bgg_id (no live search — searching on every cover request
+  // overwhelms BGG and causes site-wide timeouts).
+  const bggId = game?.bgg_id || null;
   let thumb = bggId ? await bggThumbnail(bggId) : null;
   if (!thumb) thumb = await wikipediaCover(q);
 
@@ -235,26 +254,33 @@ async function resolveThing(bggId) {
   };
 }
 
-async function liveSearch(q, limit = 20) {
+async function liveSearch(q, limit = 500) {
   const query = stripYear(q);
+  const max = !limit || limit < 1 ? 1000 : Math.min(limit, 1000);
   if (process.env.BGG_API_TOKEN) {
+    // Search XML can be large; allow more than the default 8s cover/thing timeout.
     const xml = await httpGet(
       `${BGG_SEARCH}?query=${encodeURIComponent(query)}&type=boardgame`,
+      authHeaders(),
+      20_000,
     );
     if (xml) {
-      const hits = parseSearchResults(xml.toString("utf8")).slice(0, limit);
-      if (hits.length) return hits;
+      const hits = rankSearchHits(parseSearchResults(xml.toString("utf8")), query);
+      if (hits.length) return hits.slice(0, max);
     }
   }
   const db = ensureDb();
-  return db
-    .prepare(
-      `SELECT DISTINCT title AS name, bgg_id FROM venue_games
-       WHERE is_active=1 AND bgg_id IS NOT NULL AND title LIKE ?
-       ORDER BY title LIMIT ?`,
-    )
-    .all(`%${query}%`, limit)
-    .map((r) => ({ bgg_id: r.bgg_id, name: r.name, year: null }));
+  return rankSearchHits(
+    db
+      .prepare(
+        `SELECT DISTINCT title AS name, bgg_id FROM venue_games
+         WHERE is_active=1 AND bgg_id IS NOT NULL AND title LIKE ?
+         ORDER BY title LIMIT ?`,
+      )
+      .all(`%${query}%`, max)
+      .map((r) => ({ bgg_id: r.bgg_id, name: r.name, year: null })),
+    query,
+  );
 }
 
 module.exports = {
