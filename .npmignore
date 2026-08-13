@@ -15,5 +15,9 @@ docs/
 .env.*
 *.log
 *.sqlite3
+data/
 .turbo/
 .cache/
+backend/
+AGENTS.md
+godaddy-secrets.env

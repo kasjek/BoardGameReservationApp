@@ -2,15 +2,17 @@
   "name": "boardgame-reservation-app",
   "version": "1.0.0",
   "private": true,
-  "description": "BoardGameReservationApp — mobile-first table booking web client",
+  "description": "Too Many Games — single Node app (Next.js + SQLite API) for GoDaddy",
   "main": "server.js",
   "scripts": {
     "postinstall": "npm install --prefix frontend",
     "build": "npm run build --prefix frontend",
     "start": "NODE_ENV=production node server.js",
-    "dev": "npm run dev --prefix frontend"
+    "dev": "NODE_ENV=development node server.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
