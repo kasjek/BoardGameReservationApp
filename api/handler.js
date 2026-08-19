@@ -10,6 +10,7 @@ const {
   validPassword,
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
+const { GoogleAuthError, googleClientId, userFromGoogle, verifyGoogleIdToken } = require("./google");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -115,6 +116,26 @@ async function handleApi(req, res) {
       return send(res, 200, { token });
     }
 
+    if (method === "GET" && path === "/api/auth/google/config") {
+      const cid = googleClientId();
+      return send(res, 200, { google_client_id: cid || null, google_enabled: Boolean(cid) });
+    }
+
+    if (method === "POST" && path === "/api/auth/google") {
+      const body = await readBody(req);
+      try {
+        const info = await verifyGoogleIdToken(body.credential || body.id_token || "");
+        const { user, created } = userFromGoogle(db, info);
+        db.prepare("DELETE FROM tokens WHERE user_id=?").run(user.id);
+        const token = newToken();
+        db.prepare("INSERT INTO tokens (key, user_id) VALUES (?, ?)").run(token, user.id);
+        return send(res, created ? 201 : 200, { token, user: serializeUser(user) });
+      } catch (e) {
+        const status = e instanceof GoogleAuthError ? e.status : 400;
+        return send(res, status, { detail: e.message || "Google sign-in failed." });
+      }
+    }
+
     if (method === "GET" && path === "/api/auth/me") {
       const u = requireUser(req, res);
       if (!u) return;
@@ -132,6 +153,11 @@ async function handleApi(req, res) {
     if (method === "POST" && path === "/api/me/password") {
       const u = requireUser(req, res);
       if (!u) return;
+      if (!u.password_hash) {
+        return send(res, 400, {
+          detail: "This account uses Google sign-in and has no password yet.",
+        });
+      }
       const body = await readBody(req);
       if (!checkPassword(body.current_password || "", u.password_hash)) {
         return send(res, 400, { current_password: ["Incorrect password."] });

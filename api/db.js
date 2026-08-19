@@ -114,8 +114,20 @@ function ensureDb() {
       created_at TEXT NOT NULL
     );
   `);
+  migrateUsers(db);
   seedIfEmpty(db);
   return db;
+}
+
+function migrateUsers(database) {
+  const cols = database.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+  if (!cols.includes("google_sub")) {
+    database.exec("ALTER TABLE users ADD COLUMN google_sub TEXT");
+  }
+  database.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub
+     ON users(google_sub) WHERE google_sub IS NOT NULL AND google_sub != ''`,
+  );
 }
 
 function hashPassword(password) {
@@ -123,7 +135,12 @@ function hashPassword(password) {
 }
 
 function checkPassword(password, hash) {
-  return bcrypt.compareSync(password, hash);
+  if (!password || !hash) return false;
+  try {
+    return bcrypt.compareSync(password, hash);
+  } catch {
+    return false;
+  }
 }
 
 function newToken() {
@@ -314,6 +331,7 @@ function serializeUser(row) {
     rating_avg: rating?.avg != null ? Number(rating.avg) : null,
     cancellations_count: row.cancellations_count || 0,
     late_cancel_marks_active: 0,
+    has_usable_password: Boolean(row.password_hash),
   };
 }
 
