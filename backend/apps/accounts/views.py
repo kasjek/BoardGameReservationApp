@@ -3,10 +3,18 @@ import secrets
 from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
 from rest_framework.authtoken.models import Token
-from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .activation import (
+    ACTIVATED_DETAIL,
+    ACTIVATION_DETAIL,
+    REGISTERED_DETAIL,
+    RESEND_DETAIL,
+    activate_with_key,
+    issue_and_send_activation,
+    require_email_delivery,
+)
 from .captcha import captcha_public_config
 from .facebook import (
     FacebookAuthError,
@@ -33,8 +41,25 @@ from .serializers import (
 User = get_user_model()
 
 
-class LoginView(ObtainAuthToken):
+class LoginView(APIView):
+    """Username/password login. Inactive (not yet email-activated) accounts are rejected."""
+
+    permission_classes = [permissions.AllowAny]
     throttle_scope = "login"
+
+    def post(self, request):
+        username = request.data.get("username") or ""
+        password = request.data.get("password") or ""
+        user = User.objects.filter(username=username).first()
+        if not user or not user.check_password(password):
+            return Response(
+                {"non_field_errors": ["Unable to log in with provided credentials."]},
+                status=400,
+            )
+        if not user.is_active:
+            return Response({"detail": ACTIVATION_DETAIL}, status=403)
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response({"token": token.key})
 
 
 class GoogleConfigView(APIView):
@@ -128,11 +153,45 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        require_email_delivery()
         user = serializer.save()
-        token, _ = Token.objects.get_or_create(user=user)
+        issue_and_send_activation(user)
         return Response(
-            {"token": token.key, "user": UserSerializer(user).data}, status=201
+            {"detail": REGISTERED_DETAIL, "email": user.email},
+            status=201,
         )
+
+
+class ActivateView(APIView):
+    """Public: click the emailed link to activate a password account."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "register"
+
+    def get(self, request):
+        return self._activate(request.query_params.get("token") or "")
+
+    def post(self, request):
+        return self._activate(request.data.get("token") or request.query_params.get("token") or "")
+
+    def _activate(self, key: str):
+        activate_with_key(str(key))
+        return Response({"detail": ACTIVATED_DETAIL})
+
+
+class ResendActivationView(APIView):
+    """Public: send a new activation link when the account is still inactive."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "register"
+
+    def post(self, request):
+        require_email_delivery()
+        email = str(request.data.get("email") or "").strip().lower()
+        user = User.objects.filter(email__iexact=email, is_active=False).first()
+        if user and user.email:
+            issue_and_send_activation(user)
+        return Response({"detail": RESEND_DETAIL})
 
 
 class MeView(generics.RetrieveAPIView):

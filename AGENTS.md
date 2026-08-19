@@ -33,7 +33,10 @@ script runs you do NOT need to reinstall dependencies.
   SQLite** and only truly enforced on PostgreSQL; the tests validate the functional
   logic, not the locking.
 - Auth is DRF **token** auth. `POST /api/auth/register` always creates a `USER`
-  and requires a Google reCAPTCHA v2 `captcha_token` (see `GET /api/auth/captcha/config`).
+  and requires a Google reCAPTCHA v2 `captcha_token` (see `GET /api/auth/captcha/config`)
+  plus a unique email. The account stays **inactive** until the user clicks the
+  activation link (`GET|POST /api/auth/activate`). Production needs SMTP
+  (`EMAIL_HOST`, `PUBLIC_APP_URL`); DEBUG logs the email to the console.
   Promotion to `VENUE_USER`/`ADMIN` is done via the Django admin or a shell.
   Optional social sign-in: Google (`GOOGLE_CLIENT_ID`) and Facebook
   (`FACEBOOK_APP_ID` + `FACEBOOK_APP_SECRET`). Buttons hide when those env vars

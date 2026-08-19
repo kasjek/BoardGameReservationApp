@@ -15,6 +15,7 @@ npm start
 - SQLite DB is created automatically under `data/app.sqlite3` on first start
 - **For board-game cover images:** set `BGG_API_TOKEN` (BoardGameGeek application Bearer token). Without it, covers fall back to Geekdo/Wikipedia when possible.
 - **Facebook Login:** set `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET`. The button is hidden until both are set. In Meta for Developers, add this site’s origin as an app domain / Website URL and request the `email` permission.
+- **Email activation:** password sign-up emails an activation link. Set `EMAIL_HOST` (and usually `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD`) plus `PUBLIC_APP_URL` to this site’s origin. In development, with `EMAIL_HOST` empty, the link is printed to the server log.
 
 ## Local
 

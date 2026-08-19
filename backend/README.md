@@ -34,7 +34,10 @@ uv run ruff check .
 
 ## API (Priority‑0)
 
-- `POST /api/auth/register` (requires `captcha_token`), `POST /api/auth/login`, `GET /api/auth/me`
+- `POST /api/auth/register` (requires `captcha_token` + email; sends activation mail, no token until activated)
+- `POST /api/auth/login` (403 until the email link is used)
+- `GET|POST /api/auth/activate`, `POST /api/auth/activate/resend`
+- `GET /api/auth/me`
 - `GET /api/auth/captcha/config` (set `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` in production)
 - `GET /api/auth/google/config`, `POST /api/auth/google` (set `GOOGLE_CLIENT_ID` for GIS)
 - `GET /api/auth/facebook/config`, `POST /api/auth/facebook` (set `FACEBOOK_APP_ID` + `FACEBOOK_APP_SECRET`)

@@ -8,9 +8,11 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 ## Auth & profile
 
-- `POST /auth/register` — self-register a `USER` account; requires `captcha_token` from Google reCAPTCHA v2 *(9)*
+- `POST /auth/register` — self-register a `USER` account; requires `captcha_token` from Google reCAPTCHA v2 and a unique email. Creates the account **inactive** and emails an activation link — **no session token until the link is used** *(9)*
 - `GET /auth/captcha/config` — `{ captcha_enabled, recaptcha_site_key }` for the registration checkbox (public)
-- `POST /auth/login` — exchange credentials for a session/token *(9)*
+- `POST /auth/login` — exchange credentials for a session/token; **403** if the account is not yet activated *(9)*
+- `GET|POST /auth/activate` — public; `{ token }` from the activation email; sets the account active *(9)*
+- `POST /auth/activate/resend` — public; `{ email }` sends a new activation link when the account is still inactive *(9)*
 - `GET /auth/google/config` — `{ google_enabled, google_client_id }` for the GIS button (public)
 - `POST /auth/google` — exchange a Google Identity Services ID token (`credential`) for an app token; creates a `USER` or logs into the existing account with the same verified email *(9)*
 - `GET /auth/facebook/config` — `{ facebook_enabled, facebook_app_id }` for the Facebook Login button (public)

@@ -30,7 +30,8 @@ function ensureDb() {
       allow_invites INTEGER NOT NULL DEFAULT 1,
       avatar_seed TEXT NOT NULL DEFAULT '',
       cancellations_count INTEGER NOT NULL DEFAULT 0,
-      facebook_id TEXT
+      facebook_id TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1
     );
     CREATE TABLE IF NOT EXISTS tokens (
       key TEXT PRIMARY KEY,
@@ -125,9 +126,19 @@ function migrateSchema(database) {
   if (!userCols.includes("facebook_id")) {
     database.exec("ALTER TABLE users ADD COLUMN facebook_id TEXT");
   }
+  if (!userCols.includes("is_active")) {
+    database.exec("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1");
+  }
   database.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_facebook_id
     ON users(facebook_id) WHERE facebook_id IS NOT NULL AND facebook_id != ''
+  `);
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS email_activation_tokens (
+      key TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TEXT NOT NULL
+    )
   `);
 }
 

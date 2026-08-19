@@ -31,11 +31,11 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 └────────────────────────────┘
 ```
 
-- **Sign up** collects display name, email, password, and a **reCAPTCHA** → creates a `USER`.
+- **Sign up** collects display name, email, password, and a **reCAPTCHA** → creates an inactive `USER` and emails an activation link. The user must click **Activate account** before password login.
 - **Google** uses Google Identity Services; the API verifies the ID token and creates/links a `USER`.
 - **Facebook** uses Facebook Login; the API verifies the user access token and creates/links a `USER`.
-- **States:** idle, loading, invalid-credentials error, field validation, captcha required, Google/Facebook not configured (button hidden).
-- **API:** `POST /api/auth/register` (`captcha_token` required), `GET /api/auth/captcha/config`, `POST /api/auth/login`, `GET /api/auth/google/config`, `POST /api/auth/google`, `GET /api/auth/facebook/config`, `POST /api/auth/facebook` → store token; route to Browse.
+- **States:** idle, loading, invalid-credentials error, field validation, captcha required, Google/Facebook not configured (button hidden), check-email after sign-up, not-activated on login.
+- **API:** `POST /api/auth/register` (`captcha_token` required; no token until activated), `GET /api/auth/captcha/config`, `POST /api/auth/login`, `GET|POST /api/auth/activate`, `POST /api/auth/activate/resend`, `GET /api/auth/google/config`, `POST /api/auth/google`, `GET /api/auth/facebook/config`, `POST /api/auth/facebook`.
 
 ---
 

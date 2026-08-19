@@ -90,6 +90,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    email = serializers.EmailField(required=True, allow_blank=False)
     captcha_token = serializers.CharField(write_only=True, required=True, allow_blank=False)
 
     class Meta:
@@ -102,6 +103,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         except DjangoValidationError as exc:
             raise serializers.ValidationError(list(exc.messages)) from exc
         return value
+
+    def validate_email(self, value: str) -> str:
+        email = (value or "").strip().lower()
+        if not email:
+            raise serializers.ValidationError("Email is required.")
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("A user with that email already exists.")
+        return email
 
     def validate(self, attrs):
         from .captcha import verify_recaptcha
@@ -118,7 +127,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Self-registration always creates a standard USER (docs/Permissions.md).
-        return User.objects.create_user(role=Role.USER, **validated_data)
+        # Login is blocked until the email activation link is used.
+        return User.objects.create_user(role=Role.USER, is_active=False, **validated_data)
 
 
 class ChangePasswordSerializer(serializers.Serializer):

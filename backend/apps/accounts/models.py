@@ -46,3 +46,15 @@ class User(AbstractUser):
         if self.role == Role.ADMIN:
             return True
         return self.role == Role.VENUE_USER and self.venue_id == getattr(venue, "id", venue)
+
+
+class EmailActivationToken(models.Model):
+    """One-time link emailed after password registration. Deleted on activate/resend."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="activation_tokens")
+    key = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [models.Index(fields=["expires_at"])]
