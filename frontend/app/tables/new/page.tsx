@@ -182,7 +182,7 @@ function BggGameDropdown({
       setSearching(true);
       setSearchError(null);
       bggApi
-        .search(q, 50)
+        .search(q, 500)
         .then((res) => {
           if (cancelled) return;
           setHits(res.results);
