@@ -47,7 +47,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 - `GET /tables` — browse/filter events (`date`, `time`, `past|future`, `game`, `minPlayers`, `maxPlayers`, `venueId`, `status=available`, `type` = BGG game type: strategy/family/party/thematic/…) *(2, 13)*
 - `GET /tables/{id}` — table details incl. game, status, seats *(2, 6, 33)*
-- `POST /tables` — create a table (venue, date, `startsAt`/`endsAt`, min/max, game + `bringOwnGame` and language, or venue game); host is a `USER`, auto-seated; starts in `waiting_for_venue_confirmation` *(1, 4; decisions 2, 4, 6)*
+- `POST /tables` — create a table (venue, date, `startsAt`/`endsAt`, min/max, **venue-library game** + language); host is a `USER`, auto-seated; starts in `waiting_for_venue_confirmation` *(1, 4; decisions 2, 4, 6)*
 - `PATCH /tables/{id}` — edit a table (organizer own; ADMIN any) — triggers relevant notifications *(28)*
 - `POST /tables/{id}/cancel` — organizer cancels; notifies attendees by email *(22)*
 - `GET /tables/{id}/share` — external share link *(15)*
@@ -71,7 +71,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 ## Reservation requests (venue side)
 
 - `GET /venues/{id}/requests` — pending reservation requests *(35, 43)*
-- `POST /requests/{id}/accept` / `POST /requests/{id}/reject` — confirm/reject a table at the venue; accept confirms **table availability** and, for a venue game, **game availability** (`venueGameConfirmed`), moving status to `waiting_for_players` *(24, 25, 35; decisions 2, 4)*
+- `POST /requests/{id}/accept` / `POST /requests/{id}/reject` — confirm/reject a table at the venue; accept confirms **table availability** and **game availability** (`venueGameConfirmed`), moving status to `waiting_for_players` *(24, 25, 35; decisions 2, 4)*
 
 ## Friends & blocking
 

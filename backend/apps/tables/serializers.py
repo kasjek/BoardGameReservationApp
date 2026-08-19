@@ -38,7 +38,6 @@ class TableCreateSerializer(serializers.ModelSerializer):
         fields = [
             "venue",
             "game_title",
-            "bring_own_game",
             "game_language",
             "game_language_other",
             "starts_at",

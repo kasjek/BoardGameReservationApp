@@ -53,7 +53,7 @@ Aligned with `docs/Vision.md`: people who **create a table**, people who **reser
 
 ## Resolved decisions
 
-- **Table creation fields** — defined in `docs/Requirements.md` FR-B1 (min/max capacity, date, from/to time, game, bring-own + language or venue game). *(decision 4)*
+- **Table creation fields** — defined in `docs/Requirements.md` FR-B1 (min/max capacity, date, from/to time, venue-library game, language). *(decision 4)*
 - **Multiple roles** — only `ADMIN` holds more than one role (all of them). `USER` and `VENUE_USER` are single, non-inherited roles. *(decision 5)*
 - **VENUE_USER playing** — a `VENUE_USER` needs a **separate `USER` account** to host or reserve. *(decision 6)*
 - **Seat cancellation, waitlist & late-cancel marks** — see `ADR-013` in `docs/Decisions.md`. *(decision 7)*

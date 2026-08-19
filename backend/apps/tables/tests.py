@@ -3,10 +3,10 @@ from datetime import time, timedelta
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.accounts.models import Role
-from apps.venues.models import Venue, VenueAvailability
+from apps.venues.models import Venue, VenueAvailability, VenueGame
 
 from . import services
 from .models import LateCancellationMark, SeatStatus, TableStatus
@@ -55,7 +55,8 @@ def ensure_wide_availability(venue, day, tables_available=5):
     )
 
 
-def make_table(organizer, venue, bring_own_game=True, ensure_availability=True, **kwargs):
+def make_table(organizer, venue, ensure_availability=True, **kwargs):
+    kwargs.pop("bring_own_game", None)
     params = {
         "organizer": organizer,
         "venue": venue,
@@ -64,11 +65,13 @@ def make_table(organizer, venue, bring_own_game=True, ensure_availability=True, 
         "ends_at": future_dt(hour=20),
         "min_players": 2,
         "max_players": 3,
-        "bring_own_game": bring_own_game,
     }
     params.update(kwargs)
     if ensure_availability:
         ensure_wide_availability(venue, params["starts_at"].date())
+    title = params["game_title"]
+    if title.strip().lower() != "spontaneous selection":
+        VenueGame.objects.get_or_create(venue=venue, title=title, defaults={"is_active": True})
     return services.create_table(**params)
 
 
@@ -81,6 +84,22 @@ def test_host_creates_pending_table_and_is_seated(db, venue):
     assert table.seats_taken == 1
     seat = table.seats.get(user=host)
     assert seat.is_organizer and seat.status == SeatStatus.RESERVED
+    assert table.bring_own_game is False
+
+
+def test_host_must_pick_a_venue_library_game(db, venue):
+    host = make_user("alice")
+    ensure_wide_availability(venue, future_dt().date())
+    with pytest.raises(ValidationError, match="venue's library"):
+        services.create_table(
+            organizer=host,
+            venue=venue,
+            game_title="Not In Stock",
+            starts_at=future_dt(hour=18),
+            ends_at=future_dt(hour=20),
+            min_players=2,
+            max_players=3,
+        )
 
 
 def test_venue_user_cannot_host(db, venue):
@@ -120,7 +139,7 @@ def test_confirm_requires_venue_or_admin(db, venue, wide_availability):
 def test_confirm_sets_waiting_for_players_and_confirms_venue_game(db, venue, wide_availability):
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
-    table = make_table(host, venue, bring_own_game=False, game_title="Carcassonne")
+    table = make_table(host, venue, game_title="Carcassonne")
     services.confirm_table(table=table, by_user=staff)
     table.refresh_from_db()
     assert table.status == TableStatus.WAITING_FOR_PLAYERS

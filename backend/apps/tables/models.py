@@ -32,7 +32,7 @@ class Table(models.Model):
     venue = models.ForeignKey("venues.Venue", on_delete=models.CASCADE, related_name="tables")
 
     game_title = models.CharField(max_length=200)
-    bring_own_game = models.BooleanField(default=True)
+    bring_own_game = models.BooleanField(default=False)
     game_language = models.CharField(max_length=8, choices=GameLanguage.choices, default=GameLanguage.EN)
     game_language_other = models.CharField(max_length=100, blank=True)
     venue_game_confirmed = models.BooleanField(default=False)
