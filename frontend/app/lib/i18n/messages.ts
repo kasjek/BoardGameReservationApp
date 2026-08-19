@@ -30,6 +30,7 @@ export const en: Messages = {
     newTable: "New Table",
     venue: "Venue",
     myBookings: "My Bookings",
+    chats: "Chats",
     logOut: "Log out",
   },
   lang: {
@@ -190,6 +191,15 @@ export const en: Messages = {
     incomingHeading: "Friend requests",
     myFriends: "Friends",
     none: "No friends yet. Search by login to add someone.",
+    message: "Message",
+  },
+  chats: {
+    title: "Chats",
+    empty: "No private chats yet. Open someone’s profile and tap Message.",
+    placeholder: "Write a message…",
+    send: "Send",
+    back: "Chats",
+    you: "You",
   },
   newTable: {
     title: "New Table",
@@ -396,6 +406,7 @@ export const de: Messages = {
     newTable: "Neuer Tisch",
     venue: "Location",
     myBookings: "Meine Buchungen",
+    chats: "Chats",
     logOut: "Abmelden",
   },
   lang: {
@@ -557,6 +568,15 @@ export const de: Messages = {
     incomingHeading: "Freundschaftsanfragen",
     myFriends: "Freunde",
     none: "Noch keine Freunde. Suche per Login, um jemanden hinzuzufügen.",
+    message: "Nachricht",
+  },
+  chats: {
+    title: "Chats",
+    empty: "Noch keine privaten Chats. Öffne ein Profil und tippe auf Nachricht.",
+    placeholder: "Nachricht schreiben…",
+    send: "Senden",
+    back: "Chats",
+    you: "Du",
   },
   newTable: {
     title: "Neuer Tisch",

@@ -379,6 +379,35 @@ export const friendApi = {
     request<FriendRequest>(`/friends/requests/${id}/reject`, { method: "POST" }),
 };
 
+export interface ChatMessage {
+  id: number;
+  sender_id: number;
+  recipient_id: number;
+  body: string;
+  created_at: string;
+  mine: boolean;
+}
+
+export interface ChatSummary {
+  user: FriendUser;
+  last_message: ChatMessage;
+}
+
+export interface ChatThread {
+  user: FriendUser;
+  messages: ChatMessage[];
+}
+
+export const chatApi = {
+  list: () => request<ChatSummary[]>("/chats"),
+  thread: (userId: number) => request<ChatThread>(`/chats/${userId}`),
+  send: (userId: number, body: string) =>
+    request<ChatMessage>(`/chats/${userId}`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+};
+
 // --- Tables ---
 export const tableApi = {
   list: (params: Record<string, string> = {}) => {

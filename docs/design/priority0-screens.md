@@ -202,6 +202,32 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 
 ---
 
+## 9. Private chat — *(story 12; FR-E5)*
+
+```
+┌────────────────────────────┐
+│  All Tables  New  Bookings │
+│ (search) [Search] [Chats]  │
+├────────────────────────────┤
+│ Chats                      │
+│ ┌────────────────────────┐ │
+│ │ ☺ alice                │ │
+│ │ You: See you at 11:00  │ │
+│ └────────────────────────┘ │
+│                            │
+│ Thread with alice          │
+│   [See you at 11:00] →     │
+│ ← [Yes!]                   │
+│ ( Write a message… ) [Send]│
+└────────────────────────────┘
+```
+
+- Start a chat from a public profile (**Message**) or from a friend on your profile.
+- Threads are private to the two users; email is never shown.
+- **API:** `GET /api/chats`, `GET|POST /api/chats/{userId}`.
+
+---
+
 ## Flow summary
 
 ```

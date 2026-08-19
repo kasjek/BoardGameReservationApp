@@ -44,6 +44,16 @@ function ensureDb() {
       UNIQUE(requester_id, addressee_id),
       CHECK (requester_id != addressee_id)
     );
+    CREATE TABLE IF NOT EXISTS direct_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      recipient_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      CHECK (sender_id != recipient_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_direct_messages_pair
+      ON direct_messages (sender_id, recipient_id, id);
     CREATE TABLE IF NOT EXISTS venues (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,

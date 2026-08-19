@@ -28,6 +28,7 @@ Sequencing for the table/venue model. Phases roughly follow requirement priority
 ## Phase 4 — Social, reviews & trust/safety
 
 - Friends (search, requests) and in-app invitations *(14, 16, 27)*
+- Private 1:1 chats *(12)*
 - Event chat *(8)*
 - Reviews & ratings for users and venues; venue responses *(5, 20, 37, 39)*
 - Blocking (user-to-user and venue-to-user) *(12, 42)*

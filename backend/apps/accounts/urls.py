@@ -2,6 +2,8 @@ from django.urls import path
 
 from .views import (
     ChangePasswordView,
+    ChatListView,
+    ChatThreadView,
     FriendListView,
     FriendRequestAcceptView,
     FriendRequestListView,
@@ -32,4 +34,6 @@ urlpatterns = [
     path("friends/requests/<int:pk>/reject", FriendRequestRejectView.as_view(), name="friend-reject"),
     path("friends/requests", FriendRequestListView.as_view(), name="friend-requests"),
     path("friends", FriendListView.as_view(), name="friends"),
+    path("chats/<int:pk>", ChatThreadView.as_view(), name="chat-thread"),
+    path("chats", ChatListView.as_view(), name="chats"),
 ]

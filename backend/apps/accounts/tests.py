@@ -400,3 +400,36 @@ def test_reciprocal_add_accepts_incoming(db, client):
     assert resp.data["status"] == "accepted"
 
 
+def test_private_chat_round_trip(db, client):
+    a = mk("chat_a")
+    b = mk("chat_b")
+    client.force_authenticate(user=a)
+    assert client.get("/api/chats").data == []
+    sent = client.post(f"/api/chats/{b.id}", {"body": "Hello from A"}, format="json")
+    assert sent.status_code == 201
+    assert sent.data["body"] == "Hello from A"
+    assert sent.data["mine"] is True
+
+    client.force_authenticate(user=b)
+    thread = client.get(f"/api/chats/{a.id}")
+    assert thread.status_code == 200
+    assert thread.data["user"]["username"] == "chat_a"
+    assert "email" not in thread.data["user"]
+    assert len(thread.data["messages"]) == 1
+    client.post(f"/api/chats/{a.id}", {"body": "Hi A"}, format="json")
+
+    inbox = client.get("/api/chats")
+    assert inbox.data[0]["user"]["username"] == "chat_a"
+    assert inbox.data[0]["last_message"]["body"] == "Hi A"
+
+
+def test_private_chat_rejects_self_and_empty(db, client):
+    me = mk("chat_self")
+    client.force_authenticate(user=me)
+    assert client.post(f"/api/chats/{me.id}", {"body": "hi"}, format="json").status_code == 400
+    other = mk("chat_other")
+    assert client.post(f"/api/chats/{other.id}", {"body": "  "}, format="json").status_code == 400
+    assert client.get("/api/chats/999999").status_code == 404
+
+
+
