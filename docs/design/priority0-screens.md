@@ -19,6 +19,7 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 │   Find a table. Play.      │
 │                            │
 │   [ Continue with Google ] │
+│   [ Continue with Facebook]│
 │            or              │
 │   ( Email )                │
 │   ( Password )             │
@@ -32,8 +33,9 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 
 - **Sign up** collects display name, email, password, and a **reCAPTCHA** → creates a `USER`.
 - **Google** uses Google Identity Services; the API verifies the ID token and creates/links a `USER`.
-- **States:** idle, loading, invalid-credentials error, field validation, captcha required, Google not configured (button hidden).
-- **API:** `POST /api/auth/register` (`captcha_token` required), `GET /api/auth/captcha/config`, `POST /api/auth/login`, `GET /api/auth/google/config`, `POST /api/auth/google` → store token; route to Browse.
+- **Facebook** uses Facebook Login; the API verifies the user access token and creates/links a `USER`.
+- **States:** idle, loading, invalid-credentials error, field validation, captcha required, Google/Facebook not configured (button hidden).
+- **API:** `POST /api/auth/register` (`captcha_token` required), `GET /api/auth/captcha/config`, `POST /api/auth/login`, `GET /api/auth/google/config`, `POST /api/auth/google`, `GET /api/auth/facebook/config`, `POST /api/auth/facebook` → store token; route to Browse.
 
 ---
 

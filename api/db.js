@@ -29,7 +29,8 @@ function ensureDb() {
       venue_id INTEGER,
       allow_invites INTEGER NOT NULL DEFAULT 1,
       avatar_seed TEXT NOT NULL DEFAULT '',
-      cancellations_count INTEGER NOT NULL DEFAULT 0
+      cancellations_count INTEGER NOT NULL DEFAULT 0,
+      facebook_id TEXT
     );
     CREATE TABLE IF NOT EXISTS tokens (
       key TEXT PRIMARY KEY,
@@ -115,7 +116,19 @@ function ensureDb() {
     );
   `);
   seedIfEmpty(db);
+  migrateSchema(db);
   return db;
+}
+
+function migrateSchema(database) {
+  const userCols = database.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+  if (!userCols.includes("facebook_id")) {
+    database.exec("ALTER TABLE users ADD COLUMN facebook_id TEXT");
+  }
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_facebook_id
+    ON users(facebook_id) WHERE facebook_id IS NOT NULL AND facebook_id != ''
+  `);
 }
 
 function hashPassword(password) {
@@ -314,6 +327,7 @@ function serializeUser(row) {
     rating_avg: rating?.avg != null ? Number(rating.avg) : null,
     cancellations_count: row.cancellations_count || 0,
     late_cancel_marks_active: 0,
+    has_usable_password: Boolean(row.password_hash),
   };
 }
 

@@ -37,6 +37,7 @@ uv run ruff check .
 - `POST /api/auth/register` (requires `captcha_token`), `POST /api/auth/login`, `GET /api/auth/me`
 - `GET /api/auth/captcha/config` (set `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` in production)
 - `GET /api/auth/google/config`, `POST /api/auth/google` (set `GOOGLE_CLIENT_ID` for GIS)
+- `GET /api/auth/facebook/config`, `POST /api/auth/facebook` (set `FACEBOOK_APP_ID` + `FACEBOOK_APP_SECRET`)
 - `GET/POST /api/venues`, `GET /api/venues/{id}`, `GET/POST /api/venues/{id}/availability`
 - `GET/POST /api/tables`, `GET /api/tables/{id}`
 - `POST /api/tables/{id}/confirm`, `POST /api/tables/{id}/reject`

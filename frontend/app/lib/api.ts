@@ -204,6 +204,13 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ credential }),
     }),
+  facebookConfig: () =>
+    request<{ facebook_app_id: string | null; facebook_enabled: boolean }>("/auth/facebook/config"),
+  loginFacebook: (accessToken: string) =>
+    request<{ token: string; user: User }>("/auth/facebook", {
+      method: "POST",
+      body: JSON.stringify({ access_token: accessToken }),
+    }),
   me: () => request<User>("/auth/me"),
   rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),
   changePassword: (payload: {

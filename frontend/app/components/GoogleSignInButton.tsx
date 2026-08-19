@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import { authApi } from "../lib/api";
-import { useI18n } from "../lib/i18n";
 
 declare global {
   interface Window {
@@ -63,11 +62,12 @@ function loadGsiScript(): Promise<void> {
 export function GoogleSignInButton({
   onCredential,
   disabled,
+  onEnabledChange,
 }: {
   onCredential: (credential: string) => void;
   disabled?: boolean;
+  onEnabledChange?: (enabled: boolean) => void;
 }) {
-  const { t } = useI18n();
   const slotRef = useRef<HTMLDivElement>(null);
   const onCredentialRef = useRef(onCredential);
   onCredentialRef.current = onCredential;
@@ -79,7 +79,10 @@ export function GoogleSignInButton({
     authApi
       .googleConfig()
       .then(async (cfg) => {
-        if (cancelled || !cfg.google_enabled || !cfg.google_client_id) return;
+        if (cancelled || !cfg.google_enabled || !cfg.google_client_id) {
+          onEnabledChange?.(false);
+          return;
+        }
         await loadGsiScript();
         if (cancelled || !slotRef.current || !window.google?.accounts?.id) return;
         window.google.accounts.id.initialize({
@@ -101,30 +104,27 @@ export function GoogleSignInButton({
           logo_alignment: "left",
         });
         setEnabled(true);
+        onEnabledChange?.(true);
       })
       .catch(() => {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) {
+          setFailed(true);
+          onEnabledChange?.(false);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onEnabledChange]);
 
   if (failed) return null;
 
   return (
-    <div className={enabled ? "mb-4" : "mb-0"}>
+    <div className={enabled ? "mb-2" : "mb-0"}>
       <div
         ref={slotRef}
         className={`flex min-h-[44px] justify-center ${disabled ? "pointer-events-none opacity-50" : ""} ${enabled ? "" : "hidden"}`}
       />
-      {enabled ? (
-        <div className="mt-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          <span className="h-px flex-1 bg-slate-200" />
-          {t("auth.or")}
-          <span className="h-px flex-1 bg-slate-200" />
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -11,6 +11,7 @@ const {
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
 const { captchaPublicConfig, verifyCaptcha } = require("./captcha");
+const { facebookPublicConfig, userFromFacebook, verifyFacebookAccessToken } = require("./facebook");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -125,6 +126,29 @@ async function handleApi(req, res) {
       return send(res, 200, { token });
     }
 
+    if (method === "GET" && path === "/api/auth/facebook/config") {
+      return send(res, 200, facebookPublicConfig());
+    }
+
+    if (method === "POST" && path === "/api/auth/facebook") {
+      const body = await readBody(req);
+      const verified = await verifyFacebookAccessToken(body.access_token || body.token);
+      if (!verified.ok) return send(res, verified.status, { detail: verified.error });
+      let created = false;
+      let user;
+      try {
+        const result = userFromFacebook(db, verified.info);
+        user = result.user;
+        created = result.created;
+      } catch (err) {
+        return send(res, err.status || 400, { detail: err.message });
+      }
+      db.prepare("DELETE FROM tokens WHERE user_id=?").run(user.id);
+      const token = newToken();
+      db.prepare("INSERT INTO tokens (key, user_id) VALUES (?, ?)").run(token, user.id);
+      return send(res, created ? 201 : 200, { token, user: serializeUser(user) });
+    }
+
     if (method === "GET" && path === "/api/auth/me") {
       const u = requireUser(req, res);
       if (!u) return;
@@ -142,6 +166,9 @@ async function handleApi(req, res) {
     if (method === "POST" && path === "/api/me/password") {
       const u = requireUser(req, res);
       if (!u) return;
+      if (!u.password_hash) {
+        return send(res, 400, { detail: "This account uses social sign-in and has no password yet." });
+      }
       const body = await readBody(req);
       if (!checkPassword(body.current_password || "", u.password_hash)) {
         return send(res, 400, { current_password: ["Incorrect password."] });

@@ -35,6 +35,10 @@ script runs you do NOT need to reinstall dependencies.
 - Auth is DRF **token** auth. `POST /api/auth/register` always creates a `USER`
   and requires a Google reCAPTCHA v2 `captcha_token` (see `GET /api/auth/captcha/config`).
   Promotion to `VENUE_USER`/`ADMIN` is done via the Django admin or a shell.
+  Optional social sign-in: Google (`GOOGLE_CLIENT_ID`) and Facebook
+  (`FACEBOOK_APP_ID` + `FACEBOOK_APP_SECRET`). Buttons hide when those env vars
+  are unset. The live Node path implements Facebook (`POST /api/auth/facebook`);
+  Google is Django-only today.
 - **BGG:** live search/covers need env secret `BGG_API_TOKEN` (Bearer for
   boardgamegeek.com XML API). The configured application token is named
   `TestVersion260812`. Without the secret, search falls back to local inventory.

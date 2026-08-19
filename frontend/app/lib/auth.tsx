@@ -9,6 +9,7 @@ interface AuthState {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   loginGoogle: (credential: string) => Promise<void>;
+  loginFacebook: (accessToken: string) => Promise<void>;
   register: (username: string, email: string, password: string, captchaToken: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
@@ -68,6 +69,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refresh],
   );
 
+  const loginFacebook = useCallback(
+    async (accessToken: string) => {
+      const { token } = await authApi.loginFacebook(accessToken);
+      setToken(token);
+      await refresh();
+    },
+    [refresh],
+  );
+
   const register = useCallback(
     async (username: string, email: string, password: string, captchaToken: string) => {
       const { token } = await authApi.register(username, email, password, captchaToken);
@@ -83,7 +93,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginGoogle, register, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, loginGoogle, loginFacebook, register, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );
