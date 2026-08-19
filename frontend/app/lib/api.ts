@@ -111,6 +111,8 @@ export interface VenueGame {
   cover_url: string | null;
   bgg_url: string | null;
   is_active: boolean;
+  needs_maintenance: boolean;
+  maintenance_note: string;
 }
 
 export interface BggSearchHit {
@@ -299,6 +301,11 @@ export const venueApi = {
     }),
   deleteGame: (venueId: number, gameId: number) =>
     request<unknown>(`/venues/${venueId}/games/${gameId}`, { method: "DELETE" }),
+  requestMaintenance: (venueId: number, gameId: number, note?: string) =>
+    request<VenueGame>(`/venues/${venueId}/games/${gameId}/maintenance`, {
+      method: "POST",
+      body: JSON.stringify({ note: note || "" }),
+    }),
 };
 
 export const bggApi = {

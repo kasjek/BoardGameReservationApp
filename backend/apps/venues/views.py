@@ -34,6 +34,13 @@ def _require_manager(user, venue):
         raise PermissionDenied("Only the venue (or an admin) can manage this venue.")
 
 
+def _require_admin(user):
+    from rest_framework.exceptions import PermissionDenied
+
+    if not user or user.role != Role.ADMIN:
+        raise PermissionDenied("Only an admin can add or remove venue games.")
+
+
 class VenueListCreateView(generics.ListCreateAPIView):
     queryset = Venue.objects.all().order_by("name")
     permission_classes = [IsAdminRole]
@@ -152,7 +159,7 @@ class VenueClosureDestroyView(generics.DestroyAPIView):
 
 
 class VenueGameListCreateView(generics.ListCreateAPIView):
-    """Public list of games at a venue; managers may add from BGG search hits."""
+    """Public list of games at a venue; ADMIN may add from BGG search hits."""
 
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:
@@ -172,7 +179,7 @@ class VenueGameListCreateView(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         venue = generics.get_object_or_404(Venue, pk=self.kwargs["venue_id"])
-        _require_manager(request.user, venue)
+        _require_admin(request.user)
         ser = VenueGameWriteSerializer(data=request.data, context={"venue": venue})
         ser.is_valid(raise_exception=True)
         game = ser.save()
@@ -187,5 +194,42 @@ class VenueGameDestroyView(generics.DestroyAPIView):
         return VenueGame.objects.filter(venue_id=self.kwargs["venue_id"])
 
     def perform_destroy(self, instance):
-        _require_manager(self.request.user, instance.venue)
+        _require_admin(self.request.user)
         super().perform_destroy(instance)
+
+
+class VenueGameMaintenanceView(APIView):
+    """VENUE_USER (own venue) or ADMIN: flag a game as needing maintenance and email staff."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, venue_id, pk):
+        from django.utils import timezone
+
+        from .maintenance import require_email_delivery, send_game_maintenance_email
+
+        venue = generics.get_object_or_404(Venue, pk=venue_id)
+        _require_manager(request.user, venue)
+        game = generics.get_object_or_404(VenueGame, pk=pk, venue=venue, is_active=True)
+        note = str(request.data.get("note") or "").strip()[:500]
+        game.needs_maintenance = True
+        game.maintenance_note = note
+        game.maintenance_requested_at = timezone.now()
+        game.maintenance_requested_by = request.user
+        game.save(
+            update_fields=[
+                "needs_maintenance",
+                "maintenance_note",
+                "maintenance_requested_at",
+                "maintenance_requested_by",
+            ]
+        )
+        require_email_delivery()
+        try:
+            send_game_maintenance_email(user=request.user, venue=venue, game=game, note=note)
+        except OSError:
+            return Response(
+                {"detail": "Maintenance email could not be sent."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(VenueGameSerializer(game).data)

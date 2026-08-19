@@ -259,6 +259,8 @@ export default function ManageVenuePage() {
   const [manageMaxMinutes, setManageMaxMinutes] = useState(180);
   const [manageClosureDate, setManageClosureDate] = useState("");
   const [manageClosureComment, setManageClosureComment] = useState("");
+  const [maintenanceFor, setMaintenanceFor] = useState<number | null>(null);
+  const [maintenanceNote, setMaintenanceNote] = useState("");
 
   const isAdmin = user?.role === "ADMIN";
 
@@ -524,6 +526,24 @@ export default function ManageVenuePage() {
       await venueApi.deleteGame(venueId, id);
       setGames((rows) => rows.filter((g) => g.id !== id));
       setInfo(t("venueManage.gameRemoved"));
+    } catch (err) {
+      setError(errorMessage(err, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendMaintenance(id: number) {
+    if (!venueId) return;
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const game = await venueApi.requestMaintenance(venueId, id, maintenanceNote);
+      setGames((rows) => rows.map((g) => (g.id === game.id ? game : g)));
+      setMaintenanceFor(null);
+      setMaintenanceNote("");
+      setInfo(t("venueManage.maintenanceSent"));
     } catch (err) {
       setError(errorMessage(err, t));
     } finally {
@@ -830,28 +850,88 @@ export default function ManageVenuePage() {
 
               <div className="card">
                 <div className="text-sm font-bold">{t("venueManage.boardGames")}</div>
-                <div className="mt-1 text-xs text-slate-500">{t("venueManage.boardGamesHint")}</div>
-                <div className="mt-2">
-                  <BggGamePicker onPick={addGameFromBgg} disabled={busy} t={t} />
+                <div className="mt-1 text-xs text-slate-500">
+                  {isAdmin ? t("venueManage.boardGamesHint") : t("venueManage.boardGamesVenueHint")}
                 </div>
+                {isAdmin ? (
+                  <div className="mt-2">
+                    <BggGamePicker onPick={addGameFromBgg} disabled={busy} t={t} />
+                  </div>
+                ) : null}
                 <div className="mt-3 space-y-2">
                   {games.length === 0 ? (
                     <div className="text-sm text-slate-400">{t("venueManage.noGames")}</div>
                   ) : (
                     games.map((g) => (
-                      <div key={g.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                      <div key={g.id} className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2">
                         <Cover name={g.title} imageUrl={g.cover_url} size={40} />
-                        <div className="min-w-0 flex-1 text-sm font-semibold">
-                          <GameLink name={g.title} bggId={g.bgg_id} href={g.bgg_url} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold">
+                            <GameLink name={g.title} bggId={g.bgg_id} href={g.bgg_url} />
+                          </div>
+                          {g.needs_maintenance ? (
+                            <div className="mt-0.5 text-xs font-semibold text-amber-700">
+                              {t("venueManage.maintenanceBadge")}
+                            </div>
+                          ) : null}
+                          {maintenanceFor === g.id ? (
+                            <div className="mt-2 space-y-2">
+                              <textarea
+                                className="input"
+                                rows={2}
+                                maxLength={500}
+                                value={maintenanceNote}
+                                onChange={(e) => setMaintenanceNote(e.target.value)}
+                                placeholder={t("venueManage.maintenanceNotePlaceholder")}
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  className="btn"
+                                  disabled={busy}
+                                  onClick={() => sendMaintenance(g.id)}
+                                >
+                                  {t("venueManage.sendMaintenance")}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs font-semibold text-slate-500"
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setMaintenanceFor(null);
+                                    setMaintenanceNote("");
+                                  }}
+                                >
+                                  {t("venueManage.maintenanceCancel")}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="mt-1 text-xs font-semibold text-amber-800"
+                              disabled={busy}
+                              onClick={() => {
+                                setMaintenanceFor(g.id);
+                                setMaintenanceNote("");
+                              }}
+                            >
+                              {g.needs_maintenance
+                                ? t("venueManage.notifyMaintenanceAgain")
+                                : t("venueManage.markMaintenance")}
+                            </button>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-red-500"
-                          disabled={busy}
-                          onClick={() => removeGame(g.id)}
-                        >
-                          {t("common.remove")}
-                        </button>
+                        {isAdmin ? (
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-red-500"
+                            disabled={busy}
+                            onClick={() => removeGame(g.id)}
+                          >
+                            {t("common.remove")}
+                          </button>
+                        ) : null}
                       </div>
                     ))
                   )}

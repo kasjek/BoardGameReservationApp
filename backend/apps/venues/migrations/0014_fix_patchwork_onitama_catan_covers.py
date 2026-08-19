@@ -14,7 +14,8 @@ CACHE_QUERY_NORMS = {
 def forwards(apps, schema_editor):
     from apps.bgg import services
     from apps.bgg.models import BggResolution
-    from apps.venues.models import VenueGame
+
+    VenueGame = apps.get_model("venues", "VenueGame")
 
     title, bgg_id = ONITAMA_FIX
     VenueGame.objects.filter(title=title).update(bgg_id=bgg_id, thumbnail_url="")

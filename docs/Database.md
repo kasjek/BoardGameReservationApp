@@ -156,6 +156,8 @@ Games physically available at a venue. *(stories 29, 38, 44)*
 | `condition` | enum(`new`,`like_new`,`good`) | Physical condition |
 | `language` | text | Copy language |
 | `is_active` | bool | Currently offered |
+| `needs_maintenance` | bool | Venue flagged the game as needing repair/replacement |
+| `maintenance_note` | text | Optional note included in the staff email |
 
 | id | venue_id | game_id | copies | condition | language | is_active |
 |---|---|---|---|---|---|---|

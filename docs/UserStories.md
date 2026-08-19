@@ -42,7 +42,7 @@
 35. As a venue admin, I want to be able to accept or reject the reservation requests sent by the users so that all of us have visibility whether the event can take place (and table can be reserved with or without a requested game)
 36. As a venue admin, I want to be able to modify the description of my location and pictures, so that i can manage the online image of my business in the application
 37. As a venue admin, I want to respond to the reviews posted at my location by the users so that i can get more information about their actual experience and reasons of behind their review in case they are missing from the description itself
-38. As a venue admin, I want to define and edit the games available in my place so that people know what is available for renting when visiting
+38. As a venue admin, I want to flag games at my place that need maintenance so that Too Many Games can update what is available (adding and removing titles is an ADMIN action)
 39. As a venue admin, I want to write reviews of the players that have visited my location so that i keep track of the guests that were already visiting and how they behaved 
 40. As a venue admin, I want to be able to see all the tables reserved in the past at my location to be able to use that data for any advertisment i plan for my own business
 41. As a venue admin, I want to be able to see all the events planned to happen at my location in a single space to be able to manage them from a single page, screen

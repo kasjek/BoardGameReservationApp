@@ -31,7 +31,7 @@ const {
   horizonDaysFor,
 } = require("./hours");
 const { readPicture, savePicture } = require("./pictures");
-const { addVenueGame, listVenueGames, removeVenueGame } = require("./venueGames");
+const { addVenueGame, listVenueGames, removeVenueGame, requestMaintenance } = require("./venueGames");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -507,7 +507,9 @@ async function handleApi(req, res) {
       if (method === "POST") {
         const u = requireUser(req, res);
         if (!u) return;
-        if (!managesVenue(u, id)) return send(res, 403, { detail: "Forbidden." });
+        if (u.role !== "ADMIN") {
+          return send(res, 403, { detail: "Only an admin can add or remove venue games." });
+        }
         const body = await readBody(req);
         try {
           const game = await addVenueGame(db, id, body);
@@ -518,11 +520,27 @@ async function handleApi(req, res) {
       }
     }
 
-    if ((m = path.match(/^\/api\/venues\/(\d+)\/games\/(\d+)$/)) && method === "DELETE") {
+    if ((m = path.match(/^\/api\/venues\/(\d+)\/games\/(\d+)\/maintenance$/)) && method === "POST") {
       const venueId = Number(m[1]);
       const u = requireUser(req, res);
       if (!u) return;
       if (!managesVenue(u, venueId)) return send(res, 403, { detail: "Forbidden." });
+      const body = await readBody(req);
+      try {
+        const game = await requestMaintenance(db, u, venueId, Number(m[2]), body?.note);
+        return send(res, 200, game);
+      } catch (err) {
+        return send(res, err.status || 400, err.body || { detail: err.message });
+      }
+    }
+
+    if ((m = path.match(/^\/api\/venues\/(\d+)\/games\/(\d+)$/)) && method === "DELETE") {
+      const venueId = Number(m[1]);
+      const u = requireUser(req, res);
+      if (!u) return;
+      if (u.role !== "ADMIN") {
+        return send(res, 403, { detail: "Only an admin can add or remove venue games." });
+      }
       const ok = removeVenueGame(db, venueId, Number(m[2]));
       if (!ok) return send(res, 404, { detail: "Not found." });
       return send(res, 204, null);

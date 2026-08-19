@@ -43,7 +43,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 - **FR-C2 (Must)** A venue admin accepts or rejects reservation requests, **confirming table availability first** and, when the host requested a **venue game**, also confirming that **game's availability** — making the outcome visible to all parties before other users may book seats. *(35; decisions 2, 4)*
 - **FR-C3 (Must)** A venue admin sees all events planned at their location on a single screen. *(41)*
 - **FR-C4 (Should)** A venue admin edits the venue description and pictures. *(36)*
-- **FR-C5 (Should)** A venue admin manages the venue's game inventory: number of copies, condition (new / like new / good), and language. *(38, 44, 29)*
+- **FR-C5 (Should)** A venue admin cannot add or remove titles from the venue game list (that is an ADMIN action, FR-I2). They **can mark a listed game as needing maintenance**, which emails `info@toomanygames.de`. Copy counts, condition, and language remain later inventory fields. *(38, 44, 29, 47)*
 - **FR-C6 (Should)** A venue admin adds, edits, and removes reservation rules (max reservation time, food/drink requirements, minimum spend per person). *(45)*
 - **FR-C7 (Should)** A venue admin views all past tables reserved at their location for their own analytics/advertising. *(40)*
 - **FR-C8 (Could)** A venue admin responds to reviews of their location and writes reviews of players who visited. *(37, 39)*

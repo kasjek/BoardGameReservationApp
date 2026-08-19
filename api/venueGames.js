@@ -1,6 +1,10 @@
-/** Add/list/remove games on a venue inventory (ADMIN any venue, VENUE_USER own). */
+/** Add/list/remove games on a venue inventory (ADMIN only). Maintenance flags: venue staff. */
 
 const { resolveThing } = require("./bgg");
+const { emailConfigured, sendMail } = require("./mail");
+
+const MAINTENANCE_NOTIFY_EMAIL =
+  (process.env.MAINTENANCE_NOTIFY_EMAIL || "info@toomanygames.de").trim() || "info@toomanygames.de";
 
 function serializeGame(g) {
   if (!g) return null;
@@ -13,6 +17,8 @@ function serializeGame(g) {
     cover_url: g.thumbnail_url || null,
     bgg_url: g.bgg_id ? `https://boardgamegeek.com/boardgame/${g.bgg_id}` : null,
     is_active: !!g.is_active,
+    needs_maintenance: !!g.needs_maintenance,
+    maintenance_note: g.maintenance_note || "",
   };
 }
 
@@ -80,6 +86,9 @@ async function addVenueGame(database, venueId, body) {
       .prepare(
         `UPDATE venue_games SET
            is_active=1,
+           needs_maintenance=0,
+           maintenance_note='',
+           maintenance_requested_at=NULL,
            title=?,
            bgg_id=COALESCE(?, bgg_id),
            thumbnail_url=CASE WHEN ? != '' THEN ? ELSE thumbnail_url END
@@ -118,9 +127,66 @@ function removeVenueGame(database, venueId, gameId) {
   return true;
 }
 
+async function requestMaintenance(database, user, venueId, gameId, note) {
+  const game = database
+    .prepare("SELECT * FROM venue_games WHERE id=? AND venue_id=? AND is_active=1")
+    .get(gameId, venueId);
+  if (!game) fail(404, "Not found.");
+  const venue = database.prepare("SELECT * FROM venues WHERE id=?").get(venueId);
+  if (!venue) fail(404, "Not found.");
+
+  const noteText = String(note || "").trim().slice(0, 500);
+  const now = new Date().toISOString();
+  database
+    .prepare(
+      `UPDATE venue_games SET needs_maintenance=1, maintenance_note=?, maintenance_requested_at=?
+       WHERE id=? AND venue_id=?`,
+    )
+    .run(noteText, now, gameId, venueId);
+
+  if (!emailConfigured()) {
+    fail(503, "Email delivery is not configured.");
+  }
+
+  const requester = user.email ? `${user.username} <${user.email}>` : user.username;
+  const bgg = game.bgg_id
+    ? `https://boardgamegeek.com/boardgame/${game.bgg_id}`
+    : "(no BoardGameGeek id)";
+  const noteLine = noteText || "(none)";
+  const subject = `Game maintenance: ${game.title} at ${venue.name}`;
+  const text =
+    `A venue marked a game as needing maintenance.\n\n` +
+    `Venue: ${venue.name}\n` +
+    `Game: ${game.title}\n` +
+    `BoardGameGeek: ${bgg}\n` +
+    `Requested by: ${requester}\n` +
+    `Note: ${noteLine}\n`;
+  const html =
+    `<p>A venue marked a game as needing maintenance.</p>` +
+    `<ul>` +
+    `<li><strong>Venue:</strong> ${venue.name}</li>` +
+    `<li><strong>Game:</strong> ${game.title}</li>` +
+    `<li><strong>BoardGameGeek:</strong> ${bgg}</li>` +
+    `<li><strong>Requested by:</strong> ${requester}</li>` +
+    `<li><strong>Note:</strong> ${noteLine}</li>` +
+    `</ul>`;
+
+  const sent = await sendMail({
+    to: MAINTENANCE_NOTIFY_EMAIL,
+    subject,
+    text,
+    html,
+  });
+  if (!sent.ok) fail(503, sent.error || "Maintenance email could not be sent.");
+
+  return serializeGame(database.prepare("SELECT * FROM venue_games WHERE id=?").get(gameId));
+}
+
 module.exports = {
   addVenueGame,
   listVenueGames,
   removeVenueGame,
+  requestMaintenance,
   serializeGame,
+  MAINTENANCE_NOTIFY_EMAIL,
 };

@@ -112,7 +112,7 @@ sequenceDiagram
 Roles enforced in the API (not only in the UI):
 
 - **USER** — host tables, reserve seats
-- **VENUE_USER** — confirm/reject tables, manage venue games/hours (cannot host/reserve as a player)
+- **VENUE_USER** — confirm/reject tables, manage hours, flag games for maintenance (cannot add/remove games, cannot host/reserve as a player)
 - **ADMIN** — both worlds
 
 ---

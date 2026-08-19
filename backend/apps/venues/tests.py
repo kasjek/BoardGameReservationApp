@@ -518,16 +518,70 @@ def test_non_manager_cannot_add_venue_game(db, client):
     assert resp.status_code == 403
 
 
-def test_manager_can_remove_venue_game(db, client):
+def test_venue_user_cannot_add_or_remove_venue_game(db, client):
     from apps.venues.models import VenueGame
 
     venue = Venue.objects.create(name="Game Shelf")
     game = VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
     staff = mk("carol", role=Role.VENUE_USER, venue=venue)
     client.force_authenticate(user=staff)
-    resp = client.delete(f"/api/venues/{venue.id}/games/{game.id}")
-    assert resp.status_code == 204
-    assert not VenueGame.objects.filter(id=game.id).exists()
+    added = client.post(
+        f"/api/venues/{venue.id}/games",
+        {"title": "Ticket to Ride"},
+        format="json",
+    )
+    assert added.status_code == 403
+    removed = client.delete(f"/api/venues/{venue.id}/games/{game.id}")
+    assert removed.status_code == 403
+    assert VenueGame.objects.filter(id=game.id).exists()
+
+
+def test_venue_user_can_request_game_maintenance(db, client, mailoutbox):
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Game Shelf")
+    game = VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    staff = mk("carol", role=Role.VENUE_USER, venue=venue)
+    staff.email = "carol@cafe.test"
+    staff.save()
+    client.force_authenticate(user=staff)
+    resp = client.post(
+        f"/api/venues/{venue.id}/games/{game.id}/maintenance",
+        {"note": "Box is crushed, cards missing."},
+        format="json",
+    )
+    assert resp.status_code == 200, resp.data
+    assert resp.data["needs_maintenance"] is True
+    assert resp.data["maintenance_note"] == "Box is crushed, cards missing."
+    game.refresh_from_db()
+    assert game.needs_maintenance is True
+    assert game.maintenance_requested_by_id == staff.id
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].to == ["info@toomanygames.de"]
+    assert "Catan" in mailoutbox[0].subject
+    assert "Game Shelf" in mailoutbox[0].body
+    assert "Box is crushed" in mailoutbox[0].body
+    assert "carol@cafe.test" in mailoutbox[0].body
+
+
+def test_non_manager_cannot_request_game_maintenance(db, client, mailoutbox):
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Game Shelf")
+    other = Venue.objects.create(name="Other Cafe")
+    game = VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    player = mk("not_a_manager")
+    client.force_authenticate(user=player)
+    denied = client.post(f"/api/venues/{venue.id}/games/{game.id}/maintenance", {}, format="json")
+    assert denied.status_code == 403
+
+    other_staff = mk("other_staff", role=Role.VENUE_USER, venue=other)
+    client.force_authenticate(user=other_staff)
+    cross = client.post(f"/api/venues/{venue.id}/games/{game.id}/maintenance", {}, format="json")
+    assert cross.status_code == 403
+    assert mailoutbox == []
+    game.refresh_from_db()
+    assert game.needs_maintenance is False
 
 
 def test_venue_game_bgg_url_is_game_page_not_search(db, client):

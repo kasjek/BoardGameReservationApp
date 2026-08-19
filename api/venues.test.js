@@ -202,6 +202,58 @@ const PNG_1X1 =
   );
   assert(cross.statusCode === 403, "venue user cannot add games to another venue");
 
+  const ownAdd = await api(
+    "POST",
+    `/api/venues/${datehouseUser.venue_id}/games`,
+    { bgg_id: 13, title: "Catan" },
+    venueToken,
+  );
+  assert(ownAdd.statusCode === 403, "venue user cannot add games to their own venue");
+
+  const datehouseGame = db
+    .prepare("SELECT * FROM venue_games WHERE venue_id=? AND is_active=1 LIMIT 1")
+    .get(datehouseUser.venue_id);
+  assert(datehouseGame, "date house has a game to flag");
+  const ownDel = await api(
+    "DELETE",
+    `/api/venues/${datehouseUser.venue_id}/games/${datehouseGame.id}`,
+    undefined,
+    venueToken,
+  );
+  assert(ownDel.statusCode === 403, "venue user cannot remove games from their own venue");
+
+  const mailLogs = [];
+  const origLog = console.log;
+  console.log = (...args) => {
+    mailLogs.push(args.join(" "));
+    origLog(...args);
+  };
+  const flagged = await api(
+    "POST",
+    `/api/venues/${datehouseUser.venue_id}/games/${datehouseGame.id}/maintenance`,
+    { note: "Missing cards" },
+    venueToken,
+  );
+  console.log = origLog;
+  assert(flagged.statusCode === 200, `venue user flags maintenance (got ${flagged.statusCode})`);
+  assert(flagged.body.needs_maintenance === true, "needs_maintenance is true");
+  assert(flagged.body.maintenance_note === "Missing cards", "note stored");
+  const mailBlob = mailLogs.join("\n");
+  assert(mailBlob.includes("info@toomanygames.de"), "maintenance email goes to info@toomanygames.de");
+  assert(mailBlob.includes("Missing cards"), "maintenance email includes the note");
+  assert(mailBlob.includes(datehouseGame.title), "maintenance email includes the game title");
+
+  const player = db.prepare("SELECT * FROM users WHERE username='demo'").get();
+  const playerToken = newToken();
+  db.prepare("INSERT INTO tokens (key, user_id) VALUES (?, ?)").run(playerToken, player.id);
+  const playerFlag = await api(
+    "POST",
+    `/api/venues/${datehouseUser.venue_id}/games/${datehouseGame.id}/maintenance`,
+    {},
+    playerToken,
+  );
+  assert(playerFlag.statusCode === 403, "regular user cannot flag maintenance");
+
   const knorzCatan = db
     .prepare("SELECT * FROM venue_games WHERE venue_id=? AND title='Catan'")
     .get(knorz.id);
