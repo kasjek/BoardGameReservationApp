@@ -24,6 +24,7 @@ Aligned with `docs/Vision.md`: people who **create a table**, people who **reser
 ## Registration and login
 
 - Self-registration creates a **`USER`** account.
+- **Google sign-in** also creates a **`USER`** (or logs into an existing account with the same verified email).
 - Login returns the account’s role (and venue link for `VENUE_USER`).
 - Promotion to **`VENUE_USER`** or **`ADMIN`** is done by an **`ADMIN`** only (no self-serve upgrade in v1).
 - A **`VENUE_USER`** is linked to **one specific venue** (their restaurant/cafe). Access is limited to that venue’s tables and visiting users.

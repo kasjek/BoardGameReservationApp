@@ -10,6 +10,8 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 - `POST /auth/register` — self-register a `USER` account *(9)*
 - `POST /auth/login` — exchange credentials for a session/token *(9)*
+- `GET /auth/google/config` — `{ google_enabled, google_client_id }` for the GIS button (public)
+- `POST /auth/google` — exchange a Google Identity Services ID token (`credential`) for an app token; creates a `USER` or logs into the existing account with the same verified email *(9)*
 - `POST /auth/logout` — end session
 - `GET /auth/me` — current user profile and role (and venue link for `VENUE_USER`)
 - `POST /me/password` — change own password (`current_password`, `new_password`, `confirm_password`); rotates auth token *(9)*

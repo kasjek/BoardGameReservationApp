@@ -178,39 +178,45 @@ export default function ProfilePage() {
 
       <div className="card mb-4">
         <div className="text-sm font-bold">{t("profile.changePassword")}</div>
-        <div className="mt-1 text-xs text-slate-500">{t("auth.passwordRules")}</div>
-        <form onSubmit={changePassword} className="mt-3 space-y-2">
-          <input
-            className="input"
-            type="password"
-            placeholder={t("profile.currentPassword")}
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
-          <input
-            className="input"
-            type="password"
-            placeholder={t("profile.newPassword")}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-          <input
-            className="input"
-            type="password"
-            placeholder={t("profile.confirmPassword")}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-          <button className="btn" disabled={changingPassword}>
-            {changingPassword ? t("common.ellipsis") : t("profile.updatePassword")}
-          </button>
-        </form>
+        {user.has_usable_password === false ? (
+          <div className="mt-2 text-sm text-slate-500">{t("profile.googleAccount")}</div>
+        ) : (
+          <>
+            <div className="mt-1 text-xs text-slate-500">{t("auth.passwordRules")}</div>
+            <form onSubmit={changePassword} className="mt-3 space-y-2">
+              <input
+                className="input"
+                type="password"
+                placeholder={t("profile.currentPassword")}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+              <input
+                className="input"
+                type="password"
+                placeholder={t("profile.newPassword")}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+              <input
+                className="input"
+                type="password"
+                placeholder={t("profile.confirmPassword")}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+              <button className="btn" disabled={changingPassword}>
+                {changingPassword ? t("common.ellipsis") : t("profile.updatePassword")}
+              </button>
+            </form>
+          </>
+        )}
       </div>
 
       {error ? <Banner kind="error">{error}</Banner> : null}
