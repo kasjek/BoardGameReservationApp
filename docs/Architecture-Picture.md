@@ -7,9 +7,13 @@ The older target design (Django + PostgreSQL modular monolith) remains in
 `docs/Architecture.md`. Prefer **this file** when reasoning about the live app,
 deploy ZIP, BGG search/covers, and request flows.
 
+Rendered PNGs (same diagrams): [`docs/architecture/`](./architecture/).
+
 ---
 
 ## 1. Big picture — who talks to what
+
+![Big picture](./architecture/arch_01-big-picture.png)
 
 ```mermaid
 flowchart LR
@@ -54,6 +58,8 @@ flowchart LR
 
 ## 2. Inside the process — request routing
 
+![Request routing](./architecture/arch_02-request-routing.png)
+
 ```mermaid
 flowchart TB
   req["Incoming HTTP request"]
@@ -86,6 +92,8 @@ BGG routes get a longer client timeout (25s) because search XML can be large.
 
 ## 3. Auth flow — how identity moves
 
+![Auth flow](./architecture/arch_05-auth.png)
+
 ```mermaid
 sequenceDiagram
   participant U as Browser
@@ -110,6 +118,8 @@ Roles enforced in the API (not only in the UI):
 ---
 
 ## 4. Core domain — create table → venue confirm → seats
+
+![Table lifecycle](./architecture/arch_03-table-lifecycle.png)
 
 ```mermaid
 sequenceDiagram
@@ -141,6 +151,8 @@ sequenceDiagram
 ---
 
 ## 5. BGG — search dropdown + covers
+
+![BGG search and covers](./architecture/arch_04-bgg-search-cover.png)
 
 ```mermaid
 flowchart TB
