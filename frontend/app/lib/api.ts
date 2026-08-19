@@ -356,6 +356,7 @@ export function errorMessage(e: unknown, t?: TranslateFn): string {
         "confirm_password",
         "username",
         "email",
+        "captcha_token",
         "non_field_errors",
         "bgg_id",
         "title",

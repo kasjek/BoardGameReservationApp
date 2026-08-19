@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaReset, setCaptchaReset] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -52,6 +53,7 @@ export default function RegisterPage() {
     } catch (err) {
       setError(errorMessage(err, t));
       setCaptchaToken("");
+      setCaptchaReset((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -100,6 +102,7 @@ export default function RegisterPage() {
           />
           <div className="text-xs text-slate-500">{t("auth.passwordRules")}</div>
           <RecaptchaCheckbox
+            key={captchaReset}
             disabled={busy}
             onToken={setCaptchaToken}
             onUnavailable={setError}
