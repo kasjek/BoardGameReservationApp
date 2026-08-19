@@ -306,6 +306,45 @@ function seedIfEmpty(database) {
   tx();
 }
 
+function gameStats(database, userId) {
+  const sessions = database
+    .prepare(
+      `SELECT t.id AS table_id, t.game_title, t.starts_at, t.ends_at, t.status,
+              v.name AS venue_name, s.is_organizer
+       FROM seats s
+       JOIN tables t ON t.id = s.table_id
+       JOIN venues v ON v.id = t.venue_id
+       WHERE s.user_id=? AND s.status='reserved' AND t.status != 'cancelled'
+       ORDER BY t.starts_at DESC`,
+    )
+    .all(userId)
+    .map((row) => ({
+      table_id: row.table_id,
+      game_title: row.game_title,
+      starts_at: row.starts_at,
+      ends_at: row.ends_at,
+      venue_name: row.venue_name || "",
+      status: row.status,
+      is_organizer: !!row.is_organizer,
+    }));
+  const grouped = new Map();
+  for (const session of sessions) {
+    const key = session.game_title.toLowerCase();
+    const existing = grouped.get(key);
+    if (existing) existing.count += 1;
+    else grouped.set(key, { title: session.game_title, count: 1 });
+  }
+  const titles = [...grouped.values()].sort(
+    (a, b) => b.count - a.count || a.title.localeCompare(b.title),
+  );
+  return {
+    games_played: sessions.length,
+    different_games: titles.length,
+    sessions,
+    titles,
+  };
+}
+
 function serializeUser(row) {
   if (!row) return null;
   const rating = db
@@ -313,6 +352,7 @@ function serializeUser(row) {
       `SELECT AVG(rating) AS avg FROM reviews WHERE target_type='user' AND target_user_id=?`,
     )
     .get(row.id);
+  const games = gameStats(db, row.id);
   return {
     id: row.id,
     username: row.username,
@@ -324,6 +364,8 @@ function serializeUser(row) {
     rating_avg: rating?.avg != null ? Number(rating.avg) : null,
     cancellations_count: row.cancellations_count || 0,
     late_cancel_marks_active: 0,
+    games_played: games.games_played,
+    different_games: games.different_games,
   };
 }
 
@@ -401,6 +443,7 @@ module.exports = {
   serializeTable,
   serializeSeat,
   validPassword,
+  gameStats,
   mapsUrl,
   HOTEL_KNORZ_ADDRESS,
   syncDemoVenueAddresses,

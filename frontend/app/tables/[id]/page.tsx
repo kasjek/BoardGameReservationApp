@@ -224,8 +224,10 @@ export default function TableDetailPage() {
           {reservedSeats.map((s) => {
             const isMe = s.user === user.id;
             return (
-              <div
+              <button
                 key={s.id}
+                type="button"
+                onClick={() => router.push(isMe ? "/profile" : `/users/${s.user}`)}
                 className={`flex flex-col items-center rounded-xl border p-2 text-center ${
                   isMe ? "border-brand bg-brand/5 ring-1 ring-brand" : "border-slate-200"
                 }`}
@@ -240,7 +242,7 @@ export default function TableDetailPage() {
                   {s.is_organizer ? <span className="text-brand">{t("common.host")}</span> : null}
                   {isMe ? <span className="text-fun-pink">{t("common.you")}</span> : null}
                 </div>
-              </div>
+              </button>
             );
           })}
           {Array.from({ length: openSeats }).map((_, i) => (
@@ -257,9 +259,19 @@ export default function TableDetailPage() {
         </div>
         {waitlistSeats.length > 0 ? (
           <div className="mt-2 text-xs text-slate-500">
-            {t("tableDetail.waitlist", {
-              names: waitlistSeats.map((s) => s.username).join(", "),
-            })}
+            {t("tableDetail.waitlist")}{" "}
+            {waitlistSeats.map((s, i) => (
+              <span key={s.id}>
+                {i > 0 ? ", " : null}
+                <button
+                  type="button"
+                  className="font-semibold text-brand underline decoration-dotted underline-offset-2"
+                  onClick={() => router.push(s.user === user.id ? "/profile" : `/users/${s.user}`)}
+                >
+                  {s.username}
+                </button>
+              </span>
+            ))}
           </div>
         ) : null}
       </div>

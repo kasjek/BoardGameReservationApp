@@ -10,10 +10,16 @@ User = get_user_model()
 
 
 def _derived(user):
+    cached = getattr(user, "_derived_cache", None)
+    if cached is not None:
+        return cached
     from apps.reviews.models import average_rating_for_user
     from apps.tables.models import LateCancellationMark, SeatReservation, SeatStatus
 
-    return {
+    from .profile_stats import game_stats
+
+    stats = game_stats(user)
+    cached = {
         "rating_avg": average_rating_for_user(user.id),
         "cancellations_count": SeatReservation.objects.filter(
             user=user, status=SeatStatus.CANCELLED
@@ -21,13 +27,19 @@ def _derived(user):
         "late_cancel_marks_active": LateCancellationMark.objects.filter(
             user=user, expires_at__gt=timezone.now()
         ).count(),
+        "games_played": stats["games_played"],
+        "different_games": stats["different_games"],
     }
+    user._derived_cache = cached
+    return cached
 
 
 class UserSerializer(serializers.ModelSerializer):
     rating_avg = serializers.SerializerMethodField()
     cancellations_count = serializers.SerializerMethodField()
     late_cancel_marks_active = serializers.SerializerMethodField()
+    games_played = serializers.SerializerMethodField()
+    different_games = serializers.SerializerMethodField()
     has_usable_password = serializers.SerializerMethodField()
 
     class Meta:
@@ -43,6 +55,8 @@ class UserSerializer(serializers.ModelSerializer):
             "rating_avg",
             "cancellations_count",
             "late_cancel_marks_active",
+            "games_played",
+            "different_games",
             "has_usable_password",
         ]
         read_only_fields = ["id", "role", "venue", "avatar_seed", "has_usable_password"]
@@ -59,13 +73,21 @@ class UserSerializer(serializers.ModelSerializer):
     def get_late_cancel_marks_active(self, obj):
         return _derived(obj)["late_cancel_marks_active"]
 
+    def get_games_played(self, obj):
+        return _derived(obj)["games_played"]
+
+    def get_different_games(self, obj):
+        return _derived(obj)["different_games"]
+
 
 class PublicUserSerializer(serializers.ModelSerializer):
-    """Privacy-limited public profile (NFR-1): only display name, rating, and marks."""
+    """Public profile: username, avatar, rating, late cancels, games joined — no email."""
 
     rating_avg = serializers.SerializerMethodField()
     cancellations_count = serializers.SerializerMethodField()
     late_cancel_marks_active = serializers.SerializerMethodField()
+    games_played = serializers.SerializerMethodField()
+    different_games = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -76,6 +98,8 @@ class PublicUserSerializer(serializers.ModelSerializer):
             "rating_avg",
             "cancellations_count",
             "late_cancel_marks_active",
+            "games_played",
+            "different_games",
         ]
 
     def get_rating_avg(self, obj):
@@ -86,6 +110,12 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
     def get_late_cancel_marks_active(self, obj):
         return _derived(obj)["late_cancel_marks_active"]
+
+    def get_games_played(self, obj):
+        return _derived(obj)["games_played"]
+
+    def get_different_games(self, obj):
+        return _derived(obj)["different_games"]
 
 
 class RegisterSerializer(serializers.ModelSerializer):

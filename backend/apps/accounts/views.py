@@ -15,6 +15,7 @@ from .google import (
     user_from_google,
     verify_google_id_token,
 )
+from .profile_stats import game_stats
 from .serializers import (
     ChangePasswordSerializer,
     PublicUserSerializer,
@@ -100,6 +101,16 @@ class PublicUserView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = PublicUserSerializer
     permission_classes = [permissions.AllowAny]
+
+
+class PublicUserGamesView(APIView):
+    """Games a user reserved a seat at (sessions + unique titles). Public, no email."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        user = generics.get_object_or_404(User, pk=pk)
+        return Response(game_stats(user))
 
 
 class RollAvatarView(APIView):

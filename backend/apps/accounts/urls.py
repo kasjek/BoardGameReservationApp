@@ -7,6 +7,7 @@ from .views import (
     GoogleLoginView,
     LoginView,
     MeView,
+    PublicUserGamesView,
     PublicUserView,
     RegisterView,
     RollAvatarView,
@@ -21,5 +22,6 @@ urlpatterns = [
     path("auth/me", MeView.as_view(), name="me"),
     path("me/avatar/roll", RollAvatarView.as_view(), name="roll-avatar"),
     path("me/password", ChangePasswordView.as_view(), name="change-password"),
+    path("users/<int:pk>/games", PublicUserGamesView.as_view(), name="public-user-games"),
     path("users/<int:pk>", PublicUserView.as_view(), name="public-user"),
 ]
