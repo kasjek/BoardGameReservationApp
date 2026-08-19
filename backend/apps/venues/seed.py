@@ -348,13 +348,13 @@ def ensure_demo_venues(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> list[Venu
 
 
 def google_maps_url(address: str = "", *, name: str = "") -> str:
-    """Google search URL that leads with the venue name so it is clearly visible.
+    """Google Maps search URL that leads with the venue name.
 
-    Bare street addresses alone hide the venue on Google; prefer
-    ``Name Address`` (e.g. ``Katzentempel Peter-Vischer-Straße 21…``).
+    Bare street addresses alone hide the venue; prefer ``Name Address``
+    (e.g. ``Hotel Knorz Volkhardtstraße 18, 90513 Zirndorf``).
     """
     from urllib.parse import quote_plus
 
     parts = [p.strip() for p in (name, address) if p and str(p).strip()]
     query = " ".join(parts)
-    return f"https://www.google.com/search?q={quote_plus(query)}"
+    return f"https://www.google.com/maps/search/?api=1&query={quote_plus(query)}"

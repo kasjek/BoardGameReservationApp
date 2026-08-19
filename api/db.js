@@ -9,6 +9,9 @@ const DB_PATH = process.env.SQLITE_PATH || path.join(DATA_DIR, "app.sqlite3");
 
 let db;
 
+/** Street address for the Hotel Knorz demo venue (Playmobil FunPark / Zirndorf). */
+const HOTEL_KNORZ_ADDRESS = "Volkhardtstraße 18, 90513 Zirndorf";
+
 function mapsUrl(name, location) {
   const q = [name, location].filter(Boolean).join(" ");
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
@@ -115,7 +118,14 @@ function ensureDb() {
     );
   `);
   seedIfEmpty(db);
+  syncDemoVenueAddresses(db);
   return db;
+}
+
+function syncDemoVenueAddresses(database) {
+  database
+    .prepare("UPDATE venues SET location = ? WHERE name = ?")
+    .run(HOTEL_KNORZ_ADDRESS, "Hotel Knorz");
 }
 
 function hashPassword(password) {
@@ -181,7 +191,7 @@ function seedIfEmpty(database) {
     const knorz = insertVenue.run(
       "Hotel Knorz",
       "Hotel with board-game tables.",
-      "Nürnberg",
+      HOTEL_KNORZ_ADDRESS,
       2,
       8,
       60,
@@ -392,5 +402,7 @@ module.exports = {
   serializeSeat,
   validPassword,
   mapsUrl,
+  HOTEL_KNORZ_ADDRESS,
+  syncDemoVenueAddresses,
   getDb: () => ensureDb(),
 };
