@@ -44,6 +44,19 @@ function fromTimeInput(value: string): string {
   return value.length === 5 ? `${value}:00` : value;
 }
 
+const DESCRIPTION_MAX = 100;
+const MIN_SPEND_MAX = 80;
+const PICTURE_MAX_BYTES = 2 * 1024 * 1024;
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 type AdminTab = "create" | "manage";
 
 function BggGamePicker({
@@ -228,8 +241,13 @@ export default function ManageVenuePage() {
   // Create form
   const [newName, setNewName] = useState("");
   const [newLocation, setNewLocation] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newMinSpend, setNewMinSpend] = useState("");
   const [createMinMinutes, setCreateMinMinutes] = useState(60);
   const [createMaxMinutes, setCreateMaxMinutes] = useState(180);
+  const [createWeeksAhead, setCreateWeeksAhead] = useState(12);
+  const [createPictureFile, setCreatePictureFile] = useState<File | null>(null);
+  const [createPicturePreview, setCreatePicturePreview] = useState<string | null>(null);
   const [createHours, setCreateHours] = useState<WeeklyHours[]>(defaultHours());
   const [createClosures, setCreateClosures] = useState<{ date: string; comment: string }[]>([]);
   const [closureDate, setClosureDate] = useState("");
@@ -344,19 +362,44 @@ export default function ManageVenuePage() {
         setBusy(false);
         return;
       }
+      if (newDescription.length > DESCRIPTION_MAX) {
+        setError(t("venueManage.errDescriptionMax"));
+        setBusy(false);
+        return;
+      }
+      if (createWeeksAhead < 1 || createWeeksAhead > 52) {
+        setError(t("venueManage.errWeeksAhead"));
+        setBusy(false);
+        return;
+      }
+      if (createPictureFile && createPictureFile.size > PICTURE_MAX_BYTES) {
+        setError(t("venueManage.errPictureSize"));
+        setBusy(false);
+        return;
+      }
+      const picture_data = createPictureFile ? await fileToDataUrl(createPictureFile) : undefined;
       const v = await venueApi.create({
         name: newName,
         location: newLocation,
+        description: newDescription.trim(),
+        min_spend: newMinSpend.trim(),
         min_reservation_minutes: createMinMinutes,
         max_reservation_minutes: createMaxMinutes,
+        booking_horizon_weeks: createWeeksAhead,
+        picture_data,
         weekly_hours: createHours,
         closures: createClosures,
       });
       setInfo(t("venueManage.createdOk", { name: v.name }));
       setNewName("");
       setNewLocation("");
+      setNewDescription("");
+      setNewMinSpend("");
       setCreateMinMinutes(60);
       setCreateMaxMinutes(180);
+      setCreateWeeksAhead(12);
+      setCreatePictureFile(null);
+      setCreatePicturePreview(null);
       setCreateHours(defaultHours());
       setCreateClosures([]);
       await loadVenues();
@@ -535,6 +578,54 @@ export default function ManageVenuePage() {
               required
             />
           </div>
+          <div>
+            <span className="label">{t("venueManage.picture")}</span>
+            <input
+              className="input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setCreatePictureFile(file);
+                setCreatePicturePreview((prev) => {
+                  if (prev) URL.revokeObjectURL(prev);
+                  return file ? URL.createObjectURL(file) : null;
+                });
+              }}
+            />
+            <div className="mt-1 text-xs text-slate-400">{t("venueManage.pictureHint")}</div>
+            {createPicturePreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={createPicturePreview}
+                alt=""
+                className="mt-2 h-36 w-full rounded-2xl object-cover"
+              />
+            ) : null}
+          </div>
+          <div>
+            <span className="label">{t("venueManage.shortDescription")}</span>
+            <input
+              className="input"
+              maxLength={DESCRIPTION_MAX}
+              placeholder={t("venueManage.shortDescriptionPlaceholder")}
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value.slice(0, DESCRIPTION_MAX))}
+            />
+            <div className="mt-1 text-xs text-slate-400">
+              {t("venueManage.charCount", { used: newDescription.length, max: DESCRIPTION_MAX })}
+            </div>
+          </div>
+          <div>
+            <span className="label">{t("venueManage.minSpend")}</span>
+            <input
+              className="input"
+              maxLength={MIN_SPEND_MAX}
+              placeholder={t("venueManage.minSpendPlaceholder")}
+              value={newMinSpend}
+              onChange={(e) => setNewMinSpend(e.target.value.slice(0, MIN_SPEND_MAX))}
+            />
+          </div>
 
           <div>
             <div className="mb-2 text-sm font-bold">{t("venueManage.reservationDuration")}</div>
@@ -565,6 +656,19 @@ export default function ManageVenuePage() {
                 />
               </div>
             </div>
+          </div>
+          <div>
+            <span className="label">{t("venueManage.weeksAhead")}</span>
+            <input
+              className="input"
+              type="number"
+              min={1}
+              max={52}
+              value={createWeeksAhead}
+              onChange={(e) => setCreateWeeksAhead(Number(e.target.value))}
+              required
+            />
+            <div className="mt-1 text-xs text-slate-400">{t("venueManage.weeksAheadHint")}</div>
           </div>
 
           <div>

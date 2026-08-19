@@ -29,7 +29,8 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 - `GET /venues` — list/browse venues (with location info) *(3)*
 - `GET /venues/{id}` — venue details, description, photos, rating *(3)*
-- `POST /venues` — create venue (ADMIN); may include `weekly_hours` and `closures` *(46)*
+- `GET /venues/{id}/picture` — location picture bytes (public; 404 if none)
+- `POST /venues` — create venue (ADMIN); fields: `name`, `location`, `description` (max 100), `min_spend` (short text), `min_reservation_minutes`, `max_reservation_minutes`, `booking_horizon_weeks` (1–52), optional `picture_data` (image data URL), optional `weekly_hours` and `closures` *(46)*
 - `PATCH /venues/{id}` — edit venue description/photos (VENUE_USER own, ADMIN any) *(36, 46)*
 - `DELETE /venues/{id}` — remove venue (ADMIN) *(46)*
 - `GET /venues/{id}/availability` — days/times/table counts *(34)*

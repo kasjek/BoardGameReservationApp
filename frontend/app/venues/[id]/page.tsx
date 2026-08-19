@@ -150,6 +150,15 @@ export default function VenueDetailPage() {
 
       <h2 className="text-xl font-bold">{venue.name}</h2>
 
+      {venue.picture_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={venue.picture_url}
+          alt={venue.name}
+          className="mt-3 h-48 w-full rounded-2xl object-cover"
+        />
+      ) : null}
+
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         {venue.rating_avg != null ? (
           <span className="font-semibold text-yellow-600">★ {venue.rating_avg.toFixed(1)}</span>
@@ -184,6 +193,19 @@ export default function VenueDetailPage() {
         <div className="mt-3">
           <div className="label">{t("venueDetail.about")}</div>
           <p className="whitespace-pre-line text-sm text-slate-700">{venue.description}</p>
+        </div>
+      ) : null}
+
+      {venue.min_spend ? (
+        <div className="mt-3">
+          <div className="label">{t("venueDetail.minSpend")}</div>
+          <div className="text-sm text-slate-700">{venue.min_spend}</div>
+        </div>
+      ) : null}
+
+      {venue.booking_horizon_weeks ? (
+        <div className="mt-3 text-sm text-slate-600">
+          {t("venueDetail.bookAhead", { weeks: venue.booking_horizon_weeks })}
         </div>
       ) : null}
 

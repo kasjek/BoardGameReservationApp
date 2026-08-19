@@ -9,9 +9,20 @@ from django.utils import timezone
 from .models import Venue, VenueAvailability, VenueClosure, VenueWeeklyHours
 
 DEFAULT_HORIZON_DAYS = 120
+DEFAULT_HORIZON_WEEKS = 12
 DEFAULT_TABLES_AVAILABLE = 3
 DEFAULT_OPEN = time(10, 0)
 DEFAULT_CLOSE = time(20, 0)
+
+
+def horizon_days_for(venue: Venue, horizon_days: int | None = None) -> int:
+    """Days of availability to materialize. Explicit override wins (seed)."""
+    if horizon_days is not None:
+        return max(1, int(horizon_days))
+    weeks = int(getattr(venue, "booking_horizon_weeks", None) or DEFAULT_HORIZON_WEEKS)
+    weeks = max(1, min(52, weeks))
+    return weeks * 7
+
 
 WEEKDAY_NAMES = (
     "Monday",
@@ -41,7 +52,7 @@ def set_weekly_hours(
     hours: list[dict],
     *,
     tables_available: int = DEFAULT_TABLES_AVAILABLE,
-    horizon_days: int = DEFAULT_HORIZON_DAYS,
+    horizon_days: int | None = None,
 ) -> list[VenueWeeklyHours]:
     """Replace a venue's weekly hours and rematerialize date availability."""
     if len(hours) != 7:
@@ -77,7 +88,9 @@ def set_weekly_hours(
         rows.append(row)
 
     sync_availability_from_hours(
-        venue, tables_available=tables_available, horizon_days=horizon_days
+        venue,
+        tables_available=tables_available,
+        horizon_days=horizon_days_for(venue, horizon_days),
     )
     return rows
 
@@ -92,9 +105,10 @@ def sync_availability_from_hours(
     venue: Venue,
     *,
     tables_available: int = DEFAULT_TABLES_AVAILABLE,
-    horizon_days: int = DEFAULT_HORIZON_DAYS,
+    horizon_days: int | None = None,
 ) -> int:
     """Rebuild VenueAvailability for the next N days from weekly hours + closures."""
+    horizon_days = horizon_days_for(venue, horizon_days)
     hours = {h.weekday: h for h in venue.weekly_hours.all()}
     if len(hours) != 7:
         return 0

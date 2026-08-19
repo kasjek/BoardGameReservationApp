@@ -12,6 +12,11 @@ class Venue(models.Model):
     # Allowed table booking length (minutes) for this venue.
     min_reservation_minutes = models.PositiveIntegerField(default=60)
     max_reservation_minutes = models.PositiveIntegerField(default=180)
+    # Short public copy shown on the venue page (create form caps at 100 chars).
+    min_spend = models.CharField(max_length=80, blank=True, default="")
+    booking_horizon_weeks = models.PositiveSmallIntegerField(default=12)
+    # File extension including the leading dot, e.g. ".jpg". Empty = no picture.
+    picture_ext = models.CharField(max_length=8, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -7,6 +7,7 @@ from .models import Venue, VenueAvailability, VenueClosure, VenueGame, VenueWeek
 class VenueSerializer(serializers.ModelSerializer):
     rating_avg = serializers.SerializerMethodField()
     maps_url = serializers.SerializerMethodField()
+    picture_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Venue
@@ -19,11 +20,22 @@ class VenueSerializer(serializers.ModelSerializer):
             "max_players",
             "min_reservation_minutes",
             "max_reservation_minutes",
+            "min_spend",
+            "booking_horizon_weeks",
+            "picture_url",
             "rating_avg",
             "maps_url",
             "created_at",
         ]
-        read_only_fields = ["id", "rating_avg", "maps_url", "created_at"]
+        read_only_fields = ["id", "picture_url", "rating_avg", "maps_url", "created_at"]
+
+    def validate_booking_horizon_weeks(self, value):
+        if value < 1 or value > 52:
+            raise serializers.ValidationError("Booking horizon must be between 1 and 52 weeks.")
+        return value
+
+    def validate_min_spend(self, value):
+        return (value or "").strip()
 
     def validate(self, attrs):
         min_m = attrs.get(
@@ -59,6 +71,11 @@ class VenueSerializer(serializers.ModelSerializer):
         from .seed import google_maps_url
 
         return google_maps_url(obj.location or "", name=obj.name or "")
+
+    def get_picture_url(self, obj):
+        from .pictures import picture_url_for
+
+        return picture_url_for(obj)
 
 
 class VenueAvailabilitySerializer(serializers.ModelSerializer):
@@ -175,18 +192,30 @@ class VenueGameWriteSerializer(serializers.Serializer):
 
 
 class VenueCreateSerializer(VenueSerializer):
-    """Admin create: name, address, weekly bookable hours, optional closure alerts."""
+    """Admin create: name, address, picture, short description, spend, duration, horizon."""
 
     weekly_hours = VenueWeeklyHoursSerializer(many=True, required=False)
     closures = VenueClosureWriteSerializer(many=True, required=False)
+    description = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    picture_data = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     class Meta(VenueSerializer.Meta):
-        fields = VenueSerializer.Meta.fields + ["weekly_hours", "closures"]
+        fields = VenueSerializer.Meta.fields + ["weekly_hours", "closures", "picture_data"]
 
     def create(self, validated_data):
         hours = validated_data.pop("weekly_hours", None)
         closures = validated_data.pop("closures", [])
+        picture_data = (validated_data.pop("picture_data", None) or "").strip()
         venue = Venue.objects.create(**validated_data)
+
+        if picture_data:
+            from .pictures import save_picture
+
+            try:
+                save_picture(venue, picture_data)
+            except ValueError as exc:
+                venue.delete()
+                raise serializers.ValidationError({"picture_data": str(exc)}) from exc
 
         if hours is None:
             payload = default_weekly_hours_payload()
