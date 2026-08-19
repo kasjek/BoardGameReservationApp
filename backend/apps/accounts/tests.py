@@ -283,5 +283,5 @@ def test_google_only_user_cannot_change_password(db, client, settings, monkeypat
         format="json",
     )
     assert resp.status_code == 400
-    assert "Google" in resp.data["detail"]
+    assert "social" in resp.data["detail"].lower()
 

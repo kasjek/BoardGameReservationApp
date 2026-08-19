@@ -82,6 +82,10 @@ AUTH_USER_MODEL = "accounts.User"
 # Google Identity Services (GIS) web client ID. Empty = Google button hidden.
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 
+# Facebook Login (JS SDK + Graph token). Empty = hide Facebook button.
+FACEBOOK_APP_ID = os.environ.get("FACEBOOK_APP_ID", "").strip()
+FACEBOOK_APP_SECRET = os.environ.get("FACEBOOK_APP_SECRET", "").strip()
+
 # Google reCAPTCHA v2 (checkbox) for self-registration. Production must set real
 # keys; DEBUG falls back to Google's documented always-pass test keys.
 _RECAPTCHA_TEST_SITE = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"

@@ -4,15 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { SocialAuth } from "../components/SocialAuth";
 import { RecaptchaCheckbox } from "../components/RecaptchaCheckbox";
 import { AuthHero, Banner, PasswordField } from "../components/ui";
-import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { errorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 
 export default function RegisterPage() {
-  const { register, loginGoogle } = useAuth();
+  const { register, loginGoogle, loginFacebook } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -64,13 +64,25 @@ export default function RegisterPage() {
       <AuthHero />
       <div className="flex flex-1 flex-col px-6 pb-8 pt-4">
         {error ? <Banner kind="error">{error}</Banner> : null}
-        <GoogleSignInButton
+        <SocialAuth
           disabled={busy}
-          onCredential={async (credential) => {
+          onGoogle={async (credential) => {
             setBusy(true);
             setError(null);
             try {
               await loginGoogle(credential);
+              router.push("/");
+            } catch (err) {
+              setError(errorMessage(err, t));
+            } finally {
+              setBusy(false);
+            }
+          }}
+          onFacebook={async (accessToken) => {
+            setBusy(true);
+            setError(null);
+            try {
+              await loginFacebook(accessToken);
               router.push("/");
             } catch (err) {
               setError(errorMessage(err, t));

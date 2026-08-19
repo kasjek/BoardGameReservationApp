@@ -8,6 +8,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .captcha import captcha_public_config
+from .facebook import (
+    FacebookAuthError,
+    facebook_app_id,
+    facebook_configured,
+    raise_facebook_as_api,
+    user_from_facebook,
+    verify_facebook_access_token,
+)
 from .google import (
     GoogleAuthError,
     google_client_id,
@@ -57,6 +65,45 @@ class GoogleLoginView(APIView):
         except GoogleAuthError as exc:
             raise_as_api(exc)
             raise  # raise_as_api always raises; keeps type-checkers happy
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response(
+            {"token": token.key, "user": UserSerializer(user).data},
+            status=201 if created else 200,
+        )
+
+
+class FacebookConfigView(APIView):
+    """Public: whether Facebook Login is enabled and which app id the SDK should use."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        enabled = facebook_configured()
+        return Response(
+            {
+                "facebook_enabled": enabled,
+                "facebook_app_id": facebook_app_id() if enabled else None,
+            }
+        )
+
+
+class FacebookLoginView(APIView):
+    """Exchange a Facebook user access token for an app auth token.
+
+    Creates a USER or logs into the existing account with the same verified email.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "login"
+
+    def post(self, request):
+        access_token = request.data.get("access_token") or request.data.get("token") or ""
+        try:
+            info = verify_facebook_access_token(str(access_token))
+            user, created = user_from_facebook(info)
+        except FacebookAuthError as exc:
+            raise_facebook_as_api(exc)
+            raise
         token, _ = Token.objects.get_or_create(user=user)
         return Response(
             {"token": token.key, "user": UserSerializer(user).data},
@@ -122,7 +169,7 @@ class ChangePasswordView(APIView):
     def post(self, request):
         if not request.user.has_usable_password():
             return Response(
-                {"detail": "This account uses Google sign-in and has no password yet."},
+                {"detail": "This account uses social sign-in and has no password yet."},
                 status=400,
             )
         serializer = ChangePasswordSerializer(data=request.data, context={"request": request})

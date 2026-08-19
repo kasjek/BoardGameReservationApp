@@ -30,6 +30,8 @@ class User(AbstractUser):
     avatar_seed = models.CharField(max_length=64, blank=True, default="")
     # Google account subject (`sub`). Null for password-only users.
     google_sub = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    # Facebook user id. Null for password-only / Google-only users.
+    facebook_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
 
     @property
     def is_admin_role(self) -> bool:
