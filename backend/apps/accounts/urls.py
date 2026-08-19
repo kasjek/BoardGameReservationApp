@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    CaptchaConfigView,
     ChangePasswordView,
     GoogleConfigView,
     GoogleLoginView,
@@ -14,6 +15,7 @@ from .views import (
 urlpatterns = [
     path("auth/register", RegisterView.as_view(), name="register"),
     path("auth/login", LoginView.as_view(), name="login"),
+    path("auth/captcha/config", CaptchaConfigView.as_view(), name="captcha-config"),
     path("auth/google", GoogleLoginView.as_view(), name="google-login"),
     path("auth/google/config", GoogleConfigView.as_view(), name="google-config"),
     path("auth/me", MeView.as_view(), name="me"),

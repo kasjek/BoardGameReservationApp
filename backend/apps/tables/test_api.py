@@ -17,10 +17,16 @@ def client():
     return APIClient()
 
 
-def test_register_returns_token_and_me(db, client):
+def test_register_returns_token_and_me(db, client, monkeypatch):
+    monkeypatch.setattr("apps.accounts.captcha.verify_recaptcha", lambda token, remote_ip=None: None)
     resp = client.post(
         "/api/auth/register",
-        {"username": "newuser", "email": "n@example.com", "password": "Supersecret1!"},
+        {
+            "username": "newuser",
+            "email": "n@example.com",
+            "password": "Supersecret1!",
+            "captcha_token": "test-ok",
+        },
         format="json",
     )
     assert resp.status_code == 201

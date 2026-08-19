@@ -34,7 +34,8 @@ uv run ruff check .
 
 ## API (Priority‑0)
 
-- `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`
+- `POST /api/auth/register` (requires `captcha_token`), `POST /api/auth/login`, `GET /api/auth/me`
+- `GET /api/auth/captcha/config` (set `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` in production)
 - `GET /api/auth/google/config`, `POST /api/auth/google` (set `GOOGLE_CLIENT_ID` for GIS)
 - `GET/POST /api/venues`, `GET /api/venues/{id}`, `GET/POST /api/venues/{id}/availability`
 - `GET/POST /api/tables`, `GET /api/tables/{id}`

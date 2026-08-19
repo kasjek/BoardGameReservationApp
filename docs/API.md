@@ -8,7 +8,8 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 ## Auth & profile
 
-- `POST /auth/register` — self-register a `USER` account *(9)*
+- `POST /auth/register` — self-register a `USER` account; requires `captcha_token` from Google reCAPTCHA v2 *(9)*
+- `GET /auth/captcha/config` — `{ captcha_enabled, recaptcha_site_key }` for the registration checkbox (public)
 - `POST /auth/login` — exchange credentials for a session/token *(9)*
 - `GET /auth/google/config` — `{ google_enabled, google_client_id }` for the GIS button (public)
 - `POST /auth/google` — exchange a Google Identity Services ID token (`credential`) for an app token; creates a `USER` or logs into the existing account with the same verified email *(9)*

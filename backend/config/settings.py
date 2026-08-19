@@ -82,6 +82,17 @@ AUTH_USER_MODEL = "accounts.User"
 # Google Identity Services (GIS) web client ID. Empty = Google button hidden.
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 
+# Google reCAPTCHA v2 (checkbox) for self-registration. Production must set real
+# keys; DEBUG falls back to Google's documented always-pass test keys.
+_RECAPTCHA_TEST_SITE = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+_RECAPTCHA_TEST_SECRET = "6LeIxAcTAAAAAGG-vFI1TnRWxMZNLuL5rOJbpCII"
+RECAPTCHA_SITE_KEY = os.environ.get(
+    "RECAPTCHA_SITE_KEY", _RECAPTCHA_TEST_SITE if DEBUG else ""
+).strip()
+RECAPTCHA_SECRET_KEY = os.environ.get(
+    "RECAPTCHA_SECRET_KEY", _RECAPTCHA_TEST_SECRET if DEBUG else ""
+).strip()
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",

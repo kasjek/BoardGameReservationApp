@@ -185,16 +185,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 // --- Auth ---
 export const authApi = {
-  register: (username: string, email: string, password: string) =>
+  register: (username: string, email: string, password: string, captchaToken: string) =>
     request<{ token: string; user: User }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, email, password, captcha_token: captchaToken }),
     }),
   login: (username: string, password: string) =>
     request<{ token: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+  captchaConfig: () =>
+    request<{ captcha_enabled: boolean; recaptcha_site_key: string | null }>("/auth/captcha/config"),
   googleConfig: () =>
     request<{ google_client_id: string | null; google_enabled: boolean }>("/auth/google/config"),
   loginGoogle: (credential: string) =>
@@ -354,6 +356,7 @@ export function errorMessage(e: unknown, t?: TranslateFn): string {
         "confirm_password",
         "username",
         "email",
+        "captcha_token",
         "non_field_errors",
         "bgg_id",
         "title",

@@ -10,6 +10,7 @@ const {
   validPassword,
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
+const { captchaPublicConfig, verifyCaptcha } = require("./captcha");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -83,8 +84,17 @@ async function handleApi(req, res) {
 
   try {
     // ---- Auth ----
+    if (method === "GET" && path === "/api/auth/captcha/config") {
+      return send(res, 200, captchaPublicConfig());
+    }
+
     if (method === "POST" && path === "/api/auth/register") {
       const body = await readBody(req);
+      const fwd = req.headers["x-forwarded-for"];
+      const ip =
+        (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0]?.trim() || req.socket?.remoteAddress;
+      const captcha = await verifyCaptcha(body.captcha_token, ip);
+      if (!captcha.ok) return send(res, 400, { captcha_token: [captcha.error] });
       const { username, email = "", password } = body;
       if (!username || !password) return send(res, 400, { detail: "username and password required." });
       const pwErr = validPassword(password);

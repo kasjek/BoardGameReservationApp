@@ -7,6 +7,7 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .captcha import captcha_public_config
 from .google import (
     GoogleAuthError,
     google_client_id,
@@ -61,6 +62,15 @@ class GoogleLoginView(APIView):
             {"token": token.key, "user": UserSerializer(user).data},
             status=201 if created else 200,
         )
+
+
+class CaptchaConfigView(APIView):
+    """Public: whether reCAPTCHA is enabled and which site key the widget should use."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response(captcha_public_config())
 
 
 class RegisterView(generics.CreateAPIView):

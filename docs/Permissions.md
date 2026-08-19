@@ -23,7 +23,7 @@ Aligned with `docs/Vision.md`: people who **create a table**, people who **reser
 
 ## Registration and login
 
-- Self-registration creates a **`USER`** account.
+- Self-registration creates a **`USER`** account and requires a completed **reCAPTCHA**.
 - **Google sign-in** also creates a **`USER`** (or logs into an existing account with the same verified email).
 - Login returns the account’s role (and venue link for `VENUE_USER`).
 - Promotion to **`VENUE_USER`** or **`ADMIN`** is done by an **`ADMIN`** only (no self-serve upgrade in v1).
