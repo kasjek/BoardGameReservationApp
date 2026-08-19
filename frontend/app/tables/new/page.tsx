@@ -671,7 +671,9 @@ export default function CreateTablePage() {
               value={minPlayers}
               disabled={playersLocked}
               onChange={(e) => {
-                setMinPlayers(Number(e.target.value));
+                const n = Math.min(Math.max(Number(e.target.value), playerMin), playerMax);
+                setMinPlayers(n);
+                setMaxPlayers((m) => Math.max(m, n));
                 setFieldErrors((f) => ({ ...f, minPlayers: undefined, maxPlayers: undefined }));
               }}
             />
@@ -689,7 +691,9 @@ export default function CreateTablePage() {
               value={maxPlayers}
               disabled={playersLocked}
               onChange={(e) => {
-                setMaxPlayers(Number(e.target.value));
+                const n = Math.min(Math.max(Number(e.target.value), playerMin), playerMax);
+                setMaxPlayers(n);
+                setMinPlayers((m) => Math.min(m, n));
                 setFieldErrors((f) => ({ ...f, maxPlayers: undefined }));
               }}
             />
