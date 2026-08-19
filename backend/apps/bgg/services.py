@@ -404,7 +404,48 @@ def _geekdo_item(bgg_id: int) -> dict | None:
         "playing_time": playing,
         "min_play_time": min_play,
         "max_play_time": max_play,
+        "types": parse_geekdo_types(item),
     }
+
+
+def type_from_subdomain_label(name: str | None) -> str | None:
+    n = (name or "").lower().replace("'", "").replace("’", "")
+    if not n:
+        return None
+    if n in BGG_FAMILY_TYPES:
+        return BGG_FAMILY_TYPES[n]
+    if "strategy" in n:
+        return "strategy"
+    if "family" in n:
+        return "family"
+    if "party" in n:
+        return "party"
+    if "thematic" in n:
+        return "thematic"
+    if "abstract" in n:
+        return "abstract"
+    if "war" in n:
+        return "war"
+    if "custom" in n:
+        return "customizable"
+    if "child" in n:
+        return "childrens"
+    return None
+
+
+def parse_geekdo_types(item: dict) -> list[str]:
+    """BGG Type from Geekdo boardgamesubdomain links (no XML token needed)."""
+    out: list[str] = []
+    links = ((item.get("links") or {}).get("boardgamesubdomain")) or []
+    if not isinstance(links, list):
+        return out
+    for row in links:
+        if not isinstance(row, dict):
+            continue
+        slug = type_from_subdomain_label(row.get("name"))
+        if slug and slug not in out:
+            out.append(slug)
+    return out
 
 
 def parse_thing_types(item: ET.Element) -> list[str]:
@@ -473,6 +514,10 @@ def fetch_thing(bgg_id: int) -> dict | None:
                         except (TypeError, ValueError):
                             return None
 
+                    types = parse_thing_types(item)
+                    if not types:
+                        geek = _geekdo_item(bgg_id)
+                        types = list((geek or {}).get("types") or [])
                     return {
                         "bgg_id": bgg_id,
                         "name": name,
@@ -480,7 +525,7 @@ def fetch_thing(bgg_id: int) -> dict | None:
                         "playing_time": _int_attr("playingtime"),
                         "min_play_time": _int_attr("minplaytime"),
                         "max_play_time": _int_attr("maxplaytime"),
-                        "types": parse_thing_types(item),
+                        "types": types,
                     }
     geek = _geekdo_item(bgg_id)
     if geek is not None:

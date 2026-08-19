@@ -249,6 +249,19 @@ def test_parse_thing_types_ranked_families_only():
     assert services.parse_thing_types(item) == ["strategy", "family"]
 
 
+def test_parse_geekdo_types_from_subdomains():
+    item = {
+        "links": {
+            "boardgamesubdomain": [
+                {"name": "Family Games"},
+                {"name": "Strategy Games"},
+                {"name": "Family Games"},
+            ]
+        }
+    }
+    assert services.parse_geekdo_types(item) == ["family", "strategy"]
+
+
 def test_fetch_thing_includes_playtime(monkeypatch):
     monkeypatch.setattr(services, "_http_get", lambda url, headers=None: _THING_XML)
     thing = services.fetch_thing(13)

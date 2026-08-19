@@ -7,6 +7,7 @@ const { ensureDb } = require("./db");
 const BGG_THING = "https://boardgamegeek.com/xmlapi2/thing";
 const BGG_SEARCH = "https://boardgamegeek.com/xmlapi2/search";
 const GEEKDO_ITEM = "https://api.geekdo.com/api/geekitems";
+const GEEKDO_DYNAMIC = "https://api.geekdo.com/api/dynamicinfo";
 const WIKI_SEARCH = "https://en.wikipedia.org/w/api.php";
 const WIKI_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/";
 const UA = "TooManyGames/1.0 (GoDaddy Node; contact: local)";
@@ -109,6 +110,44 @@ function parseThingTypes(xml) {
   return out;
 }
 
+/** Map BGG page Type labels ("Family Games") or rank subdomains to our slugs. */
+function typeFromSubdomainLabel(name) {
+  const n = String(name || "")
+    .toLowerCase()
+    .replace(/['’]/g, "");
+  if (!n) return null;
+  if (BGG_FAMILY_TYPES[n]) return BGG_FAMILY_TYPES[n];
+  if (n.includes("strategy")) return "strategy";
+  if (n.includes("family")) return "family";
+  if (n.includes("party")) return "party";
+  if (n.includes("thematic")) return "thematic";
+  if (n.includes("abstract")) return "abstract";
+  if (n.includes("war")) return "war";
+  if (n.includes("custom")) return "customizable";
+  if (n.includes("child")) return "childrens";
+  return null;
+}
+
+function parseGeekdoTypes(item) {
+  const out = [];
+  const links = item?.links?.boardgamesubdomain || [];
+  for (const row of Array.isArray(links) ? links : []) {
+    const id = typeFromSubdomainLabel(row?.name);
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+function parseDynamicRankTypes(payload) {
+  const out = [];
+  const ranks = payload?.item?.rankinfo || payload?.rankinfo || [];
+  for (const row of Array.isArray(ranks) ? ranks : []) {
+    const id = BGG_FAMILY_TYPES[row?.subdomain] || typeFromSubdomainLabel(row?.prettyname);
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
 function decodeXmlEntities(s) {
   return String(s)
     .replace(/&amp;/g, "&")
@@ -180,6 +219,7 @@ async function geekdoItem(bggId) {
       playing_time: item.playingtime ? Number(item.playingtime) : null,
       min_play_time: item.minplaytime ? Number(item.minplaytime) : null,
       max_play_time: item.maxplaytime ? Number(item.maxplaytime) : null,
+      types: parseGeekdoTypes(item),
     };
   } catch {
     return null;
@@ -271,7 +311,12 @@ async function resolveThing(bggId) {
     const s = xml.toString("utf8");
     const thumb = parseThingThumbnail(s) || local?.thumbnail_url || "";
     const times = parsePlayTimes(s);
-    const types = parseThingTypes(s);
+    let types = parseThingTypes(s);
+    if (!types.length) {
+      const geek = await geekdoItem(bggId);
+      types = geek?.types || [];
+      if (!types.length) types = await typesFromDynamicInfo(bggId);
+    }
     cacheGameTypes(db, bggId, parseThingName(s) || local?.title || "", types);
     if (thumb && local?.id) cacheThumb(local.id, thumb);
     return {
@@ -285,7 +330,10 @@ async function resolveThing(bggId) {
   const geek = await geekdoItem(bggId);
   if (geek) {
     if (geek.thumbnail_url && local?.id) cacheThumb(local.id, geek.thumbnail_url);
-    return { ...geek, types: geek.types || [] };
+    let types = geek.types || [];
+    if (!types.length) types = await typesFromDynamicInfo(bggId);
+    if (types.length) cacheGameTypes(db, bggId, geek.name || local?.title || "", types);
+    return { ...geek, types };
   }
   return {
     bgg_id: bggId,
@@ -299,7 +347,7 @@ async function resolveThing(bggId) {
 }
 
 function cacheGameTypes(database, bggId, title, types) {
-  if (!bggId || !database) return;
+  if (!bggId || !database || !types?.length) return;
   const now = new Date().toISOString();
   database
     .prepare(
@@ -363,11 +411,21 @@ async function resolveGameTypes(title, bggId = null, { live = true } = {}) {
   const still = typesFromCache(db, title, id);
   if (still && still.length) return still;
 
-  const xml = await httpGet(`${BGG_THING}?id=${id}&stats=1`);
-  const types = xml ? parseThingTypes(xml.toString("utf8")) : [];
-  const name = xml ? parseThingName(xml.toString("utf8")) : title;
-  cacheGameTypes(db, id, name || title || "", types);
-  return types;
+  const thing = await resolveThing(id);
+  return thing?.types || [];
+}
+
+async function typesFromDynamicInfo(bggId) {
+  const body = await httpGet(`${GEEKDO_DYNAMIC}?objectid=${bggId}&objecttype=thing`, {
+    "User-Agent": UA,
+    Accept: "application/json",
+  });
+  if (!body) return [];
+  try {
+    return parseDynamicRankTypes(JSON.parse(body.toString("utf8")));
+  } catch {
+    return [];
+  }
 }
 
 async function liveSearch(q, limit = 500) {
@@ -404,6 +462,8 @@ module.exports = {
   resolveThing,
   liveSearch,
   parseThingTypes,
+  parseGeekdoTypes,
+  parseDynamicRankTypes,
   resolveGameTypes,
   GAME_TYPE_IDS,
 };

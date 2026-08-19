@@ -18,3 +18,30 @@ if (JSON.stringify(types) !== JSON.stringify(["strategy", "family"])) {
   process.exit(1);
 }
 console.log("ok  parseThingTypes Catan -> strategy, family");
+
+const { parseGeekdoTypes, parseDynamicRankTypes } = require("./bgg");
+const geekTypes = parseGeekdoTypes({
+  links: {
+    boardgamesubdomain: [{ name: "Party Games" }, { name: "Family Games" }],
+  },
+});
+if (JSON.stringify(geekTypes) !== JSON.stringify(["party", "family"])) {
+  console.error("unexpected geekdo types", geekTypes);
+  process.exit(1);
+}
+console.log("ok  parseGeekdoTypes -> party, family");
+
+const rankTypes = parseDynamicRankTypes({
+  item: {
+    rankinfo: [
+      { prettyname: "Board Game Rank", subdomain: null },
+      { prettyname: "Strategy Game Rank", subdomain: "strategygames" },
+      { prettyname: "Family Game Rank", subdomain: "familygames" },
+    ],
+  },
+});
+if (JSON.stringify(rankTypes) !== JSON.stringify(["strategy", "family"])) {
+  console.error("unexpected rank types", rankTypes);
+  process.exit(1);
+}
+console.log("ok  parseDynamicRankTypes -> strategy, family");
