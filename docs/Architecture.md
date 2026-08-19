@@ -6,6 +6,12 @@ BoardGameReservationApp is split into a backend API and client apps for three au
 
 This reflects the table/venue model in `docs/Vision.md`, `docs/UserStories.md`, and `docs/Requirements.md`.
 
+> **Live GoDaddy deploy (what runs in production today):** see
+> [`docs/Architecture-Picture.md`](./Architecture-Picture.md) — flow diagrams for
+> the single Node process (`server.js` + SQLite + BGG), request routing, auth,
+> table lifecycle, and game search/covers. PNG renders live under
+> `docs/architecture/`.
+
 ## System style
 
 The backend is a **modular monolith** (single deployable, clear internal modules: auth, venues, tables, payments, social, moderation, notifications) over **PostgreSQL**, with object storage for media (see `ADR-010`). This keeps seat/payment invariants inside local DB transactions and defers service decomposition until it is actually needed.
