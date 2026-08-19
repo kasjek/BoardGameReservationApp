@@ -127,6 +127,66 @@ HOTEL_KNORZ_OPEN_BY_WEEKDAY: dict[int, time] = {d: time(8, 0) for d in range(7)}
 HOTEL_KNORZ_END_BY_WEEKDAY: dict[int, time] = {d: time(20, 0) for d in range(7)}
 
 
+def _venue_db_columns() -> set[str]:
+    with connection.cursor() as cursor:
+        desc = connection.introspection.get_table_description(cursor, Venue._meta.db_table)
+    return {col.name for col in desc}
+
+
+def _unmigrated_venue_fields() -> list[str]:
+    existing = _venue_db_columns()
+    missing: list[str] = []
+    for field in Venue._meta.local_concrete_fields:
+        if field.primary_key or not field.column:
+            continue
+        if field.column not in existing:
+            missing.append(field.name)
+    return missing
+
+
+def _venues():
+    missing = _unmigrated_venue_fields()
+    qs = Venue.objects.all()
+    return qs.defer(*missing) if missing else qs
+
+
+def _upsert_venue(*, name: str, defaults: dict) -> Venue:
+    """Create/update a venue without SELECTing columns that older migrations have not added yet."""
+    existing_cols = _venue_db_columns()
+    filtered = {}
+    for key, value in defaults.items():
+        column = Venue._meta.get_field(key).column
+        if column in existing_cols:
+            filtered[key] = value
+    try:
+        venue = _venues().get(name=name)
+        if filtered:
+            for key, value in filtered.items():
+                setattr(venue, key, value)
+            venue.save(update_fields=list(filtered.keys()))
+        return venue
+    except Venue.DoesNotExist:
+        payload = {"name": name, **filtered}
+        missing = _unmigrated_venue_fields()
+        if not missing:
+            return Venue.objects.create(**payload)
+        now = timezone.now()
+        for fname in ("created_at", "updated_at"):
+            field = Venue._meta.get_field(fname)
+            if field.column in existing_cols and fname not in payload:
+                payload[fname] = now
+        table = Venue._meta.db_table
+        columns = [Venue._meta.get_field(key).column for key in payload]
+        placeholders = ", ".join(["%s"] * len(columns))
+        col_sql = ", ".join(columns)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"INSERT INTO {table} ({col_sql}) VALUES ({placeholders})",
+                list(payload.values()),
+            )
+        return _venues().get(name=name)
+
+
 def end_time_for(day: date) -> time:
     return END_BY_WEEKDAY[day.weekday()]
 
@@ -152,9 +212,9 @@ def _legacy_seed_availability(venue: Venue, *, horizon_days: int) -> None:
 
 def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
     """Create/update Date House Cafe and fill weekly hours + availability."""
-    # Do not set reservation-duration fields here: older RunPython migrations
-    # call this before those columns exist (model defaults cover them later).
-    venue, _ = Venue.objects.update_or_create(
+    # Do not set newer columns here: older RunPython migrations call this before
+    # those columns exist (model defaults cover them later).
+    venue = _upsert_venue(
         name=DATE_HOUSE_NAME,
         defaults={
             "location": DATE_HOUSE_ADDRESS,
@@ -204,8 +264,8 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
 def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
     """Create/update Katzentempel with weekly hours, availability, and games."""
     # Fold legacy seeded titles into the canonical name without duplicating the venue.
-    Venue.objects.filter(name__in=KATZENTEMPEL_LEGACY_NAMES).update(name=KATZENTEMPEL_NAME)
-    duplicates = list(Venue.objects.filter(name=KATZENTEMPEL_NAME).order_by("id"))
+    _venues().filter(name__in=KATZENTEMPEL_LEGACY_NAMES).update(name=KATZENTEMPEL_NAME)
+    duplicates = list(_venues().filter(name=KATZENTEMPEL_NAME).order_by("id"))
     defaults = {
         "location": KATZENTEMPEL_ADDRESS,
         "description": KATZENTEMPEL_DESCRIPTION,
@@ -220,7 +280,7 @@ def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
         for extra in duplicates[1:]:
             extra.delete()
     else:
-        venue = Venue.objects.create(name=KATZENTEMPEL_NAME, **defaults)
+        venue = _upsert_venue(name=KATZENTEMPEL_NAME, defaults=defaults)
 
     tables = connection.introspection.table_names()
     if "venues_venueweeklyhours" in tables:
@@ -283,10 +343,7 @@ def ensure_hotel_knorz(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
         "min_reservation_minutes": 60,
         "max_reservation_minutes": 180,
     }
-    venue, _ = Venue.objects.update_or_create(
-        name=HOTEL_KNORZ_NAME,
-        defaults=defaults,
-    )
+    venue = _upsert_venue(name=HOTEL_KNORZ_NAME, defaults=defaults)
 
     tables = connection.introspection.table_names()
     if "venues_venueweeklyhours" in tables:

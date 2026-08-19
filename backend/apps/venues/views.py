@@ -1,3 +1,4 @@
+from django.http import FileResponse, Http404
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -55,6 +56,25 @@ class VenueDetailView(generics.RetrieveUpdateAPIView):
     def perform_update(self, serializer):
         _require_manager(self.request.user, self.get_object())
         serializer.save()
+
+
+class VenuePictureView(APIView):
+    """Public JPEG/PNG/WebP/GIF for a venue, if one was uploaded."""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, pk):
+        venue = generics.get_object_or_404(Venue, pk=pk)
+        from .pictures import content_type_for, picture_path
+
+        path = picture_path(venue)
+        if path is None or not path.is_file():
+            raise Http404("No picture.")
+        return FileResponse(
+            path.open("rb"),
+            content_type=content_type_for(venue.picture_ext),
+        )
 
 
 class VenueAvailabilityListCreateView(generics.ListCreateAPIView):

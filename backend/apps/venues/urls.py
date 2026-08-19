@@ -9,11 +9,13 @@ from .views import (
     VenueGameListCreateView,
     VenueHoursView,
     VenueListCreateView,
+    VenuePictureView,
 )
 
 urlpatterns = [
     path("venues", VenueListCreateView.as_view(), name="venue-list"),
     path("venues/<int:pk>", VenueDetailView.as_view(), name="venue-detail"),
+    path("venues/<int:pk>/picture", VenuePictureView.as_view(), name="venue-picture"),
     path(
         "venues/<int:venue_id>/availability",
         VenueAvailabilityListCreateView.as_view(),

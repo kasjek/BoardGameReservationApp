@@ -3,6 +3,7 @@ const path = require("path");
 const Database = require("better-sqlite3");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const { pictureUrl } = require("./pictures");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "data");
 const DB_PATH = process.env.SQLITE_PATH || path.join(DATA_DIR, "app.sqlite3");
@@ -45,7 +46,10 @@ function ensureDb() {
       min_players INTEGER NOT NULL DEFAULT 2,
       max_players INTEGER NOT NULL DEFAULT 8,
       min_reservation_minutes INTEGER NOT NULL DEFAULT 60,
-      max_reservation_minutes INTEGER NOT NULL DEFAULT 180
+      max_reservation_minutes INTEGER NOT NULL DEFAULT 180,
+      min_spend TEXT NOT NULL DEFAULT '',
+      booking_horizon_weeks INTEGER NOT NULL DEFAULT 12,
+      picture_ext TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS venue_availability (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,6 +144,16 @@ function migrateSchema(database) {
       expires_at TEXT NOT NULL
     )
   `);
+  const venueCols = database.prepare("PRAGMA table_info(venues)").all().map((c) => c.name);
+  if (!venueCols.includes("min_spend")) {
+    database.exec("ALTER TABLE venues ADD COLUMN min_spend TEXT NOT NULL DEFAULT ''");
+  }
+  if (!venueCols.includes("booking_horizon_weeks")) {
+    database.exec("ALTER TABLE venues ADD COLUMN booking_horizon_weeks INTEGER NOT NULL DEFAULT 12");
+  }
+  if (!venueCols.includes("picture_ext")) {
+    database.exec("ALTER TABLE venues ADD COLUMN picture_ext TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 function hashPassword(password) {
@@ -357,6 +371,9 @@ function serializeVenue(row) {
     max_players: row.max_players,
     min_reservation_minutes: row.min_reservation_minutes,
     max_reservation_minutes: row.max_reservation_minutes,
+    min_spend: row.min_spend || "",
+    booking_horizon_weeks: row.booking_horizon_weeks ?? 12,
+    picture_url: pictureUrl(row),
     rating_avg: rating?.avg != null ? Number(rating.avg) : null,
     maps_url: mapsUrl(row.name, row.location),
   };

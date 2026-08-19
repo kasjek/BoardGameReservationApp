@@ -36,7 +36,7 @@ def test_venue_user_can_add_availability(db, client):
 
 def test_non_manager_cannot_add_availability(db, client):
     venue = Venue.objects.create(name="Board & Brew")
-    someone = mk("alice")
+    someone = mk("not_a_manager")
     client.force_authenticate(user=someone)
     resp = client.post(
         f"/api/venues/{venue.id}/availability",
@@ -51,14 +51,74 @@ def test_admin_can_create_venue(db, client):
     client.force_authenticate(user=admin)
     resp = client.post("/api/venues", {"name": "New Place", "location": "Berlin"}, format="json")
     assert resp.status_code == 201
-    assert Venue.objects.filter(name="New Place").exists()
+    venue = Venue.objects.get(name="New Place")
+    assert venue.booking_horizon_weeks == 12
+    assert venue.min_spend == ""
+    assert resp.data["picture_url"] is None
+    assert resp.data["booking_horizon_weeks"] == 12
 
 
 def test_regular_user_cannot_create_venue(db, client):
-    user = mk("alice")
+    user = mk("regular_player")
     client.force_authenticate(user=user)
     resp = client.post("/api/venues", {"name": "Nope"}, format="json")
     assert resp.status_code == 403
+
+
+def test_admin_create_rejects_long_description(db, client):
+    admin = mk("dan", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        "/api/venues",
+        {"name": "Wordy", "location": "Berlin", "description": "x" * 101},
+        format="json",
+    )
+    assert resp.status_code == 400
+    assert "description" in resp.data
+
+
+def test_admin_create_rejects_invalid_horizon(db, client):
+    admin = mk("dan", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        "/api/venues",
+        {"name": "Far", "location": "Berlin", "booking_horizon_weeks": 53},
+        format="json",
+    )
+    assert resp.status_code == 400
+
+
+PNG_1X1 = (
+    "data:image/png;base64,"
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+def test_admin_can_create_venue_with_picture(db, client, tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    admin = mk("dan", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        "/api/venues",
+        {
+            "name": "Photo Cafe",
+            "location": "Berlin",
+            "description": "Short tagline for the cafe.",
+            "min_spend": "one drink",
+            "booking_horizon_weeks": 4,
+            "picture_data": PNG_1X1,
+        },
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    venue = Venue.objects.get(name="Photo Cafe")
+    assert venue.picture_ext == ".png"
+    assert resp.data["picture_url"] == f"/api/venues/{venue.id}/picture"
+    pic = client.get(f"/api/venues/{venue.id}/picture")
+    assert pic.status_code == 200
+    assert pic["Content-Type"].startswith("image/png")
+    body = b"".join(pic.streaming_content)
+    assert body[:8] == b"\x89PNG\r\n\x1a\n"
 
 
 def test_seed_date_house_cafe(db):
@@ -180,8 +240,11 @@ def test_admin_creates_venue_with_weekly_hours_and_closure(db, client):
         {
             "name": "Holiday Cafe",
             "location": "Teststrasse 1, Nürnberg",
+            "description": "Cozy cafe with plenty of tables.",
+            "min_spend": "€10 per person",
             "min_reservation_minutes": 60,
             "max_reservation_minutes": 120,
+            "booking_horizon_weeks": 2,
             "weekly_hours": hours,
             "closures": [{"date": "2026-12-25", "comment": "Closed for Christmas"}],
         },
@@ -191,6 +254,22 @@ def test_admin_creates_venue_with_weekly_hours_and_closure(db, client):
     venue = Venue.objects.get(name="Holiday Cafe")
     assert venue.min_reservation_minutes == 60
     assert venue.max_reservation_minutes == 120
+    assert venue.description == "Cozy cafe with plenty of tables."
+    assert venue.min_spend == "€10 per person"
+    assert venue.booking_horizon_weeks == 2
+    from datetime import date as dt_date
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    today = timezone.localdate()
+    window = VenueAvailability.objects.filter(
+        venue=venue, date__gte=today, date__lt=today + timedelta(days=14)
+    )
+    expected = 14
+    if today <= dt_date(2026, 12, 25) < today + timedelta(days=14):
+        expected -= 1
+    assert window.count() == expected
     assert VenueWeeklyHours.objects.filter(venue=venue).count() == 7
     monday = VenueWeeklyHours.objects.get(venue=venue, weekday=0)
     assert monday.start_time == dt_time(11, 0)
@@ -385,9 +464,51 @@ def test_admin_adds_venue_game_from_bgg(db, client, monkeypatch):
     assert dup.status_code == 400
 
 
+def test_admin_can_remove_game_from_any_venue(db, client):
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Unlinked Cafe")
+    game = VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    admin = mk("platform_admin", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.delete(f"/api/venues/{venue.id}/games/{game.id}")
+    assert resp.status_code == 204
+    assert not VenueGame.objects.filter(id=game.id).exists()
+
+
+def test_admin_creates_venue_with_games(db, client, monkeypatch):
+    from apps.bgg import services as bgg
+    from apps.venues.models import VenueGame
+
+    monkeypatch.setattr(
+        bgg,
+        "fetch_thing",
+        lambda bgg_id: {
+            "bgg_id": bgg_id,
+            "name": "Catan",
+            "thumbnail_url": "https://cf.geekdo-images.com/catan.jpg",
+        },
+    )
+    admin = mk("platform_admin", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        "/api/venues",
+        {
+            "name": "Game Cafe",
+            "location": "Berlin",
+            "games": [{"bgg_id": 13, "title": "Catan"}],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    venue = Venue.objects.get(name="Game Cafe")
+    game = VenueGame.objects.get(venue=venue, bgg_id=13)
+    assert game.title == "Catan"
+
+
 def test_non_manager_cannot_add_venue_game(db, client):
     venue = Venue.objects.create(name="Game Shelf")
-    someone = mk("alice")
+    someone = mk("not_a_manager")
     client.force_authenticate(user=someone)
     resp = client.post(
         f"/api/venues/{venue.id}/games",

@@ -52,11 +52,16 @@ A cafe/restaurant that hosts tables. *(stories 3, 36, 53, 54)*
 |---|---|---|
 | `id` | uuid (PK) | Unique venue id |
 | `name` | text | Venue name |
-| `description` | text | Public description |
+| `description` | text | Public short description (create form max 100 characters) |
 | `location` | text | Address / city |
 | `min_players` | int | Minimum party size for tables at this venue |
 | `max_players` | int | Maximum party size for tables at this venue |
 | `rating_avg` | numeric(2,1) | Derived from reviews |
+| `min_reservation_minutes` | int | Minimum table booking length (minutes) |
+| `max_reservation_minutes` | int | Maximum table booking length (minutes) |
+| `min_spend` | text (blank) | Short minimum-spend note, e.g. "€10 per person" |
+| `booking_horizon_weeks` | int (1–52, default 12) | How many weeks ahead a table can be booked |
+| `picture_ext` | text (blank) | File extension of the location picture; served at `GET /venues/{id}/picture` |
 | `is_super_location` | bool | Marked "super location" by admin |
 | `is_blocked` | bool | Platform-level block |
 | `created_at` | timestamptz | Created time |

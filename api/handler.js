@@ -23,6 +23,15 @@ const {
   issueAndSendActivation,
   markEmailVerified,
 } = require("./activation");
+const {
+  applyClosures,
+  defaultWeeklyHours,
+  setWeeklyHours,
+  syncAvailabilityFromHours,
+  horizonDaysFor,
+} = require("./hours");
+const { readPicture, savePicture } = require("./pictures");
+const { addVenueGame, listVenueGames, removeVenueGame } = require("./venueGames");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -48,6 +57,15 @@ function send(res, status, data, headers = {}) {
     ...headers,
   });
   res.end(body);
+}
+
+function sendFile(res, status, buffer, contentType) {
+  res.writeHead(status, {
+    "Content-Type": contentType,
+    "Content-Length": buffer.length,
+    "Cache-Control": "public, max-age=3600",
+  });
+  res.end(buffer);
 }
 
 function redirect(res, location) {
@@ -253,24 +271,94 @@ async function handleApi(req, res) {
       if (!u) return;
       if (u.role !== "ADMIN") return send(res, 403, { detail: "Admin only." });
       const body = await readBody(req);
+      const name = String(body.name || "").trim();
+      const location = String(body.location || "").trim();
+      if (!name) return send(res, 400, { name: ["This field is required."] });
+      const description = String(body.description || "");
+      if (description.length > 100) {
+        return send(res, 400, { description: ["Ensure this field has no more than 100 characters."] });
+      }
+      const minSpend = String(body.min_spend || "").trim();
+      if (minSpend.length > 80) {
+        return send(res, 400, { min_spend: ["Ensure this field has no more than 80 characters."] });
+      }
+      const horizon = body.booking_horizon_weeks == null ? 12 : Number(body.booking_horizon_weeks);
+      if (!Number.isInteger(horizon) || horizon < 1 || horizon > 52) {
+        return send(res, 400, { booking_horizon_weeks: ["Booking horizon must be between 1 and 52 weeks."] });
+      }
+      const minMin = body.min_reservation_minutes ?? 60;
+      const maxMin = body.max_reservation_minutes ?? 180;
+      if (Number(minMin) < 30) {
+        return send(res, 400, { min_reservation_minutes: ["Minimum reservation time must be at least 30 minutes."] });
+      }
+      if (Number(maxMin) < Number(minMin)) {
+        return send(res, 400, {
+          max_reservation_minutes: [
+            "Maximum duration must be greater than or equal to the minimum reservation time.",
+          ],
+        });
+      }
       const info = db
         .prepare(
-          `INSERT INTO venues (name, description, location, min_players, max_players, min_reservation_minutes, max_reservation_minutes)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO venues (name, description, location, min_players, max_players, min_reservation_minutes, max_reservation_minutes, min_spend, booking_horizon_weeks)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
-          body.name,
-          body.description || "",
-          body.location || "",
+          name,
+          description,
+          location,
           body.min_players ?? 2,
           body.max_players ?? 8,
-          body.min_reservation_minutes ?? 60,
-          body.max_reservation_minutes ?? 180,
+          minMin,
+          maxMin,
+          minSpend,
+          horizon,
         );
-      return send(res, 201, serializeVenue(db.prepare("SELECT * FROM venues WHERE id=?").get(info.lastInsertRowid)));
+      const venueId = Number(info.lastInsertRowid);
+      if (body.picture_data) {
+        try {
+          const ext = savePicture(venueId, body.picture_data);
+          db.prepare("UPDATE venues SET picture_ext=? WHERE id=?").run(ext, venueId);
+        } catch (err) {
+          db.prepare("DELETE FROM venues WHERE id=?").run(venueId);
+          return send(res, err.status || 400, { picture_data: [err.message] });
+        }
+      }
+      try {
+        const hours = Array.isArray(body.weekly_hours) ? body.weekly_hours : defaultWeeklyHours();
+        setWeeklyHours(db, venueId, hours);
+        if (Array.isArray(body.closures) && body.closures.length) {
+          applyClosures(db, venueId, body.closures);
+          const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(venueId);
+          syncAvailabilityFromHours(db, venueId, horizonDaysFor(venue));
+        }
+      } catch (err) {
+        db.prepare("DELETE FROM venues WHERE id=?").run(venueId);
+        return send(res, err.status || 400, { weekly_hours: [err.message] });
+      }
+      if (Array.isArray(body.games) && body.games.length) {
+        try {
+          for (const g of body.games) {
+            await addVenueGame(db, venueId, g);
+          }
+        } catch (err) {
+          db.prepare("DELETE FROM venues WHERE id=?").run(venueId);
+          return send(res, err.status || 400, err.body || { games: [err.message] });
+        }
+      }
+      return send(res, 201, serializeVenue(db.prepare("SELECT * FROM venues WHERE id=?").get(venueId)));
     }
 
     let m;
+    if ((m = path.match(/^\/api\/venues\/(\d+)\/picture$/)) && method === "GET") {
+      const id = Number(m[1]);
+      const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(id);
+      if (!venue) return send(res, 404, { detail: "Not found." });
+      const pic = readPicture(id, venue.picture_ext);
+      if (!pic) return send(res, 404, { detail: "No picture." });
+      return sendFile(res, 200, pic.buffer, pic.contentType);
+    }
+
     if ((m = path.match(/^\/api\/venues\/(\d+)$/))) {
       const id = Number(m[1]);
       const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(id);
@@ -289,7 +377,9 @@ async function handleApi(req, res) {
             min_players=COALESCE(?, min_players),
             max_players=COALESCE(?, max_players),
             min_reservation_minutes=COALESCE(?, min_reservation_minutes),
-            max_reservation_minutes=COALESCE(?, max_reservation_minutes)
+            max_reservation_minutes=COALESCE(?, max_reservation_minutes),
+            min_spend=COALESCE(?, min_spend),
+            booking_horizon_weeks=COALESCE(?, booking_horizon_weeks)
            WHERE id=?`,
         ).run(
           body.name ?? null,
@@ -299,8 +389,22 @@ async function handleApi(req, res) {
           body.max_players ?? null,
           body.min_reservation_minutes ?? null,
           body.max_reservation_minutes ?? null,
+          body.min_spend ?? null,
+          body.booking_horizon_weeks ?? null,
           id,
         );
+        if (body.picture_data) {
+          try {
+            const ext = savePicture(id, body.picture_data);
+            db.prepare("UPDATE venues SET picture_ext=? WHERE id=?").run(ext, id);
+          } catch (err) {
+            return send(res, err.status || 400, { picture_data: [err.message] });
+          }
+        }
+        if (body.booking_horizon_weeks != null) {
+          const updated = db.prepare("SELECT * FROM venues WHERE id=?").get(id);
+          syncAvailabilityFromHours(db, id, horizonDaysFor(updated));
+        }
         return send(res, 200, serializeVenue(db.prepare("SELECT * FROM venues WHERE id=?").get(id)));
       }
     }
@@ -338,31 +442,12 @@ async function handleApi(req, res) {
         if (!managesVenue(u, id)) return send(res, 403, { detail: "Forbidden." });
         const body = await readBody(req);
         const rows = Array.isArray(body) ? body : [];
-        const tx = db.transaction(() => {
-          db.prepare("DELETE FROM venue_hours WHERE venue_id=?").run(id);
-          const ins = db.prepare(
-            `INSERT INTO venue_hours (venue_id, weekday, is_closed, start_time, end_time) VALUES (?, ?, ?, ?, ?)`,
-          );
-          for (const r of rows) {
-            ins.run(id, r.weekday, r.is_closed ? 1 : 0, r.start_time, r.end_time);
-          }
-        });
-        tx();
-        return send(
-          res,
-          200,
-          db
-            .prepare(
-              `SELECT weekday, is_closed, start_time, end_time FROM venue_hours WHERE venue_id=? ORDER BY weekday`,
-            )
-            .all(id)
-            .map((r) => ({
-              weekday: r.weekday,
-              is_closed: !!r.is_closed,
-              start_time: r.start_time,
-              end_time: r.end_time,
-            })),
-        );
+        try {
+          const saved = setWeeklyHours(db, id, rows);
+          return send(res, 200, saved);
+        } catch (err) {
+          return send(res, err.status || 400, { detail: err.message });
+        }
       }
     }
 
@@ -389,6 +474,8 @@ async function handleApi(req, res) {
             `INSERT INTO venue_closures (venue_id, date, comment, created_at) VALUES (?, ?, ?, ?)`,
           )
           .run(id, body.date, body.comment || "", new Date().toISOString());
+        const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(id);
+        syncAvailabilityFromHours(db, id, horizonDaysFor(venue));
         return send(
           res,
           201,
@@ -407,49 +494,27 @@ async function handleApi(req, res) {
       if (!u) return;
       if (!managesVenue(u, venueId)) return send(res, 403, { detail: "Forbidden." });
       db.prepare("DELETE FROM venue_closures WHERE id=? AND venue_id=?").run(Number(m[2]), venueId);
+      const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(venueId);
+      if (venue) syncAvailabilityFromHours(db, venueId, horizonDaysFor(venue));
       return send(res, 204, null);
     }
 
     if ((m = path.match(/^\/api\/venues\/(\d+)\/games$/))) {
       const id = Number(m[1]);
       if (method === "GET") {
-        const rows = db
-          .prepare(`SELECT * FROM venue_games WHERE venue_id=? AND is_active=1 ORDER BY title`)
-          .all(id)
-          .map((g) => ({
-            id: g.id,
-            venue: g.venue_id,
-            title: g.title,
-            bgg_id: g.bgg_id,
-            thumbnail_url: g.thumbnail_url || "",
-            cover_url: g.thumbnail_url || null,
-            bgg_url: g.bgg_id ? `https://boardgamegeek.com/boardgame/${g.bgg_id}` : null,
-            is_active: !!g.is_active,
-          }));
-        return send(res, 200, rows);
+        return send(res, 200, listVenueGames(db, id));
       }
       if (method === "POST") {
         const u = requireUser(req, res);
         if (!u) return;
         if (!managesVenue(u, id)) return send(res, 403, { detail: "Forbidden." });
         const body = await readBody(req);
-        const title = body.title || `Game ${body.bgg_id || ""}`;
-        const info = db
-          .prepare(
-            `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url) VALUES (?, ?, ?, '')`,
-          )
-          .run(id, title, body.bgg_id || null);
-        const g = db.prepare("SELECT * FROM venue_games WHERE id=?").get(info.lastInsertRowid);
-        return send(res, 201, {
-          id: g.id,
-          venue: g.venue_id,
-          title: g.title,
-          bgg_id: g.bgg_id,
-          thumbnail_url: "",
-          cover_url: null,
-          bgg_url: g.bgg_id ? `https://boardgamegeek.com/boardgame/${g.bgg_id}` : null,
-          is_active: true,
-        });
+        try {
+          const game = await addVenueGame(db, id, body);
+          return send(res, 201, game);
+        } catch (err) {
+          return send(res, err.status || 400, err.body || { detail: err.message });
+        }
       }
     }
 
@@ -458,10 +523,8 @@ async function handleApi(req, res) {
       const u = requireUser(req, res);
       if (!u) return;
       if (!managesVenue(u, venueId)) return send(res, 403, { detail: "Forbidden." });
-      db.prepare("UPDATE venue_games SET is_active=0 WHERE id=? AND venue_id=?").run(
-        Number(m[2]),
-        venueId,
-      );
+      const ok = removeVenueGame(db, venueId, Number(m[2]));
+      if (!ok) return send(res, 404, { detail: "Not found." });
       return send(res, 204, null);
     }
 
