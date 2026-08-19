@@ -283,7 +283,6 @@ export const bggApi = {
     request<{ results: BggSearchHit[] }>(
       `/bgg/search?q=${encodeURIComponent(q)}&limit=${limit}`,
     ),
-  directory: () => request<{ results: BggSearchHit[] }>("/bgg/directory"),
   thing: (bggId: number) => request<BggThing>(`/bgg/thing?id=${bggId}`),
 };
 

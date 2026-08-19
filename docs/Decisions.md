@@ -34,7 +34,7 @@ Lightweight architecture decision records for BoardGameReservationApp.
 
 - **Status:** Accepted (supersedes ADR-001)
 - **Context:** The product connects players and helps venues manage table reservations (`docs/Vision.md`). Users create **tables** (events) at **venues**; others reserve **seats**.
-- **Decision:** The core booking unit is a `Table` (event) at a `Venue`, with `SeatReservation`s bounded by the table's `max_players`. A game catalog and per-venue inventory exist as supporting data (bring-your-own or venue-provided), not as the reservation target.
+- **Decision:** The core booking unit is a `Table` (event) at a `Venue`, with `SeatReservation`s bounded by the table's `max_players`. A game catalog and per-venue inventory exist as supporting data (hosts book a game from that venue's library), not as the reservation target.
 - **Consequences:** Data model, API, and roadmap center on venues/tables/seats (`docs/Database.md`, `docs/API.md`, `docs/Roadmap.md`).
 
 ## ADR-006: Payments via hosted providers (PayPal / Revolut)

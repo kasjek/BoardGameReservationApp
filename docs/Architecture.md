@@ -76,9 +76,9 @@ The launch client is a **single responsive web app** with role-based views (play
 
 ## High-Level Flow (create & confirm a table)
 
-1. A `USER` (host) creates a table at a venue (date, from/to time, min/max players, game with bring-own + language or a venue game); the host's seat is reserved by default. *(1, 4; decisions 4, 6)*
+1. A `USER` (host) creates a table at a venue (date, from/to time, min/max players, a game from that venue's library, and language); the host's seat is reserved by default. *(1, 4, 29; decisions 4, 6)*
 2. The request goes to the venue; table status is `waiting for venue confirmation`. **No other user can book yet.** *(33; decision 2)*
-3. Venue admin accepts (confirming table availability, and the requested game if it is a venue game) or rejects; on accept, status becomes `waiting for players`. *(24, 35; decisions 2, 4)*
+3. Venue admin accepts (confirming table availability and that the requested venue-library game is available) or rejects; on accept, status becomes `waiting for players`. *(24, 35; decisions 2, 4)*
 4. Only now do other `USER`s browse/filter, reserve seats (or join the **waitlist** if full), and pay the fee (full-table by host, or per-seat). *(2, 30; decisions 1, 6, 7)*
 5. When enough seats fill, status becomes `confirmed`; relevant users are notified. *(28, 33)*
 6. Cancellations trigger notifications and automatic refunds; a within-24h cancellation is *late* (30-day profile mark) and a reserved-seat cancellation **promotes the next waitlisted user**. *(21, 22, 25, 31; decision 7)*

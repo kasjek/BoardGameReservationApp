@@ -209,8 +209,7 @@ def _local_search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
 def list_directory_boardgames() -> list[dict]:
     """All known BoardGameGeek titles in the local directory (venue inventory + cache).
 
-    Used by the New Table bring-own picker as a single dropdown of games already
-    linked to a BGG id. Sorted by name; duplicates collapse by bgg_id.
+    Sorted by name; duplicates collapse by bgg_id.
     """
     by_id: dict[int, dict] = {}
 

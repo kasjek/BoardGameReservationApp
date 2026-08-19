@@ -40,7 +40,7 @@ Ground every screen in:
 
 - Register / fast login; profile + avatar.
 - Browse/filter tables; table detail with status and seats/waitlist.
-- Create a table (venue, from/to time, min/max, game bring-own + language or venue game).
+- Create a table (venue, from/to time, min/max, venue-library game + language).
 - Reserve/cancel a seat; join waitlist; pay (full-table vs per-seat).
 - Venue admin: availability/capacity, accept/reject requests (table + game), venue event dashboard.
 
