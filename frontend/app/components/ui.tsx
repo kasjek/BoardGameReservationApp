@@ -275,6 +275,11 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   const canManageVenue = user?.role === "VENUE_USER" || user?.role === "ADMIN";
   const canHost = user?.role === "USER" || user?.role === "ADMIN";
 
+  useEffect(() => {
+    if (!path.startsWith("/friends") || typeof window === "undefined") return;
+    setFriendQuery(new URLSearchParams(window.location.search).get("q") || "");
+  }, [path]);
+
   const tab = (href: string, label: string, active: boolean) => (
     <Link
       href={href}
