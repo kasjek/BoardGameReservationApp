@@ -97,6 +97,25 @@ RECAPTCHA_SECRET_KEY = os.environ.get(
     "RECAPTCHA_SECRET_KEY", _RECAPTCHA_TEST_SECRET if DEBUG else ""
 ).strip()
 
+# Transactional email for account activation. Empty EMAIL_HOST uses the console
+# backend in DEBUG; production without SMTP rejects password registration.
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "1") != "0"
+EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "0") == "1"
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", "Too Many Games <noreply@localhost>"
+)
+PUBLIC_APP_URL = os.environ.get("PUBLIC_APP_URL", "http://127.0.0.1:3000").rstrip("/")
+ACTIVATION_TOKEN_HOURS = int(os.environ.get("ACTIVATION_TOKEN_HOURS", "48"))
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if EMAIL_HOST
+    else "django.core.mail.backends.console.EmailBackend"
+)
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",

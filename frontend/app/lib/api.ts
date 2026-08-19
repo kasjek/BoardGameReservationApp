@@ -186,7 +186,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 // --- Auth ---
 export const authApi = {
   register: (username: string, email: string, password: string, captchaToken: string) =>
-    request<{ token: string; user: User }>("/auth/register", {
+    request<{ detail: string; email: string }>("/auth/register", {
       method: "POST",
       body: JSON.stringify({ username, email, password, captcha_token: captchaToken }),
     }),
@@ -210,6 +210,16 @@ export const authApi = {
     request<{ token: string; user: User }>("/auth/facebook", {
       method: "POST",
       body: JSON.stringify({ access_token: accessToken }),
+    }),
+  activate: (token: string) =>
+    request<{ detail: string }>("/auth/activate", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+  resendActivation: (email: string) =>
+    request<{ detail: string }>("/auth/activate/resend", {
+      method: "POST",
+      body: JSON.stringify({ email }),
     }),
   me: () => request<User>("/auth/me"),
   rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),

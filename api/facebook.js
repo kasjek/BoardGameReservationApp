@@ -2,6 +2,7 @@
  * Facebook Login: verify a user access token against this app, then load profile.
  */
 const GRAPH_BASE = "https://graph.facebook.com";
+const { markEmailVerified } = require("./activation");
 
 function facebookAppId() {
   return (process.env.FACEBOOK_APP_ID || "").trim();
@@ -106,6 +107,7 @@ function userFromFacebook(db, info) {
       }
       db.prepare("UPDATE users SET facebook_id = ? WHERE id = ?").run(fbId, byEmail.id);
       byEmail.facebook_id = fbId;
+      markEmailVerified(db, byEmail);
       return { user: byEmail, created: false };
     }
   }

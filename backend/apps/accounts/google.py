@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import APIException, ValidationError
 
+from .activation import mark_email_verified
 from .models import Role
 
 User = get_user_model()
@@ -105,6 +106,7 @@ def user_from_google(info: dict):
                 by_email.email = email
                 update.append("email")
             by_email.save(update_fields=update)
+            mark_email_verified(by_email)
             return by_email, False
 
     user = User(

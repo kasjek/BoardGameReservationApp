@@ -107,7 +107,9 @@ def test_register_accepts_verified_captcha(db, client):
             format="json",
         )
     assert resp.status_code == 201, resp.data
-    assert User.objects.filter(username="botproof").exists()
+    user = User.objects.get(username="botproof")
+    assert user.is_active is False
+    assert "token" not in resp.data
 
 
 @override_settings(DEBUG=True, RECAPTCHA_SITE_KEY=TEST_SITE_KEY, RECAPTCHA_SECRET_KEY=TEST_SECRET_KEY)

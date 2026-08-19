@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    ActivateView,
     CaptchaConfigView,
     ChangePasswordView,
     FacebookConfigView,
@@ -11,12 +12,15 @@ from .views import (
     MeView,
     PublicUserView,
     RegisterView,
+    ResendActivationView,
     RollAvatarView,
 )
 
 urlpatterns = [
     path("auth/register", RegisterView.as_view(), name="register"),
     path("auth/login", LoginView.as_view(), name="login"),
+    path("auth/activate", ActivateView.as_view(), name="activate"),
+    path("auth/activate/resend", ResendActivationView.as_view(), name="activate-resend"),
     path("auth/captcha/config", CaptchaConfigView.as_view(), name="captcha-config"),
     path("auth/google", GoogleLoginView.as_view(), name="google-login"),
     path("auth/google/config", GoogleConfigView.as_view(), name="google-config"),

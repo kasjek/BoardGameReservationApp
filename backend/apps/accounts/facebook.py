@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import APIException, ValidationError
 
+from .activation import mark_email_verified
 from .google import unique_username
 from .models import Role
 
@@ -103,6 +104,7 @@ def user_from_facebook(info: dict):
                 by_email.email = email
                 update.append("email")
             by_email.save(update_fields=update)
+            mark_email_verified(by_email)
             return by_email, False
 
     user = User(

@@ -17,7 +17,7 @@ def client():
     return APIClient()
 
 
-def test_register_returns_token_and_me(db, client, monkeypatch):
+def test_register_requires_activation_before_login(db, client, monkeypatch):
     monkeypatch.setattr("apps.accounts.captcha.verify_recaptcha", lambda token, remote_ip=None: None)
     resp = client.post(
         "/api/auth/register",
@@ -30,9 +30,23 @@ def test_register_returns_token_and_me(db, client, monkeypatch):
         format="json",
     )
     assert resp.status_code == 201
-    token = resp.data["token"]
-    assert resp.data["user"]["role"] == Role.USER
+    assert "token" not in resp.data
 
+    from apps.accounts.models import EmailActivationToken, User
+
+    user = User.objects.get(username="newuser")
+    assert user.is_active is False
+    key = EmailActivationToken.objects.get(user=user).key
+    act = client.post("/api/auth/activate", {"token": key}, format="json")
+    assert act.status_code == 200
+
+    logged = client.post(
+        "/api/auth/login",
+        {"username": "newuser", "password": "Supersecret1!"},
+        format="json",
+    )
+    assert logged.status_code == 200
+    token = logged.data["token"]
     client.credentials(HTTP_AUTHORIZATION=f"Token {token}")
     me = client.get("/api/auth/me")
     assert me.status_code == 200

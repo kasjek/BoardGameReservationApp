@@ -80,11 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(
     async (username: string, email: string, password: string, captchaToken: string) => {
-      const { token } = await authApi.register(username, email, password, captchaToken);
-      setToken(token);
-      await refresh();
+      await authApi.register(username, email, password, captchaToken);
     },
-    [refresh],
+    [],
   );
 
   const logout = useCallback(() => {

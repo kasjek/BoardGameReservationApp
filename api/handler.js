@@ -12,6 +12,17 @@ const {
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
 const { captchaPublicConfig, verifyCaptcha } = require("./captcha");
 const { facebookPublicConfig, userFromFacebook, verifyFacebookAccessToken } = require("./facebook");
+const {
+  ACTIVATED_DETAIL,
+  ACTIVATION_DETAIL,
+  REGISTERED_DETAIL,
+  RESEND_DETAIL,
+  activateWithKey,
+  emailConfigured,
+  isActive,
+  issueAndSendActivation,
+  markEmailVerified,
+} = require("./activation");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -98,20 +109,32 @@ async function handleApi(req, res) {
       if (!captcha.ok) return send(res, 400, { captcha_token: [captcha.error] });
       const { username, email = "", password } = body;
       if (!username || !password) return send(res, 400, { detail: "username and password required." });
+      const emailNorm = String(email || "").trim().toLowerCase();
+      if (!emailNorm || !emailNorm.includes("@")) {
+        return send(res, 400, { email: ["Email is required."] });
+      }
       const pwErr = validPassword(password);
       if (pwErr) return send(res, 400, { password: [pwErr] });
       if (db.prepare("SELECT id FROM users WHERE username=?").get(username)) {
         return send(res, 400, { username: ["A user with that username already exists."] });
       }
+      if (db.prepare("SELECT id FROM users WHERE email = ? COLLATE NOCASE").get(emailNorm)) {
+        return send(res, 400, { email: ["A user with that email already exists."] });
+      }
+      if (!emailConfigured()) {
+        return send(res, 503, { detail: "Email delivery is not configured." });
+      }
       const info = db
         .prepare(
-          `INSERT INTO users (username, email, password_hash, role, avatar_seed) VALUES (?, ?, ?, 'USER', ?)`,
+          `INSERT INTO users (username, email, password_hash, role, avatar_seed, is_active) VALUES (?, ?, ?, 'USER', ?, 0)`,
         )
-        .run(username, email, hashPassword(password), username);
+        .run(username, emailNorm, hashPassword(password), username);
       const user = db.prepare("SELECT * FROM users WHERE id=?").get(info.lastInsertRowid);
-      const token = newToken();
-      db.prepare("INSERT INTO tokens (key, user_id) VALUES (?, ?)").run(token, user.id);
-      return send(res, 201, { token, user: serializeUser(user) });
+      const mailed = await issueAndSendActivation(db, user);
+      if (!mailed.ok) {
+        return send(res, mailed.status || 500, { detail: mailed.error });
+      }
+      return send(res, 201, { detail: REGISTERED_DETAIL, email: emailNorm });
     }
 
     if (method === "POST" && path === "/api/auth/login") {
@@ -120,10 +143,41 @@ async function handleApi(req, res) {
       if (!user || !checkPassword(body.password || "", user.password_hash)) {
         return send(res, 400, { non_field_errors: ["Unable to log in with provided credentials."] });
       }
+      if (!isActive(user)) {
+        return send(res, 403, { detail: ACTIVATION_DETAIL });
+      }
       db.prepare("DELETE FROM tokens WHERE user_id=?").run(user.id);
       const token = newToken();
       db.prepare("INSERT INTO tokens (key, user_id) VALUES (?, ?)").run(token, user.id);
       return send(res, 200, { token });
+    }
+
+    if (method === "GET" && path === "/api/auth/activate") {
+      const result = activateWithKey(db, url.searchParams.get("token") || "");
+      if (!result.ok) return send(res, result.status, { detail: result.error });
+      return send(res, 200, { detail: ACTIVATED_DETAIL });
+    }
+
+    if (method === "POST" && path === "/api/auth/activate") {
+      const body = await readBody(req);
+      const result = activateWithKey(db, body.token || url.searchParams.get("token") || "");
+      if (!result.ok) return send(res, result.status, { detail: result.error });
+      return send(res, 200, { detail: ACTIVATED_DETAIL });
+    }
+
+    if (method === "POST" && path === "/api/auth/activate/resend") {
+      if (!emailConfigured()) {
+        return send(res, 503, { detail: "Email delivery is not configured." });
+      }
+      const body = await readBody(req);
+      const emailNorm = String(body.email || "").trim().toLowerCase();
+      const pending = db
+        .prepare("SELECT * FROM users WHERE email = ? COLLATE NOCASE AND is_active = 0")
+        .get(emailNorm);
+      if (pending && pending.email) {
+        await issueAndSendActivation(db, pending);
+      }
+      return send(res, 200, { detail: RESEND_DETAIL });
     }
 
     if (method === "GET" && path === "/api/auth/facebook/config") {

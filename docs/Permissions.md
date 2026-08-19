@@ -23,7 +23,8 @@ Aligned with `docs/Vision.md`: people who **create a table**, people who **reser
 
 ## Registration and login
 
-- Self-registration creates a **`USER`** account and requires a completed **reCAPTCHA**.
+- Self-registration creates a **`USER`** account and requires a completed **reCAPTCHA**. The account stays **inactive** until the user clicks the activation link sent to their email; password login is blocked until then.
+- **Google sign-in** also creates a **`USER`** (or logs into an existing account with the same verified email). Google/Facebook emails are already verified, so those accounts are active immediately.
 - **Google sign-in** also creates a **`USER`** (or logs into an existing account with the same verified email).
 - **Facebook Login** also creates a **`USER`** (or logs into an existing account with the same verified email).
 - Login returns the account’s role (and venue link for `VENUE_USER`).

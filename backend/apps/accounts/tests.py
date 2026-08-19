@@ -93,7 +93,9 @@ def test_register_accepts_strong_password(db, client, pass_captcha):
         format="json",
     )
     assert resp.status_code == 201, resp.data
-    assert User.objects.filter(username="stronguser").exists()
+    assert "token" not in resp.data
+    user = User.objects.get(username="stronguser")
+    assert user.is_active is False
 
 
 def test_change_password_requires_auth(db, client):

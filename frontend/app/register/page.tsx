@@ -42,6 +42,11 @@ export default function RegisterPage() {
       setBusy(false);
       return;
     }
+    if (!email.trim() || !email.includes("@")) {
+      setError(t("auth.emailRequired"));
+      setBusy(false);
+      return;
+    }
     if (!captchaToken) {
       setError(t("auth.captchaRequired"));
       setBusy(false);
@@ -49,7 +54,7 @@ export default function RegisterPage() {
     }
     try {
       await register(username, email, password, captchaToken);
-      router.push("/");
+      router.push(`/register/check-email?email=${encodeURIComponent(email.trim())}`);
     } catch (err) {
       setError(errorMessage(err, t));
       setCaptchaToken("");
@@ -119,7 +124,7 @@ export default function RegisterPage() {
             onToken={setCaptchaToken}
             onUnavailable={setError}
           />
-          <button className="btn" disabled={busy || !captchaToken}>
+          <button className="btn" disabled={busy || !captchaToken || !email.trim()}>
             {busy ? t("common.ellipsis") : t("auth.signUp")}
           </button>
         </form>
