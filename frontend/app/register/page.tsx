@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { RecaptchaCheckbox } from "../components/RecaptchaCheckbox";
 import { AuthHero, Banner, PasswordField } from "../components/ui";
 import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { errorMessage } from "../lib/api";
@@ -17,6 +18,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -39,11 +41,17 @@ export default function RegisterPage() {
       setBusy(false);
       return;
     }
+    if (!captchaToken) {
+      setError(t("auth.captchaRequired"));
+      setBusy(false);
+      return;
+    }
     try {
-      await register(username, email, password);
+      await register(username, email, password, captchaToken);
       router.push("/");
     } catch (err) {
       setError(errorMessage(err, t));
+      setCaptchaToken("");
     } finally {
       setBusy(false);
     }
@@ -91,7 +99,12 @@ export default function RegisterPage() {
             autoComplete="new-password"
           />
           <div className="text-xs text-slate-500">{t("auth.passwordRules")}</div>
-          <button className="btn" disabled={busy}>
+          <RecaptchaCheckbox
+            disabled={busy}
+            onToken={setCaptchaToken}
+            onUnavailable={setError}
+          />
+          <button className="btn" disabled={busy || !captchaToken}>
             {busy ? t("common.ellipsis") : t("auth.signUp")}
           </button>
         </form>

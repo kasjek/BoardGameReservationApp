@@ -22,17 +22,18 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 │            or              │
 │   ( Email )                │
 │   ( Password )             │
+│   [ I'm not a robot ]      │
 │                            │
-│   [   Log in   ]           │
+│   [   Sign up   ]          │
 │                            │
 │   New here?  Sign up ›     │
 └────────────────────────────┘
 ```
 
-- **Sign up** collects display name, email, password → creates a `USER`.
+- **Sign up** collects display name, email, password, and a **reCAPTCHA** → creates a `USER`.
 - **Google** uses Google Identity Services; the API verifies the ID token and creates/links a `USER`.
-- **States:** idle, loading, invalid-credentials error, field validation, Google not configured (button hidden).
-- **API:** `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/google/config`, `POST /api/auth/google` → store token; route to Browse.
+- **States:** idle, loading, invalid-credentials error, field validation, captcha required, Google not configured (button hidden).
+- **API:** `POST /api/auth/register` (`captcha_token` required), `GET /api/auth/captcha/config`, `POST /api/auth/login`, `GET /api/auth/google/config`, `POST /api/auth/google` → store token; route to Browse.
 
 ---
 

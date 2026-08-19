@@ -97,6 +97,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 - **NFR-5 Internationalization** — Event language is first-class data (EN / DE / Other); the UI is expected to localize (at least EN/DE).
 - **NFR-6 Mobile-first web at launch** — The launch product is a responsive **website that looks and works excellently on phones from day one** (the primary target), scaling up gracefully to tablet/desktop. Phone-first layouts, touch-friendly targets, and fast first load are required; a native app is deferred (see `ADR-012`). Reservation/event status stays obvious at a glance (per `docs/Vision.md`).
 - **NFR-7 Auditability** — Moderation actions, blocks, cancellations, and refunds are logged.
+- **NFR-8 Bot protection** — Self-registration (`POST /auth/register`) requires a completed Google reCAPTCHA v2; missing or invalid tokens are rejected. Production uses real site/secret keys (`RECAPTCHA_SITE_KEY`, `RECAPTCHA_SECRET_KEY`). Google sign-in is verified separately via a Google ID token.
 
 ## Traceability
 

@@ -114,6 +114,8 @@ export const en: Messages = {
     passwordMin: "Password must be at least 8 characters.",
     passwordCapital: "Password must include at least one capital letter.",
     passwordSpecial: "Password must include at least one special character.",
+    captchaRequired: "Please confirm you are not a robot.",
+    captchaUnavailable: "Registration is unavailable until captcha is configured.",
   },
   browse: {
     title: "All Tables",
@@ -447,6 +449,8 @@ export const de: Messages = {
     passwordMin: "Das Passwort muss mindestens 8 Zeichen haben.",
     passwordCapital: "Das Passwort muss mindestens einen Großbuchstaben enthalten.",
     passwordSpecial: "Das Passwort muss mindestens ein Sonderzeichen enthalten.",
+    captchaRequired: "Bitte bestätige, dass du kein Roboter bist.",
+    captchaUnavailable: "Registrierung ist nicht möglich, bis das Captcha eingerichtet ist.",
   },
   browse: {
     title: "Alle Tische",

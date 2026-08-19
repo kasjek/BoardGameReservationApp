@@ -32,8 +32,9 @@ script runs you do NOT need to reinstall dependencies.
   Non-obvious: `select_for_update` (the seat-capacity lock, `ADR-011`) is a **no-op on
   SQLite** and only truly enforced on PostgreSQL; the tests validate the functional
   logic, not the locking.
-- Auth is DRF **token** auth. `POST /api/auth/register` always creates a `USER`;
-  promotion to `VENUE_USER`/`ADMIN` is done via the Django admin or a shell.
+- Auth is DRF **token** auth. `POST /api/auth/register` always creates a `USER`
+  and requires a Google reCAPTCHA v2 `captcha_token` (see `GET /api/auth/captcha/config`).
+  Promotion to `VENUE_USER`/`ADMIN` is done via the Django admin or a shell.
 - **BGG:** live search/covers need env secret `BGG_API_TOKEN` (Bearer for
   boardgamegeek.com XML API). The configured application token is named
   `TestVersion260812`. Without the secret, search falls back to local inventory.

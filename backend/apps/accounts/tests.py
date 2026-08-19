@@ -9,6 +9,11 @@ def client():
     return APIClient()
 
 
+@pytest.fixture
+def pass_captcha(monkeypatch):
+    monkeypatch.setattr("apps.accounts.captcha.verify_recaptcha", lambda token, remote_ip=None: None)
+
+
 def mk(username, role=Role.USER):
     """Password-backed test user. Demo seed migrations already create alice/bob/etc."""
     user, _ = User.objects.get_or_create(username=username, defaults={"role": role})
@@ -54,7 +59,7 @@ def test_public_profile_exposes_avatar_seed_not_email(db, client):
     assert "email" not in resp.data
 
 
-def test_register_rejects_weak_passwords(db, client):
+def test_register_rejects_weak_passwords(db, client, pass_captcha):
     cases = [
         ("short1!", "capital"),  # too short / missing capital
         ("alllowercase1!", "capital"),
@@ -68,6 +73,7 @@ def test_register_rejects_weak_passwords(db, client):
                 "username": f"weak{i}",
                 "email": f"weak{i}@example.com",
                 "password": password,
+                "captcha_token": "test-ok",
             },
             format="json",
         )
@@ -75,13 +81,14 @@ def test_register_rejects_weak_passwords(db, client):
         assert "password" in resp.data
 
 
-def test_register_accepts_strong_password(db, client):
+def test_register_accepts_strong_password(db, client, pass_captcha):
     resp = client.post(
         "/api/auth/register",
         {
             "username": "stronguser",
             "email": "strong@example.com",
             "password": "GoodPass1!",
+            "captcha_token": "test-ok",
         },
         format="json",
     )

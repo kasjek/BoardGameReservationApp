@@ -9,7 +9,7 @@ interface AuthState {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   loginGoogle: (credential: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, captchaToken: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
 }
@@ -69,8 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (username: string, email: string, password: string) => {
-      const { token } = await authApi.register(username, email, password);
+    async (username: string, email: string, password: string, captchaToken: string) => {
+      const { token } = await authApi.register(username, email, password, captchaToken);
       setToken(token);
       await refresh();
     },
