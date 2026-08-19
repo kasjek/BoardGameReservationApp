@@ -20,7 +20,7 @@ Lightweight architecture decision records for BoardGameReservationApp.
 
 - **Status:** Accepted
 - **Context:** Players, organizers, and venues need to know what is actionable (per `docs/Vision.md`).
-- **Decision:** Use explicit table statuses: `waiting_for_venue_confirmation`, `waiting_for_players`, `confirmed`, `cancelled`, `completed`.
+- **Decision:** Use explicit table statuses: `requested`, `available`, `confirmed_unpaid`, `confirmed_paid`, `cancelled`, `completed` (shown as Requested, Available, Confirmed & unpaid, Confirmed & paid).
 - **Consequences:** UI maps status to simple next-steps; status is shown to all parties. Detailed transitions in ADR-007.
 
 ## ADR-004: Docs-first planning artifacts
@@ -48,8 +48,8 @@ Lightweight architecture decision records for BoardGameReservationApp.
 
 - **Status:** Accepted (venue-confirmation-first decided)
 - **Context:** Table status must be consistent and visible to all parties (ADR-003).
-- **Decision:** The backend owns transitions: `waiting_for_venue_confirmation` → (venue accepts) `waiting_for_players` → (enough seats) `confirmed` → `completed`; any state may move to `cancelled` (by organizer, venue, or admin), triggering notifications and refunds. **Sequencing (owner decision):** after the host requests a table, **the venue must confirm availability first** before any remaining users can book seats. When the host requested a venue-provided game, the venue must also **confirm the requested game is available** as part of accepting (not just the table). Only the host's own seat exists during `waiting_for_venue_confirmation`.
-- **Consequences:** Predictable state machine; clients render status only. Seat-booking endpoints reject joins until status is `waiting_for_players` (`409`/`403`). Venue acceptance covers both table and (if applicable) game availability.
+- **Decision:** The backend owns transitions: `requested` → (venue accepts) `available` → (seats ≥ min players) `confirmed_unpaid` → (every reserved seat paid) `confirmed_paid` → `completed`; any state may move to `cancelled` (by organizer, venue, or admin), triggering notifications and refunds. **Sequencing (owner decision):** after the host requests a table, **the venue must confirm availability first** before any remaining users can book seats. When the host requested a venue-provided game, the venue must also **confirm the requested game is available** as part of accepting (not just the table). Only the host's own seat exists during `requested`. **Payment is per reserved seat and is not collected at booking time** — each seated user pays from a Pay button under their own seat. Bring-your-own-game tables have no fee and skip `confirmed_unpaid`.
+- **Consequences:** Predictable state machine; clients render status only. Seat-booking endpoints reject joins until status is `available` (or a later joinable status) (`409`/`403`). Venue acceptance covers both table and (if applicable) game availability. `POST /tables/{id}/seats/pay` records that the current user's reserved seat has paid.
 
 ## ADR-008: Notifications are relevant-scoped, email + in-app
 

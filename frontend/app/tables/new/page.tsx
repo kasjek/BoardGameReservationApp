@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { VenueGameFeeHint, VenueGameFeePrompt } from "../../components/VenueGameFeePrompt";
+import { VenueGameFeeHint } from "../../components/VenueGameFeePrompt";
 import { Banner, LoadingScreen, Shell } from "../../components/ui";
 import {
   bggApi,
@@ -12,7 +12,6 @@ import {
   venueApi,
   type Availability,
   type BggSearchHit,
-  type Table,
   type Venue,
   type VenueGame,
 } from "../../lib/api";
@@ -290,7 +289,6 @@ export default function CreateTablePage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
-  const [feePrompt, setFeePrompt] = useState<Table | null>(null);
 
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState("");
@@ -524,22 +522,12 @@ export default function CreateTablePage() {
         min_players: minPlayers,
         max_players: maxPlayers,
       });
-      if (!bringOwn) {
-        setFeePrompt(created);
-      } else {
-        router.push(`/tables/${created.id}`);
-      }
+      router.push(`/tables/${created.id}`);
     } catch (err) {
       setError(errorMessage(err, t));
     } finally {
       setBusy(false);
     }
-  }
-
-  function finishAfterFeePrompt() {
-    const created = feePrompt;
-    setFeePrompt(null);
-    if (created) router.push(`/tables/${created.id}`);
   }
 
   const noHoursForDate = Boolean(date && venue && !dayAvailability);
@@ -889,17 +877,6 @@ export default function CreateTablePage() {
           {busy ? t("common.ellipsis") : t("newTable.requestTable")}
         </button>
       </form>
-      {feePrompt ? (
-        <VenueGameFeePrompt
-          open
-          role="host"
-          gameTitle={feePrompt.game_title}
-          startsAt={feePrompt.starts_at}
-          endsAt={feePrompt.ends_at}
-          tableId={feePrompt.id}
-          onClose={finishAfterFeePrompt}
-        />
-      ) : null}
     </Shell>
   );
 }

@@ -18,7 +18,7 @@ def seat(table, user):
     return SeatReservation.objects.create(table=table, user=user, status=SeatStatus.RESERVED)
 
 
-def make_table(organizer, venue, *, ended=True, status=TableStatus.CONFIRMED):
+def make_table(organizer, venue, *, ended=True, status=TableStatus.CONFIRMED_PAID):
     now = timezone.now()
     if ended:
         starts, ends = now - timedelta(hours=3), now - timedelta(hours=1)

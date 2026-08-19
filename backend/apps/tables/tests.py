@@ -77,7 +77,7 @@ def make_table(organizer, venue, bring_own_game=True, ensure_availability=True, 
 def test_host_creates_pending_table_and_is_seated(db, venue):
     host = make_user("alice")
     table = make_table(host, venue)
-    assert table.status == TableStatus.WAITING_FOR_VENUE_CONFIRMATION
+    assert table.status == TableStatus.REQUESTED
     assert table.seats_taken == 1
     seat = table.seats.get(user=host)
     assert seat.is_organizer and seat.status == SeatStatus.RESERVED
@@ -93,7 +93,7 @@ def test_venue_user_cannot_reserve(db, venue):
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
     table = make_table(host, venue)
-    table.status = TableStatus.WAITING_FOR_PLAYERS
+    table.status = TableStatus.AVAILABLE
     table.save()
     with pytest.raises(PermissionDenied):
         services.reserve_seat(table=table, user=staff)
@@ -104,7 +104,7 @@ def test_venue_user_cannot_reserve(db, venue):
 def test_reserve_blocked_before_venue_confirmation(db, venue):
     host = make_user("alice")
     bob = make_user("bob")
-    table = make_table(host, venue)  # still waiting_for_venue_confirmation
+    table = make_table(host, venue)  # still requested
     with pytest.raises(services.Conflict):
         services.reserve_seat(table=table, user=bob)
 
@@ -117,13 +117,13 @@ def test_confirm_requires_venue_or_admin(db, venue, wide_availability):
         services.confirm_table(table=table, by_user=other)
 
 
-def test_confirm_sets_waiting_for_players_and_confirms_venue_game(db, venue, wide_availability):
+def test_confirm_sets_available_and_confirms_venue_game(db, venue, wide_availability):
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
     table = make_table(host, venue, bring_own_game=False, game_title="Carcassonne")
     services.confirm_table(table=table, by_user=staff)
     table.refresh_from_db()
-    assert table.status == TableStatus.WAITING_FOR_PLAYERS
+    assert table.status == TableStatus.AVAILABLE
     assert table.venue_game_confirmed is True
 
 
@@ -137,7 +137,7 @@ def test_reserve_confirms_when_min_reached(db, venue, wide_availability):
     services.reserve_seat(table=table, user=make_user("bob"))  # seats_taken -> 2 == min
     table.refresh_from_db()
     assert table.seats_taken == 2
-    assert table.status == TableStatus.CONFIRMED
+    assert table.status == TableStatus.CONFIRMED_PAID
 
 
 def test_reserve_beyond_max_waitlists(db, venue, wide_availability):
@@ -170,7 +170,7 @@ def test_overlapping_reservation_rejected(db, venue):
     a = make_table(make_user("hostA"), venue, starts_at=future_dt(hour=18), ends_at=future_dt(hour=20))
     b = make_table(make_user("hostB"), venue, starts_at=future_dt(hour=19), ends_at=future_dt(hour=21))
     for t in (a, b):
-        t.status = TableStatus.WAITING_FOR_PLAYERS
+        t.status = TableStatus.AVAILABLE
         t.save()
     services.reserve_seat(table=a, user=player)
     with pytest.raises(services.Conflict):
@@ -182,7 +182,7 @@ def test_non_overlapping_reservation_ok(db, venue):
     a = make_table(make_user("hostA"), venue, starts_at=future_dt(hour=18), ends_at=future_dt(hour=20))
     c = make_table(make_user("hostC"), venue, starts_at=future_dt(hour=21), ends_at=future_dt(hour=23))
     for t in (a, c):
-        t.status = TableStatus.WAITING_FOR_PLAYERS
+        t.status = TableStatus.AVAILABLE
         t.save()
     services.reserve_seat(table=a, user=player)
     seat = services.reserve_seat(table=c, user=player)  # no overlap
@@ -217,7 +217,7 @@ def test_late_cancellation_creates_mark(db, venue):
         host, venue, starts_at=timezone.now() + timedelta(hours=2),
         ends_at=timezone.now() + timedelta(hours=4),
     )
-    table.status = TableStatus.WAITING_FOR_PLAYERS
+    table.status = TableStatus.AVAILABLE
     table.save()
     services.reserve_seat(table=table, user=bob)
     services.cancel_seat(table=table, user=bob)
@@ -228,7 +228,7 @@ def test_early_cancellation_creates_no_mark(db, venue):
     host = make_user("alice")
     bob = make_user("bob")
     table = make_table(host, venue)  # starts in 10 days
-    table.status = TableStatus.WAITING_FOR_PLAYERS
+    table.status = TableStatus.AVAILABLE
     table.save()
     services.reserve_seat(table=table, user=bob)
     services.cancel_seat(table=table, user=bob)
@@ -289,7 +289,7 @@ def test_venue_capacity_allows_when_capacity_available(db, venue):
     )
     services.confirm_table(table=b, by_user=staff)  # capacity 2 -> allowed
     b.refresh_from_db()
-    assert b.status == TableStatus.WAITING_FOR_PLAYERS
+    assert b.status == TableStatus.AVAILABLE
 
 
 # --- Duration + opening hours on create -------------------------------------
@@ -358,7 +358,63 @@ def test_create_allows_slot_inside_opening_hours(db, venue):
         starts_at=future_dt(hour=10),
         ends_at=future_dt(hour=12),
     )
-    assert table.status == TableStatus.WAITING_FOR_VENUE_CONFIRMATION
+    assert table.status == TableStatus.REQUESTED
+
+
+def test_venue_game_min_players_is_confirmed_unpaid_until_all_pay(db, venue, wide_availability):
+    host = make_user("alice")
+    staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
+    bob = make_user("bob")
+    table = make_table(host, venue, bring_own_game=False, game_title="Carcassonne")
+    services.confirm_table(table=table, by_user=staff)
+    services.reserve_seat(table=table, user=bob)
+    table.refresh_from_db()
+    assert table.status == TableStatus.CONFIRMED_UNPAID
+
+    host_seat = services.pay_seat(table=table, user=host)
+    table.refresh_from_db()
+    assert host_seat.paid is True
+    assert table.status == TableStatus.CONFIRMED_UNPAID
+
+    bob_seat = services.pay_seat(table=table, user=bob)
+    table.refresh_from_db()
+    assert bob_seat.paid is True
+    assert table.status == TableStatus.CONFIRMED_PAID
+
+
+def test_pay_is_idempotent_and_requires_reserved_seat(db, venue, wide_availability):
+    host = make_user("alice")
+    staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
+    table = make_table(host, venue, bring_own_game=False)
+    services.confirm_table(table=table, by_user=staff)
+    first = services.pay_seat(table=table, user=host)
+    second = services.pay_seat(table=table, user=host)
+    assert first.paid is True and second.paid is True
+    with pytest.raises(services.Conflict):
+        services.pay_seat(table=table, user=make_user("bob"))
+
+
+def test_bring_own_game_has_no_pay_endpoint(db, venue, wide_availability):
+    host = make_user("alice")
+    staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
+    table = make_table(host, venue, bring_own_game=True)
+    services.confirm_table(table=table, by_user=staff)
+    with pytest.raises(services.Conflict):
+        services.pay_seat(table=table, user=host)
+
+
+def test_drop_below_min_reopens_available(db, venue, wide_availability):
+    host = make_user("alice")
+    staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
+    bob = make_user("bob")
+    table = make_table(host, venue)  # bring own; min 2
+    services.confirm_table(table=table, by_user=staff)
+    services.reserve_seat(table=table, user=bob)
+    table.refresh_from_db()
+    assert table.status == TableStatus.CONFIRMED_PAID
+    services.cancel_seat(table=table, user=bob)
+    table.refresh_from_db()
+    assert table.status == TableStatus.AVAILABLE
 
 
 def test_ensure_katzentempel_demo_tables_creates_at_least_five(db):

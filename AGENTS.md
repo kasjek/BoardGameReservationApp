@@ -49,9 +49,11 @@ script runs you do NOT need to reinstall dependencies.
 
 - Hosting a table and reserving a seat are **`USER`-only** actions — a `VENUE_USER`
   gets `403`. `ADMIN` can do everything.
-- A new table starts `waiting_for_venue_confirmation`; **other users cannot book seats
-  until the venue confirms it** (`403`/`409` before then). The venue account confirms
-  from the "Venue" tab.
+- A new table starts `requested`; **other users cannot book seats
+until the venue confirms it** (`403`/`409` before then). The venue account confirms
+from the "Venue" tab. After confirmation the table is `available`. When it reaches
+min players it becomes `confirmed_unpaid`; it becomes `confirmed_paid` only after
+every reserved seat has paid (venue-game fee via the Pay button under your seat).
 - Confirming a table requires a `VenueAvailability` row covering the table's date/time,
   and enforces a **15-minute turnover** between tables at the same venue — so to make a
   table confirmable you must first seed availability for that venue/date. When full,

@@ -20,11 +20,12 @@ export type VenueGameFeePromptProps = {
   endsAt: string;
   tableId?: number;
   onClose: () => void;
+  onPaid?: () => void | Promise<void>;
 };
 
 /**
- * Soft paywall after creating a venue-game table (host) or taking a reserved seat (guest).
- * Opens hosted PayPal Checkout automatically; payment is not verified server-side yet.
+ * Per-seat PayPal checkout for a venue-game fee. Opened from the Pay button
+ * under the viewer's reserved seat — not automatically when taking a seat.
  */
 export function VenueGameFeePrompt({
   open,
@@ -34,12 +35,17 @@ export function VenueGameFeePrompt({
   endsAt,
   tableId,
   onClose,
+  onPaid,
 }: VenueGameFeePromptProps) {
   const { t } = useI18n();
   const hours = tableDurationHours(startsAt, endsAt);
   const amount = venueGameFeeEur(startsAt, endsAt);
   const amountLabel = formatEur(amount);
   const returnUrl =
+    typeof window !== "undefined" && tableId
+      ? `${window.location.origin}/tables/${tableId}?paypal=return`
+      : undefined;
+  const cancelUrl =
     typeof window !== "undefined" && tableId
       ? `${window.location.origin}/tables/${tableId}`
       : undefined;
@@ -50,7 +56,7 @@ export function VenueGameFeePrompt({
         ? t("paypal.itemHost", { game: gameTitle })
         : t("paypal.itemGuest", { game: gameTitle }),
     returnUrl,
-    cancelUrl: returnUrl,
+    cancelUrl,
   });
 
   useEffect(() => {
@@ -92,7 +98,15 @@ export function VenueGameFeePrompt({
             <span>€{amountLabel}</span>
           </div>
         </div>
-        <a href={payUrl} target="_blank" rel="noreferrer noopener" className="btn mt-4 block">
+        <a
+          href={payUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="btn mt-4 block"
+          onClick={() => {
+            void onPaid?.();
+          }}
+        >
           {t("paypal.payWithPaypal", { amount: amountLabel })}
         </a>
         <button type="button" className="btn-ghost mt-2" onClick={onClose}>

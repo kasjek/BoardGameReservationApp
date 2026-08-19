@@ -129,22 +129,24 @@ sequenceDiagram
   participant Guest as Other USER
 
   Host->>API: POST /api/tables game time venue
-  API->>API: status waiting_for_venue_confirmation seat host
+  API->>API: status requested seat host
   API-->>Host: table created
   Note over Guest: cannot book yet 403/409
   Venue->>API: POST /api/tables/id/confirm
   API->>API: need VenueAvailability + 15min turnover
-  API->>API: status waiting_for_players
+  API->>API: status available
   Guest->>API: POST /api/tables/id/seats
   API->>API: if full then waitlisted else seated
-  API->>API: when seats >= min_players then confirmed
+  API->>API: when seats >= min_players then confirmed_unpaid
+  Guest->>API: POST /api/tables/id/seats/pay
+  API->>API: when all reserved seats paid then confirmed_paid
 ```
 
 **Why these gates exist**
 
 | Rule | Why |
 |------|-----|
-| Start as `waiting_for_venue_confirmation` | Venue must accept the booking before strangers fill seats |
+| Start as `requested` | Venue must accept the booking before strangers fill seats |
 | Availability + 15‑minute turnover | Prevents overlapping tables at the same venue |
 | Waitlist instead of hard reject | Full tables still capture demand; cancel promotes next waitlisted seat |
 

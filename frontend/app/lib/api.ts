@@ -17,9 +17,10 @@ export interface User {
 }
 
 export type TableStatus =
-  | "waiting_for_venue_confirmation"
-  | "waiting_for_players"
-  | "confirmed"
+  | "requested"
+  | "available"
+  | "confirmed_unpaid"
+  | "confirmed_paid"
   | "cancelled"
   | "completed";
 
@@ -120,6 +121,7 @@ export interface Seat {
   is_organizer: boolean;
   status: "reserved" | "waitlisted" | "cancelled";
   waitlist_position: number | null;
+  paid: boolean;
 }
 
 export interface Venue {
@@ -422,6 +424,7 @@ export const tableApi = {
   cancel: (id: number) => request<Table>(`/tables/${id}/cancel`, { method: "POST" }),
   seats: (id: number) => request<Seat[]>(`/tables/${id}/seats`),
   reserve: (id: number) => request<Seat>(`/tables/${id}/seats`, { method: "POST" }),
+  paySeat: (id: number) => request<Seat>(`/tables/${id}/seats/pay`, { method: "POST" }),
   cancelSeat: (id: number) => request<Seat>(`/tables/${id}/seats/cancel`, { method: "POST" }),
 };
 

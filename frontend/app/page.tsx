@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { VenueGameFeePrompt } from "./components/VenueGameFeePrompt";
 import {
   Banner,
   ChairIcon,
@@ -17,6 +16,7 @@ import {
 import { errorMessage, tableApi, type Table } from "./lib/api";
 import { useAuth } from "./lib/auth";
 import { useI18n } from "./lib/i18n";
+import { isJoinable } from "./lib/tableStatus";
 
 export default function BrowsePage() {
   const { user, loading } = useAuth();
@@ -25,11 +25,10 @@ export default function BrowsePage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [myIds, setMyIds] = useState<Set<number>>(new Set());
   const [game, setGame] = useState("");
-  const [status, setStatus] = useState("waiting_for_players");
+  const [status, setStatus] = useState("available");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [feePrompt, setFeePrompt] = useState<Table | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -64,10 +63,6 @@ export default function BrowsePage() {
         msg: seat.status === "waitlisted" ? t("browse.waitlistedOk") : t("browse.reservedOk"),
       });
       await load();
-      // Venue-game fee applies to reserved seats only (not waitlist).
-      if (!tbl.bring_own_game && seat.status === "reserved") {
-        setFeePrompt(tbl);
-      }
     } catch (e) {
       setNotice({ kind: "error", msg: errorMessage(e, t) });
     } finally {
@@ -93,11 +88,9 @@ export default function BrowsePage() {
         <select className="input w-40" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="available">{t("browse.available")}</option>
           <option value="">{t("browse.allTables")}</option>
-          <option value="waiting_for_venue_confirmation">
-            {t("status.waiting_for_venue_confirmation")}
-          </option>
-          <option value="waiting_for_players">{t("status.waiting_for_players")}</option>
-          <option value="confirmed">{t("status.confirmed")}</option>
+          <option value="requested">{t("status.requested")}</option>
+          <option value="confirmed_unpaid">{t("status.confirmed_unpaid")}</option>
+          <option value="confirmed_paid">{t("status.confirmed_paid")}</option>
           <option value="cancelled">{t("status.cancelled")}</option>
           <option value="completed">{t("status.completed")}</option>
         </select>
@@ -108,12 +101,12 @@ export default function BrowsePage() {
 
       {tables.length === 0 ? (
         <div className="mt-10 text-center text-sm text-slate-400">
-          {status === "waiting_for_players" ? t("browse.emptyWaiting") : t("browse.emptyFilter")}
+          {status === "available" ? t("browse.emptyWaiting") : t("browse.emptyFilter")}
         </div>
       ) : (
         <div className="space-y-3">
           {tables.map((tbl) => {
-            const bookable = tbl.status === "waiting_for_players" || tbl.status === "confirmed";
+            const bookable = isJoinable(tbl.status);
             const full = tbl.seats_taken >= tbl.max_players;
             const mine = myIds.has(tbl.id);
             return (
@@ -183,17 +176,6 @@ export default function BrowsePage() {
           })}
         </div>
       )}
-      {feePrompt ? (
-        <VenueGameFeePrompt
-          open
-          role="guest"
-          gameTitle={feePrompt.game_title}
-          startsAt={feePrompt.starts_at}
-          endsAt={feePrompt.ends_at}
-          tableId={feePrompt.id}
-          onClose={() => setFeePrompt(null)}
-        />
-      ) : null}
     </Shell>
   );
 }

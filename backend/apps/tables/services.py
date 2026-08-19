@@ -24,11 +24,22 @@ MIN_TABLE_DURATION = timedelta(hours=1)
 MAX_TABLE_DURATION = timedelta(hours=3)
 
 ACTIVE_TABLE_STATUSES = (
-    TableStatus.WAITING_FOR_VENUE_CONFIRMATION,
-    TableStatus.WAITING_FOR_PLAYERS,
-    TableStatus.CONFIRMED,
+    TableStatus.REQUESTED,
+    TableStatus.AVAILABLE,
+    TableStatus.CONFIRMED_UNPAID,
+    TableStatus.CONFIRMED_PAID,
 )
-BOOKABLE_STATUSES = (TableStatus.WAITING_FOR_PLAYERS, TableStatus.CONFIRMED)
+BOOKABLE_STATUSES = (
+    TableStatus.AVAILABLE,
+    TableStatus.CONFIRMED_UNPAID,
+    TableStatus.CONFIRMED_PAID,
+)
+JOINABLE_FILTER_STATUSES = BOOKABLE_STATUSES
+STATUS_QUERY_ALIASES = {
+    "waiting_for_venue_confirmation": (TableStatus.REQUESTED,),
+    "waiting_for_players": (TableStatus.AVAILABLE,),
+    "confirmed": (TableStatus.CONFIRMED_UNPAID, TableStatus.CONFIRMED_PAID),
+}
 
 
 class Conflict(APIException):
@@ -109,11 +120,15 @@ def create_table(
         ends_at=ends_at,
         min_players=min_players,
         max_players=max_players,
-        status=TableStatus.WAITING_FOR_VENUE_CONFIRMATION,
+        status=TableStatus.REQUESTED,
         seats_taken=1,
     )
     SeatReservation.objects.create(
-        table=table, user=organizer, is_organizer=True, status=SeatStatus.RESERVED
+        table=table,
+        user=organizer,
+        is_organizer=True,
+        status=SeatStatus.RESERVED,
+        paid=bring_own_game,
     )
     return table
 
@@ -152,7 +167,7 @@ def _check_venue_capacity(table: Table) -> None:
 def confirm_table(*, table: Table, by_user) -> Table:
     if not by_user.manages_venue(table.venue):
         raise PermissionDenied("Only the venue (or an admin) can confirm this table.")
-    if table.status != TableStatus.WAITING_FOR_VENUE_CONFIRMATION:
+    if table.status != TableStatus.REQUESTED:
         raise Conflict("Table is not awaiting venue confirmation.")
 
     _check_venue_capacity(table)
@@ -160,7 +175,8 @@ def confirm_table(*, table: Table, by_user) -> Table:
     if not table.bring_own_game:
         # Venue confirms the requested venue game is available (decision 4).
         table.venue_game_confirmed = True
-    table.status = TableStatus.WAITING_FOR_PLAYERS
+    table.status = TableStatus.AVAILABLE
+    _sync_open_table_status(table)
     table.save(update_fields=["status", "venue_game_confirmed", "updated_at"])
     return table
 
@@ -169,9 +185,10 @@ def reject_table(*, table: Table, by_user) -> Table:
     if not by_user.manages_venue(table.venue):
         raise PermissionDenied("Only the venue (or an admin) can reject this table.")
     if table.status not in (
-        TableStatus.WAITING_FOR_VENUE_CONFIRMATION,
-        TableStatus.WAITING_FOR_PLAYERS,
-        TableStatus.CONFIRMED,
+        TableStatus.REQUESTED,
+        TableStatus.AVAILABLE,
+        TableStatus.CONFIRMED_UNPAID,
+        TableStatus.CONFIRMED_PAID,
     ):
         raise Conflict("Table cannot be rejected in its current state.")
     table.status = TableStatus.CANCELLED
@@ -223,14 +240,13 @@ def reserve_seat(*, table: Table, user) -> SeatReservation:
 
     if table.seats_taken < table.max_players:
         seat = SeatReservation.objects.create(
-            table=table, user=user, status=SeatStatus.RESERVED
+            table=table,
+            user=user,
+            status=SeatStatus.RESERVED,
+            paid=table.bring_own_game,
         )
         table.seats_taken += 1
-        if (
-            table.seats_taken >= table.min_players
-            and table.status == TableStatus.WAITING_FOR_PLAYERS
-        ):
-            table.status = TableStatus.CONFIRMED
+        _sync_open_table_status(table)
         table.save(update_fields=["seats_taken", "status", "updated_at"])
         return seat
 
@@ -263,11 +279,7 @@ def cancel_seat(*, table: Table, user, now=None) -> SeatReservation:
     if was_reserved:
         table.seats_taken -= 1
         _promote_from_waitlist(table)
-        if (
-            table.status == TableStatus.CONFIRMED
-            and table.seats_taken < table.min_players
-        ):
-            table.status = TableStatus.WAITING_FOR_PLAYERS
+        _sync_open_table_status(table)
         table.save(update_fields=["seats_taken", "status", "updated_at"])
 
         # Late cancellation (within 24h of start) -> 30-day profile mark.
@@ -291,5 +303,47 @@ def _promote_from_waitlist(table: Table) -> None:
         return
     nxt.status = SeatStatus.RESERVED
     nxt.waitlist_position = None
-    nxt.save(update_fields=["status", "waitlist_position"])
+    nxt.paid = table.bring_own_game
+    nxt.save(update_fields=["status", "waitlist_position", "paid"])
     table.seats_taken += 1
+
+
+def _sync_open_table_status(table: Table) -> None:
+    """Set available / confirmed_unpaid / confirmed_paid from reserved seats.
+
+    Requested, cancelled, and completed tables are left unchanged.
+    """
+    if table.status in (
+        TableStatus.REQUESTED,
+        TableStatus.CANCELLED,
+        TableStatus.COMPLETED,
+    ):
+        return
+    reserved = table.seats.filter(status=SeatStatus.RESERVED)
+    if reserved.count() < table.min_players:
+        table.status = TableStatus.AVAILABLE
+        return
+    needs_pay = not table.bring_own_game
+    unpaid = needs_pay and reserved.filter(paid=False).exists()
+    table.status = TableStatus.CONFIRMED_UNPAID if unpaid else TableStatus.CONFIRMED_PAID
+
+
+@transaction.atomic
+def pay_seat(*, table: Table, user) -> SeatReservation:
+    """Record that the current user's reserved seat has paid the venue-game fee."""
+    if not user.can_host_or_reserve:
+        raise PermissionDenied("Only a USER may pay for a seat.")
+    table = Table.objects.select_for_update().get(pk=table.pk)
+    if table.status in (TableStatus.CANCELLED, TableStatus.COMPLETED):
+        raise Conflict("This table is no longer active.")
+    if table.bring_own_game:
+        raise Conflict("No payment is required for this table.")
+    seat = table.seats.filter(user=user, status=SeatStatus.RESERVED).first()
+    if seat is None:
+        raise Conflict("You need a reserved seat to pay.")
+    if not seat.paid:
+        seat.paid = True
+        seat.save(update_fields=["paid"])
+        _sync_open_table_status(table)
+        table.save(update_fields=["status", "updated_at"])
+    return seat

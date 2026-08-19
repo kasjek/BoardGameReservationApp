@@ -37,7 +37,7 @@ def test_reserve_before_confirmation_returns_409(db, client):
     venue = Venue.objects.create(name="Board & Brew")
     host = make_user("alice")
     bob = make_user("bob")
-    table = make_table(host, venue)  # waiting_for_venue_confirmation
+    table = make_table(host, venue)  # requested
     client.force_authenticate(user=bob)
     resp = client.post(f"/api/tables/{table.id}/seats")
     assert resp.status_code == 409
@@ -48,7 +48,7 @@ def test_venue_user_cannot_reserve_via_api_403(db, client):
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
     table = make_table(host, venue)
-    table.status = TableStatus.WAITING_FOR_PLAYERS
+    table.status = TableStatus.AVAILABLE
     table.save()
     client.force_authenticate(user=staff)
     resp = client.post(f"/api/tables/{table.id}/seats")
@@ -82,16 +82,17 @@ def test_available_filter_shows_only_bookable(db, client):
         t.save()
         return t
 
-    tbl(TableStatus.WAITING_FOR_VENUE_CONFIRMATION)
-    wp = tbl(TableStatus.WAITING_FOR_PLAYERS)
-    cf = tbl(TableStatus.CONFIRMED)
+    tbl(TableStatus.REQUESTED)
+    wp = tbl(TableStatus.AVAILABLE)
+    unpaid = tbl(TableStatus.CONFIRMED_UNPAID)
+    paid = tbl(TableStatus.CONFIRMED_PAID)
     tbl(TableStatus.CANCELLED)
     tbl(TableStatus.COMPLETED)
 
     resp = client.get("/api/tables?status=available")
     assert resp.status_code == 200
     ids = {t["id"] for t in resp.data}
-    assert ids == {wp.id, cf.id}
+    assert ids == {wp.id, unpaid.id, paid.id}
 
 
 def test_venue_user_list_scoped_to_own_venue(db, client):
@@ -149,6 +150,33 @@ def test_list_table_seats_shows_usernames(db, client):
     assert by_name["bob"]["is_organizer"] is False
     # organizer sorted first
     assert resp.data[0]["username"] == "alice"
+
+
+def test_pay_seat_via_api_confirms_when_all_paid(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    VenueAvailability.objects.create(
+        venue=venue, date=future_dt().date(),
+        start_time=time(0, 0), end_time=time(23, 59, 59), tables_available=5,
+    )
+    host = make_user("alice")
+    staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
+    table = make_table(host, venue, bring_own_game=False)
+    services.confirm_table(table=table, by_user=staff)
+    bob = make_user("bob")
+    services.reserve_seat(table=table, user=bob)
+
+    client.force_authenticate(user=host)
+    host_pay = client.post(f"/api/tables/{table.id}/seats/pay")
+    assert host_pay.status_code == 200
+    assert host_pay.data["paid"] is True
+    table.refresh_from_db()
+    assert table.status == TableStatus.CONFIRMED_UNPAID
+
+    client.force_authenticate(user=bob)
+    bob_pay = client.post(f"/api/tables/{table.id}/seats/pay")
+    assert bob_pay.status_code == 200
+    table.refresh_from_db()
+    assert table.status == TableStatus.CONFIRMED_PAID
 
 
 def test_venue_user_cannot_host_via_api_403(db, client):

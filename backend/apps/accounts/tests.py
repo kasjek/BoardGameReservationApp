@@ -292,7 +292,7 @@ def test_public_profile_includes_game_stats_not_email(db, client):
     guest = mk("guest_for_stats")
     now = timezone.now()
 
-    def add_table(organizer, title, status=TableStatus.CONFIRMED):
+    def add_table(organizer, title, status=TableStatus.CONFIRMED_PAID):
         table = Table.objects.create(
             organizer=organizer,
             venue=venue,
