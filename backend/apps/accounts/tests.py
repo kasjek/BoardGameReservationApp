@@ -343,3 +343,60 @@ def test_public_user_games_404(db, client):
     resp = client.get("/api/users/999999/games")
     assert resp.status_code == 404
 
+
+def test_search_users_by_login_omits_email_and_self(db, client):
+    me = mk("finder_login")
+    other = mk("alice_findable")
+    client.force_authenticate(user=me)
+    resp = client.get("/api/users?q=alice_find")
+    assert resp.status_code == 200
+    names = [row["username"] for row in resp.data]
+    assert other.username in names
+    assert me.username not in names
+    assert all("email" not in row for row in resp.data)
+
+
+def test_search_users_requires_auth(db, client):
+    assert client.get("/api/users?q=alice").status_code in (401, 403)
+
+
+def test_add_friend_by_login_then_accept(db, client):
+    alpha = mk("alpha_friend")
+    beta = mk("beta_friend")
+    client.force_authenticate(user=alpha)
+    sent = client.post("/api/friends/requests", {"username": "beta_friend"}, format="json")
+    assert sent.status_code == 201
+    assert sent.data["status"] == "pending"
+    request_id = sent.data["id"]
+
+    client.force_authenticate(user=beta)
+    incoming = client.get("/api/friends/requests")
+    assert incoming.status_code == 200
+    assert incoming.data["incoming"][0]["user"]["username"] == "alpha_friend"
+
+    accepted = client.post(f"/api/friends/requests/{request_id}/accept")
+    assert accepted.status_code == 200
+    assert accepted.data["status"] == "accepted"
+
+    friends = client.get("/api/friends")
+    assert any(row["username"] == "alpha_friend" for row in friends.data)
+
+    client.force_authenticate(user=alpha)
+    mine = client.get("/api/friends")
+    assert any(row["username"] == "beta_friend" for row in mine.data)
+
+    profile = client.get(f"/api/users/{beta.id}")
+    assert profile.data["friendship"]["status"] == "friends"
+    assert "email" not in profile.data
+
+
+def test_reciprocal_add_accepts_incoming(db, client):
+    a = mk("recip_a")
+    b = mk("recip_b")
+    client.force_authenticate(user=a)
+    client.post("/api/friends/requests", {"username": "recip_b"}, format="json")
+    client.force_authenticate(user=b)
+    resp = client.post("/api/friends/requests", {"username": "recip_a"}, format="json")
+    assert resp.data["status"] == "accepted"
+
+

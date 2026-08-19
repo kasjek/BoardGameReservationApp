@@ -2,6 +2,10 @@ from django.urls import path
 
 from .views import (
     ChangePasswordView,
+    FriendListView,
+    FriendRequestAcceptView,
+    FriendRequestListView,
+    FriendRequestRejectView,
     GoogleConfigView,
     GoogleLoginView,
     LoginView,
@@ -10,6 +14,7 @@ from .views import (
     PublicUserView,
     RegisterView,
     RollAvatarView,
+    UserSearchView,
 )
 
 urlpatterns = [
@@ -20,6 +25,11 @@ urlpatterns = [
     path("auth/me", MeView.as_view(), name="me"),
     path("me/avatar/roll", RollAvatarView.as_view(), name="roll-avatar"),
     path("me/password", ChangePasswordView.as_view(), name="change-password"),
+    path("users", UserSearchView.as_view(), name="user-search"),
     path("users/<int:pk>/games", PublicUserGamesView.as_view(), name="public-user-games"),
     path("users/<int:pk>", PublicUserView.as_view(), name="public-user"),
+    path("friends/requests/<int:pk>/accept", FriendRequestAcceptView.as_view(), name="friend-accept"),
+    path("friends/requests/<int:pk>/reject", FriendRequestRejectView.as_view(), name="friend-reject"),
+    path("friends/requests", FriendRequestListView.as_view(), name="friend-requests"),
+    path("friends", FriendListView.as_view(), name="friends"),
 ]

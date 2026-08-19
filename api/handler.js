@@ -11,6 +11,15 @@ const {
   gameStats,
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
+const {
+  friendshipPayload,
+  searchUsers,
+  listFriends,
+  listRequests,
+  sendRequest,
+  acceptRequest,
+  rejectRequest,
+} = require("./friends");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -709,6 +718,43 @@ async function handleApi(req, res) {
       );
     }
 
+    if (method === "GET" && path === "/api/users") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      return send(res, 200, searchUsers(db, u.id, url.searchParams.get("q") || ""));
+    }
+
+    if (method === "GET" && path === "/api/friends") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      return send(res, 200, listFriends(db, u.id));
+    }
+
+    if (method === "GET" && path === "/api/friends/requests") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      return send(res, 200, listRequests(db, u.id));
+    }
+
+    if (method === "POST" && path === "/api/friends/requests") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      const body = await readBody(req);
+      return send(res, 201, sendRequest(db, u.id, body));
+    }
+
+    if ((m = path.match(/^\/api\/friends\/requests\/(\d+)\/accept$/)) && method === "POST") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      return send(res, 200, acceptRequest(db, u.id, m[1]));
+    }
+
+    if ((m = path.match(/^\/api\/friends\/requests\/(\d+)\/reject$/)) && method === "POST") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      return send(res, 200, rejectRequest(db, u.id, m[1]));
+    }
+
     if ((m = path.match(/^\/api\/users\/(\d+)\/games$/)) && method === "GET") {
       const u = db.prepare("SELECT id FROM users WHERE id=?").get(Number(m[1]));
       if (!u) return send(res, 404, { detail: "Not found." });
@@ -723,13 +769,15 @@ async function handleApi(req, res) {
       delete s.role;
       delete s.venue;
       delete s.allow_invites;
+      const viewer = getUser(req);
+      s.friendship = friendshipPayload(db, viewer?.id, u.id);
       return send(res, 200, s);
     }
 
     return send(res, 404, { detail: "Not found." });
   } catch (err) {
-    console.error("[api]", err);
     const status = err.status || 500;
+    if (status >= 500) console.error("[api]", err);
     return send(res, status, { detail: err.message || "Server error." });
   }
 }

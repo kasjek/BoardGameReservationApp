@@ -17,9 +17,9 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `POST /me/password` — change own password (`current_password`, `new_password`, `confirm_password`); rotates auth token *(9)*
 - `PATCH /me/avatar` — set avatar from the allocated set *(10)*
 - `PATCH /me/settings` — e.g. toggle `allow_invites` *(17)*
-- `GET /users/{id}` — public profile: avatar, username, rating, late-cancellation count, games played, different games — no email *(20, 23, 26)*
+- `GET /users?q=` — search users by login (username); authenticated *(14)*
+- `GET /users/{id}` — public profile: avatar, username, rating, late-cancellation count, games played, different games — no email. When authenticated, includes `friendship` (`none`/`outgoing`/`incoming`/`friends`/`self`) *(20, 23, 26, 14)*
 - `GET /users/{id}/games` — tables the user reserved a seat at (`sessions`) and unique titles (`titles`) *(20, 26)*
-- `GET /users?q=` — search users *(14)*
 
 ## Venues
 
@@ -76,9 +76,10 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 ## Friends & blocking
 
-- `POST /friends/requests` — send friend request *(14, 27)*
+- `POST /friends/requests` — send friend request by `username` (login) or `user_id` *(14, 27)*
+- `GET /friends/requests` — pending incoming and outgoing requests *(27)*
 - `POST /friends/requests/{id}/accept` / `.../reject` *(27)*
-- `GET /friends` — list friends *(14)*
+- `GET /friends` — list accepted friends *(14)*
 - `POST /blocks` — block a user *(12)*
 - `DELETE /blocks/{userId}` — unblock
 

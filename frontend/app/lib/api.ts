@@ -32,6 +32,30 @@ export interface PublicUser {
   late_cancel_marks_active: number;
   games_played: number;
   different_games: number;
+  friendship?: FriendshipState | null;
+}
+
+export type FriendshipStatus = "none" | "self" | "outgoing" | "incoming" | "friends";
+
+export interface FriendshipState {
+  status: FriendshipStatus;
+  request_id: number | null;
+}
+
+export interface FriendUser {
+  id: number;
+  username: string;
+  avatar_seed: string;
+  rating_avg: number | null;
+  friendship: FriendshipState | null;
+}
+
+export interface FriendRequest {
+  id: number;
+  status: "pending" | "accepted" | "rejected";
+  requester_id: number;
+  addressee_id: number;
+  user: FriendUser;
 }
 
 export interface PublicUserGameSession {
@@ -337,6 +361,22 @@ export const reviewApi = {
 export const userApi = {
   public: (id: number) => request<PublicUser>(`/users/${id}`),
   games: (id: number) => request<PublicUserGames>(`/users/${id}/games`),
+  search: (q: string) => request<FriendUser[]>(`/users?q=${encodeURIComponent(q)}`),
+};
+
+export const friendApi = {
+  list: () => request<FriendUser[]>("/friends"),
+  requests: () =>
+    request<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }>("/friends/requests"),
+  add: (payload: { username?: string; user_id?: number }) =>
+    request<FriendRequest>("/friends/requests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  accept: (id: number) =>
+    request<FriendRequest>(`/friends/requests/${id}/accept`, { method: "POST" }),
+  reject: (id: number) =>
+    request<FriendRequest>(`/friends/requests/${id}/reject`, { method: "POST" }),
 };
 
 // --- Tables ---

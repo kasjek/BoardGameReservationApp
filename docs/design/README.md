@@ -14,7 +14,7 @@ UI/UX design artifacts for BoardGameReservationApp (owned by the `designer` agen
 - **Mobile-first:** phone viewport is the default; enhance upward to tablet/desktop.
 - **Clear over clever:** table status and seat/waitlist state obvious at a glance.
 - **Fast to book:** minimal taps and typing from interest to a reserved seat.
-- **Privacy:** public profile shows avatar, username, rating, late-cancellation count, and games joined — never email or other contact details.
+- **Privacy:** public profile shows avatar, username, rating, late-cancellation count, and games joined — never email or other contact details. Friend search is by login only.
 - **i18n:** English + German from the start; keep layouts flexible for longer strings.
 
 ## Figma hand-off

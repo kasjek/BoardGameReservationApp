@@ -89,6 +89,8 @@ class PublicUserSerializer(serializers.ModelSerializer):
     games_played = serializers.SerializerMethodField()
     different_games = serializers.SerializerMethodField()
 
+    friendship = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -100,7 +102,15 @@ class PublicUserSerializer(serializers.ModelSerializer):
             "late_cancel_marks_active",
             "games_played",
             "different_games",
+            "friendship",
         ]
+
+    def get_friendship(self, obj):
+        from .friends import friendship_payload
+
+        request = self.context.get("request")
+        viewer = getattr(request, "user", None) if request else None
+        return friendship_payload(viewer, obj)
 
     def get_rating_avg(self, obj):
         return _derived(obj)["rating_avg"]
@@ -165,3 +175,25 @@ class ChangePasswordSerializer(serializers.Serializer):
                 {"new_password": list(exc.messages)}
             ) from exc
         return attrs
+
+
+class FriendUserSerializer(serializers.ModelSerializer):
+    """Login + avatar for search results and the friends list. No email."""
+
+    rating_avg = serializers.SerializerMethodField()
+    friendship = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "avatar_seed", "rating_avg", "friendship"]
+
+    def get_rating_avg(self, obj):
+        return _derived(obj)["rating_avg"]
+
+    def get_friendship(self, obj):
+        from .friends import friendship_payload
+
+        request = self.context.get("request")
+        viewer = getattr(request, "user", None) if request else None
+        return friendship_payload(viewer, obj)
+
