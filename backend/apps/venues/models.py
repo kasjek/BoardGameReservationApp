@@ -93,6 +93,8 @@ class VenueGame(models.Model):
     bgg_id = models.PositiveIntegerField(null=True, blank=True)
     thumbnail_url = models.URLField(max_length=500, blank=True)
     is_active = models.BooleanField(default=True)
+    min_players = models.PositiveIntegerField(default=2)
+    max_players = models.PositiveIntegerField(default=8)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

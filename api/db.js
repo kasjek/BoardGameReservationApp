@@ -96,7 +96,9 @@ function ensureDb() {
       title TEXT NOT NULL,
       bgg_id INTEGER,
       thumbnail_url TEXT NOT NULL DEFAULT '',
-      is_active INTEGER NOT NULL DEFAULT 1
+      is_active INTEGER NOT NULL DEFAULT 1,
+      min_players INTEGER NOT NULL DEFAULT 2,
+      max_players INTEGER NOT NULL DEFAULT 8
     );
     CREATE TABLE IF NOT EXISTS tables (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -154,7 +156,7 @@ function canonicalTableStatus(status) {
 }
 
 function migrateSchema(database) {
-  const { capExistingTwoPlayerTables } = require("./game-limits");
+  const { capTablesToGameLimits } = require("./game-limits");
   const seatCols = database.prepare("PRAGMA table_info(seats)").all().map((c) => c.name);
   if (!seatCols.includes("paid")) {
     database.exec("ALTER TABLE seats ADD COLUMN paid INTEGER NOT NULL DEFAULT 0");
@@ -162,6 +164,19 @@ function migrateSchema(database) {
   const userCols = database.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
   if (!userCols.includes("favorite_categories")) {
     database.exec("ALTER TABLE users ADD COLUMN favorite_categories TEXT NOT NULL DEFAULT '[]'");
+  }
+  const gameCols = database.prepare("PRAGMA table_info(venue_games)").all().map((c) => c.name);
+  const addedSeatLimits = !gameCols.includes("min_players") || !gameCols.includes("max_players");
+  if (!gameCols.includes("min_players")) {
+    database.exec("ALTER TABLE venue_games ADD COLUMN min_players INTEGER NOT NULL DEFAULT 2");
+  }
+  if (!gameCols.includes("max_players")) {
+    database.exec("ALTER TABLE venue_games ADD COLUMN max_players INTEGER NOT NULL DEFAULT 8");
+  }
+  if (addedSeatLimits) {
+    database.exec(
+      `UPDATE venue_games SET min_players=2, max_players=2 WHERE lower(trim(title))='patchwork'`,
+    );
   }
   database.exec(`
     UPDATE tables SET status='requested' WHERE status='waiting_for_venue_confirmation';
@@ -185,7 +200,7 @@ function migrateSchema(database) {
     .all();
   const markPaid = database.prepare("UPDATE tables SET status='confirmed_paid' WHERE id=?");
   for (const row of unpaidConfirmed) markPaid.run(row.id);
-  capExistingTwoPlayerTables(database);
+  capTablesToGameLimits(database);
 }
 
 function expandStatusFilter(status) {
@@ -250,7 +265,7 @@ function seedIfEmpty(database) {
     `INSERT INTO venue_availability (venue_id, date, start_time, end_time, tables_available) VALUES (?, ?, ?, ?, 3)`,
   );
   const insertGame = database.prepare(
-    `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url) VALUES (?, ?, ?, ?)`,
+    `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url, min_players, max_players) VALUES (?, ?, ?, ?, ?, ?)`,
   );
   const insertTable = database.prepare(
     `INSERT INTO tables (organizer_id, venue_id, game_title, bring_own_game, game_language, venue_game_confirmed, starts_at, ends_at, min_players, max_players, status, seats_taken, created_at)
@@ -328,17 +343,17 @@ function seedIfEmpty(database) {
     }
 
     const games = [
-      [dateHouse, "Love Letter", 129622],
-      [dateHouse, "Patchwork", 163412],
-      [dateHouse, "Onitama", 160477],
-      [katzen, "The Isle of Cats", 281259],
-      [katzen, "Spicy", 299169],
-      [katzen, "Calico", 283155],
-      [knorz, "Catan", 13],
-      [knorz, "Secret Hitler", 188834],
+      [dateHouse, "Love Letter", 129622, 2, 8],
+      [dateHouse, "Patchwork", 163412, 2, 2],
+      [dateHouse, "Onitama", 160477, 2, 8],
+      [katzen, "The Isle of Cats", 281259, 2, 8],
+      [katzen, "Spicy", 299169, 2, 8],
+      [katzen, "Calico", 283155, 2, 8],
+      [knorz, "Catan", 13, 2, 8],
+      [knorz, "Secret Hitler", 188834, 2, 8],
     ];
-    for (const [vid, title, bgg] of games) {
-      insertGame.run(vid, title, bgg, "");
+    for (const [vid, title, bgg, minP, maxP] of games) {
+      insertGame.run(vid, title, bgg, "", minP, maxP);
     }
 
     insertUser.run("demo", "", hashPassword("demopass"), "USER", null, "demo");

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Patchwork is 2 players only — tables cannot take more than 2 reserved seats. */
+/** Seat limits on venue games clamp tables; Patchwork stays 2–2 via inventory. */
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -11,7 +11,7 @@ process.env.SQLITE_PATH = path.join(dir, "app.sqlite3");
 process.env.NODE_ENV = "development";
 
 const { ensureDb, newToken } = require("./db");
-const { applyGamePlayerLimits, capExistingTwoPlayerTables, effectiveMaxPlayers } = require("./game-limits");
+const { applyGamePlayerLimits, capTablesToGameLimits, effectiveMaxPlayers } = require("./game-limits");
 const { handleApi } = require("./handler");
 
 const db = ensureDb();
@@ -104,17 +104,43 @@ function insertTable({ organizerId, venueId, title, minPlayers, maxPlayers, stat
 }
 
 (async () => {
-  const clamped = applyGamePlayerLimits("Patchwork", 2, 4, 2, 8);
+  const venue = db.prepare("SELECT * FROM venues WHERE name='Date House Cafe'").get();
+  const clamped = applyGamePlayerLimits(db, {
+    title: "Patchwork",
+    minPlayers: 2,
+    maxPlayers: 4,
+    venueMin: 2,
+    venueMax: 8,
+    venueId: venue.id,
+  });
   assert(clamped.min_players === 2 && clamped.max_players === 2, "Patchwork create payload clamped to 2");
-  const other = applyGamePlayerLimits("Love Letter", 2, 4, 2, 8);
-  assert(other.min_players === 2 && other.max_players === 4, "other games keep requested max");
-  assert(effectiveMaxPlayers({ game_title: "Patchwork", max_players: 4 }) === 2, "effective max is 2 even if stored 4");
+  const other = applyGamePlayerLimits(db, {
+    title: "Love Letter",
+    minPlayers: 2,
+    maxPlayers: 4,
+    venueMin: 2,
+    venueMax: 8,
+    venueId: venue.id,
+  });
+  assert(other.min_players === 2 && other.max_players === 4, "ranged inventory games keep requested max");
+  const unknown = applyGamePlayerLimits(db, {
+    title: "Unknown Title",
+    minPlayers: 2,
+    maxPlayers: 4,
+    venueMin: 2,
+    venueMax: 8,
+    venueId: venue.id,
+  });
+  assert(unknown.min_players === 2 && unknown.max_players === 4, "games not in inventory keep requested max");
+  assert(
+    effectiveMaxPlayers(db, { venue_id: venue.id, game_title: "Patchwork", max_players: 4 }) === 2,
+    "effective max is 2 even if stored 4",
+  );
 
   const demo = tokenFor("demo");
   const alice = tokenFor("alice");
   const bob = tokenFor("bob");
   const datehouse = tokenFor("datehouse");
-  const venue = db.prepare("SELECT * FROM venues WHERE name='Date House Cafe'").get();
   const avail = db.prepare("SELECT * FROM venue_availability WHERE venue_id=? LIMIT 1").get(venue.id);
   const [sh, sm] = avail.start_time.split(":").map(Number);
   const endHm = `${String(sh + 2).padStart(2, "0")}:${String(sm).padStart(2, "0")}`;
@@ -161,7 +187,8 @@ function insertTable({ organizerId, venueId, title, minPlayers, maxPlayers, stat
     maxPlayers: 4,
     status: "available",
   });
-  capExistingTwoPlayerTables(db);
+  const capped = capTablesToGameLimits(db);
+  assert(capped >= 1, "capTablesToGameLimits updates leftover rows");
   const leftover = db.prepare("SELECT * FROM tables WHERE id=?").get(leftoverId);
   assert(leftover.max_players === 2, "existing Patchwork tables are capped to 2 seats");
 

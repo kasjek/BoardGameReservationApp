@@ -15,7 +15,7 @@ const {
   JOINABLE_STATUSES,
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
-const { applyGamePlayerLimits, effectiveMaxPlayers } = require("./game-limits");
+const { applyGamePlayerLimits, effectiveMaxPlayers, normalizeSeatLimits } = require("./game-limits");
 const { listCategories, parseCategoryIds } = require("./bgg-categories");
 const {
   friendshipPayload,
@@ -89,6 +89,21 @@ function managesVenue(u, venueId) {
   if (!u) return false;
   if (u.role === "ADMIN") return true;
   return u.role === "VENUE_USER" && u.venue_id === venueId;
+}
+
+function serializeVenueGame(g) {
+  return {
+    id: g.id,
+    venue: g.venue_id,
+    title: g.title,
+    bgg_id: g.bgg_id,
+    thumbnail_url: g.thumbnail_url || "",
+    cover_url: g.thumbnail_url || null,
+    bgg_url: g.bgg_id ? `https://boardgamegeek.com/boardgame/${g.bgg_id}` : null,
+    is_active: !!g.is_active,
+    min_players: g.min_players,
+    max_players: g.max_players,
+  };
 }
 
 async function handleApi(req, res) {
@@ -355,16 +370,7 @@ async function handleApi(req, res) {
         const rows = db
           .prepare(`SELECT * FROM venue_games WHERE venue_id=? AND is_active=1 ORDER BY title`)
           .all(id)
-          .map((g) => ({
-            id: g.id,
-            venue: g.venue_id,
-            title: g.title,
-            bgg_id: g.bgg_id,
-            thumbnail_url: g.thumbnail_url || "",
-            cover_url: g.thumbnail_url || null,
-            bgg_url: g.bgg_id ? `https://boardgamegeek.com/boardgame/${g.bgg_id}` : null,
-            is_active: !!g.is_active,
-          }));
+          .map(serializeVenueGame);
         return send(res, 200, rows);
       }
       if (method === "POST") {
@@ -373,35 +379,64 @@ async function handleApi(req, res) {
         if (!managesVenue(u, id)) return send(res, 403, { detail: "Forbidden." });
         const body = await readBody(req);
         const title = body.title || `Game ${body.bgg_id || ""}`;
+        const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(id);
+        const seats = normalizeSeatLimits(
+          body.min_players,
+          body.max_players,
+          venue?.min_players ?? 2,
+          venue?.max_players ?? 8,
+        );
+        if (seats.error) return send(res, 400, { detail: seats.error });
         const info = db
           .prepare(
-            `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url) VALUES (?, ?, ?, '')`,
+            `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url, min_players, max_players) VALUES (?, ?, ?, '', ?, ?)`,
           )
-          .run(id, title, body.bgg_id || null);
+          .run(id, title, body.bgg_id || null, seats.min_players, seats.max_players);
         const g = db.prepare("SELECT * FROM venue_games WHERE id=?").get(info.lastInsertRowid);
-        return send(res, 201, {
-          id: g.id,
-          venue: g.venue_id,
-          title: g.title,
-          bgg_id: g.bgg_id,
-          thumbnail_url: "",
-          cover_url: null,
-          bgg_url: g.bgg_id ? `https://boardgamegeek.com/boardgame/${g.bgg_id}` : null,
-          is_active: true,
-        });
+        return send(res, 201, serializeVenueGame(g));
       }
     }
 
-    if ((m = path.match(/^\/api\/venues\/(\d+)\/games\/(\d+)$/)) && method === "DELETE") {
+    if ((m = path.match(/^\/api\/venues\/(\d+)\/games\/(\d+)$/))) {
       const venueId = Number(m[1]);
-      const u = requireUser(req, res);
-      if (!u) return;
-      if (!managesVenue(u, venueId)) return send(res, 403, { detail: "Forbidden." });
-      db.prepare("UPDATE venue_games SET is_active=0 WHERE id=? AND venue_id=?").run(
-        Number(m[2]),
-        venueId,
-      );
-      return send(res, 204, null);
+      const gameId = Number(m[2]);
+      if (method === "PATCH") {
+        const u = requireUser(req, res);
+        if (!u) return;
+        if (!managesVenue(u, venueId)) return send(res, 403, { detail: "Forbidden." });
+        const game = db
+          .prepare("SELECT * FROM venue_games WHERE id=? AND venue_id=?")
+          .get(gameId, venueId);
+        if (!game) return send(res, 404, { detail: "Not found." });
+        const body = await readBody(req);
+        const seats = normalizeSeatLimits(
+          body.min_players ?? game.min_players,
+          body.max_players ?? game.max_players,
+          game.min_players,
+          game.max_players,
+        );
+        if (seats.error) return send(res, 400, { detail: seats.error });
+        db.prepare("UPDATE venue_games SET min_players=?, max_players=? WHERE id=?").run(
+          seats.min_players,
+          seats.max_players,
+          gameId,
+        );
+        return send(
+          res,
+          200,
+          serializeVenueGame(db.prepare("SELECT * FROM venue_games WHERE id=?").get(gameId)),
+        );
+      }
+      if (method === "DELETE") {
+        const u = requireUser(req, res);
+        if (!u) return;
+        if (!managesVenue(u, venueId)) return send(res, 403, { detail: "Forbidden." });
+        db.prepare("UPDATE venue_games SET is_active=0 WHERE id=? AND venue_id=?").run(
+          gameId,
+          venueId,
+        );
+        return send(res, 204, null);
+      }
     }
 
     if ((m = path.match(/^\/api\/venues\/(\d+)\/reviews$/)) && method === "GET") {
@@ -482,13 +517,14 @@ async function handleApi(req, res) {
           )
           .get(venue.id, date, startT, endT);
         if (!avail) return send(res, 400, { detail: "Venue not available for that slot." });
-        const seats = applyGamePlayerLimits(
-          body.game_title,
-          body.min_players || venue.min_players,
-          body.max_players || venue.max_players,
-          venue.min_players,
-          venue.max_players,
-        );
+        const seats = applyGamePlayerLimits(db, {
+          title: body.game_title,
+          minPlayers: body.min_players || venue.min_players,
+          maxPlayers: body.max_players || venue.max_players,
+          venueMin: venue.min_players,
+          venueMax: venue.max_players,
+          venueId: venue.id,
+        });
         const now = new Date().toISOString();
         const info = db
           .prepare(
@@ -597,7 +633,7 @@ async function handleApi(req, res) {
           .get(tableId).c;
         let status = "reserved";
         let waitlist_position = null;
-        if (reserved >= effectiveMaxPlayers(table)) {
+        if (reserved >= effectiveMaxPlayers(db, table)) {
           status = "waitlisted";
           const maxPos =
             db

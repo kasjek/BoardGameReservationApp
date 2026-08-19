@@ -309,7 +309,7 @@ export default function CreateTablePage() {
   const hasVenueGames = venueGames.length > 0;
   const venueMin = selectedVenue?.min_players ?? 1;
   const venueMax = selectedVenue?.max_players ?? 99;
-  const gameLimits = gamePlayerLimits(game, bggId);
+  const gameLimits = gamePlayerLimits(venueGames, game, bggId);
   const playerMin = gameLimits ? Math.max(venueMin, gameLimits.min) : venueMin;
   const playerMax = gameLimits ? Math.min(venueMax, gameLimits.max) : venueMax;
   const playersLocked = Boolean(gameLimits) && playerMin === playerMax;
@@ -700,7 +700,9 @@ export default function CreateTablePage() {
         </div>
         {gameLimits ? (
           <div className="mt-1 text-xs text-slate-500">
-            {t("newTable.twoPlayerOnly", { game: game.trim() || "Patchwork" })}
+            {playerMin === playerMax
+              ? t("newTable.gameSeatFixed", { game: game.trim(), count: playerMin })
+              : t("newTable.gameSeatRange", { game: game.trim(), min: playerMin, max: playerMax })}
           </div>
         ) : selectedVenue ? (
           <div className="mt-1 text-xs text-slate-500">

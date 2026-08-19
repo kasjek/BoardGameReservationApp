@@ -8,7 +8,7 @@ from rest_framework.exceptions import PermissionDenied
 from apps.accounts.models import Role
 from apps.tables import services
 from apps.tables.models import LateCancellationMark, SeatStatus, TableStatus
-from apps.venues.models import Venue, VenueAvailability
+from apps.venues.models import Venue, VenueAvailability, VenueGame
 
 User = get_user_model()
 
@@ -153,7 +153,24 @@ def test_reserve_beyond_max_waitlists(db, venue, wide_availability):
     assert waitlisted.waitlist_position == 1
 
 
+def test_venue_game_range_keeps_host_requested_max(db, venue, wide_availability):
+    VenueGame.objects.create(venue=venue, title="Catan", min_players=2, max_players=8)
+    host = make_user("alice")
+    table = make_table(host, venue, game_title="Catan", min_players=2, max_players=4)
+    assert table.min_players == 2
+    assert table.max_players == 4
+
+
+def test_venue_game_raises_min_and_caps_max(db, venue, wide_availability):
+    VenueGame.objects.create(venue=venue, title="Azul", min_players=3, max_players=4)
+    host = make_user("alice")
+    table = make_table(host, venue, game_title="Azul", min_players=2, max_players=8)
+    assert table.min_players == 3
+    assert table.max_players == 4
+
+
 def test_patchwork_forces_two_player_table(db, venue, wide_availability):
+    VenueGame.objects.create(venue=venue, title="Patchwork", min_players=2, max_players=2)
     host = make_user("alice")
     table = make_table(host, venue, game_title="Patchwork", min_players=2, max_players=4)
     assert table.min_players == 2
@@ -161,6 +178,7 @@ def test_patchwork_forces_two_player_table(db, venue, wide_availability):
 
 
 def test_patchwork_third_player_is_waitlisted(db, venue, wide_availability):
+    VenueGame.objects.create(venue=venue, title="Patchwork", min_players=2, max_players=2)
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
     table = make_table(host, venue, game_title="Patchwork", min_players=2, max_players=4)
@@ -174,6 +192,7 @@ def test_patchwork_third_player_is_waitlisted(db, venue, wide_availability):
 
 
 def test_patchwork_caps_existing_table_even_if_max_was_four(db, venue, wide_availability):
+    VenueGame.objects.create(venue=venue, title="Patchwork", min_players=2, max_players=2)
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
     table = make_table(host, venue, game_title="Catan", min_players=2, max_players=4)

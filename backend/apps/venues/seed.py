@@ -39,6 +39,69 @@ DATE_HOUSE_GAMES = (
     ("Onitama", 160477),
 )
 
+
+def _venuegame_has_seat_columns() -> bool:
+    table = VenueGame._meta.db_table
+    with connection.cursor() as cursor:
+        desc = connection.introspection.get_table_description(cursor, table)
+    return {"min_players", "max_players"}.issubset({col.name for col in desc})
+
+
+def _venue_games():
+    """Avoid selecting seat columns when older migrations call seed before 0017."""
+    qs = VenueGame.objects.all()
+    if not _venuegame_has_seat_columns():
+        qs = qs.defer("min_players", "max_players")
+    return qs
+
+
+def _venue_game_defaults(title: str, bgg_id: int) -> dict:
+    defaults = {"is_active": True, "bgg_id": bgg_id}
+    if _venuegame_has_seat_columns():
+        if title.strip().lower() == "patchwork":
+            defaults["min_players"] = 2
+            defaults["max_players"] = 2
+        else:
+            defaults["min_players"] = 2
+            defaults["max_players"] = 8
+    return defaults
+
+
+def _upsert_venue_game(venue: Venue, title: str, bgg_id: int) -> VenueGame:
+    defaults = _venue_game_defaults(title, bgg_id)
+    qs = _venue_games()
+    existing = qs.filter(venue=venue, title=title).first()
+    if existing:
+        for key, value in defaults.items():
+            setattr(existing, key, value)
+        existing.save(update_fields=list(defaults.keys()))
+        return existing
+
+    game = VenueGame(venue=venue, title=title, **defaults)
+    if not getattr(game, "created_at", None):
+        game.created_at = timezone.now()
+    if _venuegame_has_seat_columns():
+        game.save()
+        return game
+
+    fields = [
+        field
+        for field in VenueGame._meta.local_concrete_fields
+        if field.attname not in {"min_players", "max_players"}
+    ]
+    result = VenueGame.objects._insert(
+        [game],
+        fields=fields,
+        returning_fields=[VenueGame._meta.pk],
+    )
+    if result:
+        pk = result[0][0] if isinstance(result[0], (list, tuple)) else result[0]
+        game.pk = pk
+        game._state.adding = False
+        game._state.db = "default"
+    return game
+
+
 # Weekday → open / close (Python: Mon=0 … Sun=6). Sourced from Google / Apple Maps.
 DATE_HOUSE_OPEN_BY_WEEKDAY: dict[int, time] = {
     0: time(10, 0),  # Monday
@@ -191,11 +254,7 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
         from apps.bgg import services as bgg_services
 
         for title, bgg_id in DATE_HOUSE_GAMES:
-            game, _ = VenueGame.objects.update_or_create(
-                venue=venue,
-                title=title,
-                defaults={"is_active": True, "bgg_id": bgg_id},
-            )
+            game = _upsert_venue_game(venue, title, bgg_id)
             if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
                 bgg_services.refresh_venue_game_cover(game)
     return venue
@@ -259,15 +318,11 @@ def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
     if "venues_venuegame" in tables:
         wanted_titles = {title for title, _ in KATZENTEMPEL_GAMES}
         # Drop obsolete titles from earlier incorrect seeds (e.g. "Island of Cats").
-        VenueGame.objects.filter(venue=venue).exclude(title__in=wanted_titles).delete()
+        _venue_games().filter(venue=venue).exclude(title__in=wanted_titles).delete()
         from apps.bgg import services as bgg_services
 
         for title, bgg_id in KATZENTEMPEL_GAMES:
-            game, _ = VenueGame.objects.update_or_create(
-                venue=venue,
-                title=title,
-                defaults={"is_active": True, "bgg_id": bgg_id},
-            )
+            game = _upsert_venue_game(venue, title, bgg_id)
             if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
                 bgg_services.refresh_venue_game_cover(game)
     return venue
@@ -326,13 +381,9 @@ def ensure_hotel_knorz(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
         from apps.bgg import services as bgg_services
 
         wanted_titles = {title for title, _ in HOTEL_KNORZ_GAMES}
-        VenueGame.objects.filter(venue=venue).exclude(title__in=wanted_titles).delete()
+        _venue_games().filter(venue=venue).exclude(title__in=wanted_titles).delete()
         for title, bgg_id in HOTEL_KNORZ_GAMES:
-            game, _ = VenueGame.objects.update_or_create(
-                venue=venue,
-                title=title,
-                defaults={"is_active": True, "bgg_id": bgg_id},
-            )
+            game = _upsert_venue_game(venue, title, bgg_id)
             if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
                 bgg_services.refresh_venue_game_cover(game)
     return venue

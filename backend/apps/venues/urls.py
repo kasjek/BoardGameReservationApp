@@ -5,7 +5,7 @@ from .views import (
     VenueClosureDestroyView,
     VenueClosureListCreateView,
     VenueDetailView,
-    VenueGameDestroyView,
+    VenueGameDetailView,
     VenueGameListCreateView,
     VenueHoursView,
     VenueListCreateView,
@@ -41,7 +41,7 @@ urlpatterns = [
     ),
     path(
         "venues/<int:venue_id>/games/<int:pk>",
-        VenueGameDestroyView.as_view(),
+        VenueGameDetailView.as_view(),
         name="venue-game-detail",
     ),
 ]
