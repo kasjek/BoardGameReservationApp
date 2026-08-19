@@ -14,7 +14,8 @@ import {
   Shell,
   StatusChip,
 } from "./components/ui";
-import { errorMessage, tableApi, type Table } from "./lib/api";
+import { errorMessage, tableApi, venueApi, type Table, type Venue } from "./lib/api";
+import { GAME_TYPE_IDS, formatGameTypes } from "./lib/gameTypes";
 import { useAuth } from "./lib/auth";
 import { useI18n } from "./lib/i18n";
 
@@ -23,9 +24,12 @@ export default function BrowsePage() {
   const { t, localeTag } = useI18n();
   const router = useRouter();
   const [tables, setTables] = useState<Table[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
   const [myIds, setMyIds] = useState<Set<number>>(new Set());
   const [game, setGame] = useState("");
-  const [status, setStatus] = useState("waiting_for_players");
+  const [status, setStatus] = useState("available");
+  const [venueId, setVenueId] = useState("");
+  const [gameType, setGameType] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,13 +46,16 @@ export default function BrowsePage() {
       const params: Record<string, string> = {};
       if (game) params.game = game;
       if (status) params.status = status;
+      if (venueId) params.venueId = venueId;
+      if (gameType) params.type = gameType;
       setTables(await tableApi.list(params));
+      setVenues(await venueApi.list());
       const mine = await tableApi.list({ attendeeId: String(user.id) });
       setMyIds(new Set(mine.map((m) => m.id)));
     } catch (e) {
       setError(errorMessage(e, t));
     }
-  }, [game, status, user, t]);
+  }, [game, status, venueId, gameType, user, t]);
 
   useEffect(() => {
     if (user) load();
@@ -82,7 +89,7 @@ export default function BrowsePage() {
 
   return (
     <Shell title={t("browse.title")}>
-      <div className="mb-3 flex gap-2">
+      <div className="mb-3 space-y-2">
         <input
           className="input"
           placeholder={t("browse.searchGame")}
@@ -90,17 +97,50 @@ export default function BrowsePage() {
           onChange={(e) => setGame(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && load()}
         />
-        <select className="input w-40" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="available">{t("browse.available")}</option>
-          <option value="">{t("browse.allTables")}</option>
-          <option value="waiting_for_venue_confirmation">
-            {t("status.waiting_for_venue_confirmation")}
-          </option>
-          <option value="waiting_for_players">{t("status.waiting_for_players")}</option>
-          <option value="confirmed">{t("status.confirmed")}</option>
-          <option value="cancelled">{t("status.cancelled")}</option>
-          <option value="completed">{t("status.completed")}</option>
-        </select>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <select
+            className="input"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            aria-label={t("browse.available")}
+          >
+            <option value="available">{t("browse.available")}</option>
+            <option value="">{t("browse.allTables")}</option>
+            <option value="waiting_for_venue_confirmation">
+              {t("status.waiting_for_venue_confirmation")}
+            </option>
+            <option value="waiting_for_players">{t("status.waiting_for_players")}</option>
+            <option value="confirmed">{t("status.confirmed")}</option>
+            <option value="cancelled">{t("status.cancelled")}</option>
+            <option value="completed">{t("status.completed")}</option>
+          </select>
+          <select
+            className="input"
+            value={venueId}
+            onChange={(e) => setVenueId(e.target.value)}
+            aria-label={t("browse.filterVenue")}
+          >
+            <option value="">{t("browse.allVenues")}</option>
+            {venues.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="input"
+            value={gameType}
+            onChange={(e) => setGameType(e.target.value)}
+            aria-label={t("browse.filterType")}
+          >
+            <option value="">{t("browse.allTypes")}</option>
+            {GAME_TYPE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {t(`gameType.${id}`)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error ? <Banner kind="error">{error}</Banner> : null}
@@ -108,7 +148,9 @@ export default function BrowsePage() {
 
       {tables.length === 0 ? (
         <div className="mt-10 text-center text-sm text-slate-400">
-          {status === "waiting_for_players" ? t("browse.emptyWaiting") : t("browse.emptyFilter")}
+          {status === "available" && !game && !venueId && !gameType
+            ? t("browse.emptyWaiting")
+            : t("browse.emptyFilter")}
         </div>
       ) : (
         <div className="space-y-3">
@@ -142,6 +184,11 @@ export default function BrowsePage() {
                         }}
                       >
                         {tbl.venue_name}
+                      </div>
+                    ) : null}
+                    {formatGameTypes(tbl.game_types, t) ? (
+                      <div className="mt-1 text-xs text-slate-500">
+                        {t("browse.filterType")}: {formatGameTypes(tbl.game_types, t)}
                       </div>
                     ) : null}
                     <div className="mt-2 text-xs text-slate-500">

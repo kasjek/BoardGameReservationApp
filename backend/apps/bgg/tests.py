@@ -1,3 +1,5 @@
+import xml.etree.ElementTree as ET
+
 import pytest
 from rest_framework.test import APIClient
 
@@ -231,8 +233,20 @@ _THING_XML = (
     b'<playingtime value="90"/>'
     b'<minplaytime value="60"/>'
     b'<maxplaytime value="120"/>'
+    b"<statistics><ratings><ranks>"
+    b'<rank type="subtype" name="boardgame" value="401"/>'
+    b'<rank type="family" name="thematic" value="Not Ranked"/>'
+    b'<rank type="family" name="strategygames" value="401"/>'
+    b'<rank type="family" name="familygames" value="44"/>'
+    b'<rank type="family" name="partygames" value="Not Ranked"/>'
+    b"</ranks></ratings></statistics>"
     b"</item></items>"
 )
+
+
+def test_parse_thing_types_ranked_families_only():
+    item = ET.fromstring(_THING_XML).find("item")
+    assert services.parse_thing_types(item) == ["strategy", "family"]
 
 
 def test_fetch_thing_includes_playtime(monkeypatch):
@@ -242,6 +256,7 @@ def test_fetch_thing_includes_playtime(monkeypatch):
     assert thing["playing_time"] == 90
     assert thing["min_play_time"] == 60
     assert thing["max_play_time"] == 120
+    assert thing["types"] == ["strategy", "family"]
 
 
 def test_bgg_thing_api_requires_auth(db, client, monkeypatch):
