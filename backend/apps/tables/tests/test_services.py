@@ -6,10 +6,9 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts.models import Role
+from apps.tables import services
+from apps.tables.models import LateCancellationMark, SeatStatus, TableStatus
 from apps.venues.models import Venue, VenueAvailability
-
-from . import services
-from .models import LateCancellationMark, SeatStatus, TableStatus
 
 User = get_user_model()
 
@@ -213,10 +212,13 @@ def test_cancel_promotes_earliest_waitlisted(db, venue, wide_availability):
 def test_late_cancellation_creates_mark(db, venue):
     host = make_user("alice")
     bob = make_user("bob")
-    table = make_table(
-        host, venue, starts_at=timezone.now() + timedelta(hours=2),
-        ends_at=timezone.now() + timedelta(hours=4),
-    )
+    now = timezone.now()
+    starts_at = now + timedelta(hours=2)
+    ends_at = starts_at + timedelta(hours=2)
+    if starts_at.date() != ends_at.date():
+        starts_at = (now + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+        ends_at = starts_at + timedelta(hours=2)
+    table = make_table(host, venue, starts_at=starts_at, ends_at=ends_at)
     table.status = TableStatus.AVAILABLE
     table.save()
     services.reserve_seat(table=table, user=bob)

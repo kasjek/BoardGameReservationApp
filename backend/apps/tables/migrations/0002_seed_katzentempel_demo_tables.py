@@ -2,9 +2,9 @@ from django.db import migrations
 
 
 def forwards(apps, schema_editor):
-    from apps.tables.seed import ensure_katzentempel_demo_tables
-
-    ensure_katzentempel_demo_tables()
+    # Live create_table now writes SeatReservation.paid, which is added in 0004.
+    # Demo rows are seeded there so a fresh migrate does not fail on 0002.
+    pass
 
 
 def backwards(apps, schema_editor):

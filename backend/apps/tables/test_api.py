@@ -5,11 +5,10 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Role
+from apps.tables import services
+from apps.tables.models import TableStatus
+from apps.tables.tests.test_services import future_dt, make_table, make_user
 from apps.venues.models import Venue, VenueAvailability
-
-from . import services
-from .models import TableStatus
-from .tests import future_dt, make_table, make_user
 
 
 @pytest.fixture

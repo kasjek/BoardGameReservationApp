@@ -2,11 +2,12 @@ from django.db import migrations
 
 
 def forwards(apps, schema_editor):
-    from apps.tables.seed import ensure_hotel_knorz_demo_tables
     from apps.venues.seed import ensure_hotel_knorz
 
     ensure_hotel_knorz()
-    ensure_hotel_knorz_demo_tables()
+    # Demo tables are created via ensure_hotel_knorz_demo_tables() from tests /
+    # management commands. Live create_table writes SeatReservation.paid, which
+    # is added in tables 0004 — this migration only depends on tables 0003.
 
 
 def backwards(apps, schema_editor):
