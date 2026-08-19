@@ -15,11 +15,12 @@ function mapEmbedUrl(venue: Venue): string {
 
 export default function VenueMapPage() {
   const { user, loading } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const treasureSrc = locale === "de" ? "/treasure-map-de.png" : "/treasure-map-en.png";
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -43,9 +44,16 @@ export default function VenueMapPage() {
 
   return (
     <Shell title={t("nav.venueMap")}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        key={locale}
+        src={treasureSrc}
+        alt={t("venueMap.illustrationAlt")}
+        className="block h-auto w-full"
+      />
       {error ? <Banner kind="error">{error}</Banner> : null}
       {selected ? (
-        <div className="overflow-hidden rounded-2xl border-2 border-slate-900 shadow-[4px_4px_0_0_#1e1b4b]">
+        <div className="mt-3 overflow-hidden rounded-2xl border-2 border-slate-900 shadow-[4px_4px_0_0_#1e1b4b]">
           <iframe
             title={t("venueMap.mapTitle", { name: selected.name })}
             src={mapEmbedUrl(selected)}
@@ -55,7 +63,7 @@ export default function VenueMapPage() {
           />
         </div>
       ) : (
-        <div className="text-sm text-slate-400">{t("venueMap.empty")}</div>
+        <div className="mt-3 text-sm text-slate-400">{t("venueMap.empty")}</div>
       )}
       <div className="mt-3 space-y-2">
         {venues.map((venue) => {
