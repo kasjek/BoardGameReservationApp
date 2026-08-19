@@ -50,6 +50,7 @@ export interface Table {
   status: TableStatus;
   seats_taken: number;
   created_at: string;
+  game_types?: string[];
 }
 
 export interface Seat {
@@ -123,6 +124,7 @@ export interface BggThing {
   playing_time: number | null;
   min_play_time: number | null;
   max_play_time: number | null;
+  types?: string[];
 }
 
 export class ApiError extends Error {

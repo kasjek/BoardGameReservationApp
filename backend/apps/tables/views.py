@@ -1,3 +1,5 @@
+from django.db.models import CharField
+from django.db.models.functions import Cast
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -39,6 +41,10 @@ class TableListCreateView(generics.ListCreateAPIView):
                 qs = qs.filter(status=status_)
         if game := params.get("game"):
             qs = qs.filter(game_title__icontains=game)
+        if type_ := (params.get("type") or "").strip().lower():
+            qs = qs.annotate(_game_types_txt=Cast("game_types", CharField())).filter(
+                _game_types_txt__icontains=f'"{type_}"'
+            )
 
         # Personal filters expose another user's bookings — restrict to self (or ADMIN).
         def owns(requested: str) -> bool:
@@ -60,7 +66,9 @@ class TableListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = TableCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        table = services.create_table(organizer=request.user, **serializer.validated_data)
+        payload = dict(serializer.validated_data)
+        bgg_id = payload.pop("bgg_id", None)
+        table = services.create_table(organizer=request.user, bgg_id=bgg_id, **payload)
         return Response(TableSerializer(table).data, status=status.HTTP_201_CREATED)
 
 
@@ -68,6 +76,17 @@ class TableDetailView(generics.RetrieveAPIView):
     queryset = Table.objects.all()
     serializer_class = TableSerializer
     permission_classes = [permissions.AllowAny]
+
+    def retrieve(self, request, *args, **kwargs):
+        table = self.get_object()
+        if not table.game_types:
+            from apps.bgg.services import resolve_game_types
+
+            types = resolve_game_types(table.game_title, live=True)
+            if types:
+                table.game_types = types
+                table.save(update_fields=["game_types"])
+        return Response(self.get_serializer(table).data)
 
 
 class TableConfirmView(APIView):
