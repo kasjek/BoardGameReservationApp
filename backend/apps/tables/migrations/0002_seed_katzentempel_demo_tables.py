@@ -13,7 +13,7 @@ def backwards(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("tables", "0001_initial"),
+        ("tables", "0004_table_game_types"),
         ("venues", "0012_fix_katzentempel_bgg_ids"),
         ("accounts", "0002_user_avatar_seed"),
     ]

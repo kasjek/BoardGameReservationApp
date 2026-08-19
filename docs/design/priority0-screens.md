@@ -18,6 +18,8 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 │                            │
 │   Find a table. Play.      │
 │                            │
+│   [ Continue with Google ] │
+│            or              │
 │   ( Email )                │
 │   ( Password )             │
 │                            │
@@ -28,8 +30,9 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 ```
 
 - **Sign up** collects display name, email, password → creates a `USER`.
-- **States:** idle, loading, invalid-credentials error, field validation.
-- **API:** `POST /api/auth/register`, `POST /api/auth/login` → store token; route to Browse.
+- **Google** uses Google Identity Services; the API verifies the ID token and creates/links a `USER`.
+- **States:** idle, loading, invalid-credentials error, field validation, Google not configured (button hidden).
+- **API:** `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/google/config`, `POST /api/auth/google` → store token; route to Browse.
 
 ---
 

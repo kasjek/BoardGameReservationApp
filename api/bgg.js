@@ -7,6 +7,7 @@ const { ensureDb } = require("./db");
 const BGG_THING = "https://boardgamegeek.com/xmlapi2/thing";
 const BGG_SEARCH = "https://boardgamegeek.com/xmlapi2/search";
 const GEEKDO_ITEM = "https://api.geekdo.com/api/geekitems";
+const GEEKDO_DYNAMIC = "https://api.geekdo.com/api/dynamicinfo";
 const WIKI_SEARCH = "https://en.wikipedia.org/w/api.php";
 const WIKI_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/";
 const UA = "TooManyGames/1.0 (GoDaddy Node; contact: local)";
@@ -67,6 +68,84 @@ function parsePlayTimes(xml) {
     min_play_time: num(/<minplaytime[^>]*value="(\d+)"/i),
     max_play_time: num(/<maxplaytime[^>]*value="(\d+)"/i),
   };
+}
+
+/** BGG "Type" on a game page = ranked family (Strategy, Family, Party, ...). */
+const BGG_FAMILY_TYPES = {
+  strategygames: "strategy",
+  familygames: "family",
+  partygames: "party",
+  thematic: "thematic",
+  abstracts: "abstract",
+  wargames: "war",
+  cgs: "customizable",
+  childrensgames: "childrens",
+};
+
+const GAME_TYPE_IDS = [
+  "strategy",
+  "family",
+  "party",
+  "thematic",
+  "abstract",
+  "war",
+  "customizable",
+  "childrens",
+];
+
+function parseThingTypes(xml) {
+  const s = String(xml);
+  const out = [];
+  const re = /<rank\b([^>]*)\/?>/gi;
+  let m;
+  while ((m = re.exec(s))) {
+    const attrs = m[1];
+    const type = /(?:^|\s)type="([^"]+)"/i.exec(attrs)?.[1];
+    const name = /(?:^|\s)name="([^"]+)"/i.exec(attrs)?.[1];
+    const value = /(?:^|\s)value="([^"]+)"/i.exec(attrs)?.[1];
+    if (type !== "family" || !name || !value || value === "Not Ranked") continue;
+    const id = BGG_FAMILY_TYPES[name];
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+/** Map BGG page Type labels ("Family Games") or rank subdomains to our slugs. */
+function typeFromSubdomainLabel(name) {
+  const n = String(name || "")
+    .toLowerCase()
+    .replace(/['’]/g, "");
+  if (!n) return null;
+  if (BGG_FAMILY_TYPES[n]) return BGG_FAMILY_TYPES[n];
+  if (n.includes("strategy")) return "strategy";
+  if (n.includes("family")) return "family";
+  if (n.includes("party")) return "party";
+  if (n.includes("thematic")) return "thematic";
+  if (n.includes("abstract")) return "abstract";
+  if (n.includes("war")) return "war";
+  if (n.includes("custom")) return "customizable";
+  if (n.includes("child")) return "childrens";
+  return null;
+}
+
+function parseGeekdoTypes(item) {
+  const out = [];
+  const links = item?.links?.boardgamesubdomain || [];
+  for (const row of Array.isArray(links) ? links : []) {
+    const id = typeFromSubdomainLabel(row?.name);
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+function parseDynamicRankTypes(payload) {
+  const out = [];
+  const ranks = payload?.item?.rankinfo || payload?.rankinfo || [];
+  for (const row of Array.isArray(ranks) ? ranks : []) {
+    const id = BGG_FAMILY_TYPES[row?.subdomain] || typeFromSubdomainLabel(row?.prettyname);
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
 }
 
 function decodeXmlEntities(s) {
@@ -140,6 +219,7 @@ async function geekdoItem(bggId) {
       playing_time: item.playingtime ? Number(item.playingtime) : null,
       min_play_time: item.minplaytime ? Number(item.minplaytime) : null,
       max_play_time: item.maxplaytime ? Number(item.maxplaytime) : null,
+      types: parseGeekdoTypes(item),
     };
   } catch {
     return null;
@@ -226,23 +306,34 @@ async function resolveCoverUrl(name) {
 async function resolveThing(bggId) {
   const db = ensureDb();
   const local = db.prepare(`SELECT * FROM venue_games WHERE bgg_id=? LIMIT 1`).get(bggId);
-  const xml = await httpGet(`${BGG_THING}?id=${bggId}`);
+  const xml = await httpGet(`${BGG_THING}?id=${bggId}&stats=1`);
   if (xml) {
     const s = xml.toString("utf8");
     const thumb = parseThingThumbnail(s) || local?.thumbnail_url || "";
     const times = parsePlayTimes(s);
+    let types = parseThingTypes(s);
+    if (!types.length) {
+      const geek = await geekdoItem(bggId);
+      types = geek?.types || [];
+      if (!types.length) types = await typesFromDynamicInfo(bggId);
+    }
+    cacheGameTypes(db, bggId, parseThingName(s) || local?.title || "", types);
     if (thumb && local?.id) cacheThumb(local.id, thumb);
     return {
       bgg_id: bggId,
       name: parseThingName(s) || local?.title || `Game ${bggId}`,
       thumbnail_url: thumb,
+      types,
       ...times,
     };
   }
   const geek = await geekdoItem(bggId);
   if (geek) {
     if (geek.thumbnail_url && local?.id) cacheThumb(local.id, geek.thumbnail_url);
-    return geek;
+    let types = geek.types || [];
+    if (!types.length) types = await typesFromDynamicInfo(bggId);
+    if (types.length) cacheGameTypes(db, bggId, geek.name || local?.title || "", types);
+    return { ...geek, types };
   }
   return {
     bgg_id: bggId,
@@ -251,7 +342,90 @@ async function resolveThing(bggId) {
     playing_time: null,
     min_play_time: null,
     max_play_time: null,
+    types: [],
   };
+}
+
+function cacheGameTypes(database, bggId, title, types) {
+  if (!bggId || !database || !types?.length) return;
+  const now = new Date().toISOString();
+  database
+    .prepare(
+      `INSERT INTO bgg_games (bgg_id, title, types, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(bgg_id) DO UPDATE SET title=excluded.title, types=excluded.types, updated_at=excluded.updated_at`,
+    )
+    .run(bggId, title || "", JSON.stringify(types || []), now);
+}
+
+function typesFromCache(database, title, bggId) {
+  if (bggId) {
+    const row = database.prepare("SELECT types FROM bgg_games WHERE bgg_id=?").get(bggId);
+    if (row?.types) {
+      try {
+        const parsed = JSON.parse(row.types);
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  if (title) {
+    const row = database
+      .prepare("SELECT types FROM bgg_games WHERE lower(title)=lower(?) LIMIT 1")
+      .get(stripYear(title));
+    if (row?.types) {
+      try {
+        const parsed = JSON.parse(row.types);
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return null;
+}
+
+async function resolveGameTypes(title, bggId = null, { live = true } = {}) {
+  const db = ensureDb();
+  const cached = typesFromCache(db, title, bggId);
+  if (cached && cached.length) return cached;
+
+  let id = bggId || null;
+  if (!id && title) {
+    const vg = db
+      .prepare(
+        `SELECT bgg_id FROM venue_games
+         WHERE is_active=1 AND bgg_id IS NOT NULL AND lower(title)=lower(?) LIMIT 1`,
+      )
+      .get(title);
+    id = vg?.bgg_id || null;
+  }
+  if (!id && live && title) {
+    const hits = await liveSearch(title, 8);
+    const want = normalize(title);
+    const exact = hits.find((h) => normalize(h.name) === want);
+    id = (exact || hits[0])?.bgg_id || null;
+  }
+  if (!id) return [];
+
+  const still = typesFromCache(db, title, id);
+  if (still && still.length) return still;
+
+  const thing = await resolveThing(id);
+  return thing?.types || [];
+}
+
+async function typesFromDynamicInfo(bggId) {
+  const body = await httpGet(`${GEEKDO_DYNAMIC}?objectid=${bggId}&objecttype=thing`, {
+    "User-Agent": UA,
+    Accept: "application/json",
+  });
+  if (!body) return [];
+  try {
+    return parseDynamicRankTypes(JSON.parse(body.toString("utf8")));
+  } catch {
+    return [];
+  }
 }
 
 async function liveSearch(q, limit = 500) {
@@ -287,4 +461,9 @@ module.exports = {
   resolveCoverUrl,
   resolveThing,
   liveSearch,
+  parseThingTypes,
+  parseGeekdoTypes,
+  parseDynamicRankTypes,
+  resolveGameTypes,
+  GAME_TYPE_IDS,
 };

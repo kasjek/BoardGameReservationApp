@@ -11,6 +11,7 @@ export interface User {
   rating_avg: number | null;
   cancellations_count: number;
   late_cancel_marks_active: number;
+  has_usable_password?: boolean;
 }
 
 export interface Review {
@@ -49,6 +50,7 @@ export interface Table {
   status: TableStatus;
   seats_taken: number;
   created_at: string;
+  game_types?: string[];
 }
 
 export interface Seat {
@@ -122,6 +124,7 @@ export interface BggThing {
   playing_time: number | null;
   min_play_time: number | null;
   max_play_time: number | null;
+  types?: string[];
 }
 
 export class ApiError extends Error {
@@ -193,6 +196,13 @@ export const authApi = {
     request<{ token: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
+    }),
+  googleConfig: () =>
+    request<{ google_client_id: string | null; google_enabled: boolean }>("/auth/google/config"),
+  loginGoogle: (credential: string) =>
+    request<{ token: string; user: User }>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
     }),
   me: () => request<User>("/auth/me"),
   rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),

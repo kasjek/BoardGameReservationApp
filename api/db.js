@@ -113,9 +113,39 @@ function ensureDb() {
       body TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS bgg_games (
+      bgg_id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT '',
+      types TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
   `);
+  migrateSchema(db);
   seedIfEmpty(db);
   return db;
+}
+
+function migrateSchema(database) {
+  const userCols = database.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+  if (!userCols.includes("google_sub")) {
+    database.exec("ALTER TABLE users ADD COLUMN google_sub TEXT");
+  }
+  database.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub
+     ON users(google_sub) WHERE google_sub IS NOT NULL AND google_sub != ''`,
+  );
+  const tableCols = database.prepare("PRAGMA table_info(tables)").all().map((c) => c.name);
+  if (!tableCols.includes("game_types")) {
+    database.exec("ALTER TABLE tables ADD COLUMN game_types TEXT NOT NULL DEFAULT '[]'");
+  }
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS bgg_games (
+      bgg_id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT '',
+      types TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
+  `);
 }
 
 function hashPassword(password) {
@@ -123,7 +153,12 @@ function hashPassword(password) {
 }
 
 function checkPassword(password, hash) {
-  return bcrypt.compareSync(password, hash);
+  if (!password || !hash) return false;
+  try {
+    return bcrypt.compareSync(password, hash);
+  } catch {
+    return false;
+  }
 }
 
 function newToken() {
@@ -314,6 +349,7 @@ function serializeUser(row) {
     rating_avg: rating?.avg != null ? Number(rating.avg) : null,
     cancellations_count: row.cancellations_count || 0,
     late_cancel_marks_active: 0,
+    has_usable_password: Boolean(row.password_hash),
   };
 }
 
@@ -356,7 +392,19 @@ function serializeTable(row) {
     status: row.status,
     seats_taken: row.seats_taken,
     created_at: row.created_at,
+    game_types: parseGameTypes(row.game_types),
   };
+}
+
+function parseGameTypes(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function serializeSeat(row) {

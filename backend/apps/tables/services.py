@@ -72,6 +72,7 @@ def create_table(
     bring_own_game=True,
     game_language="en",
     game_language_other="",
+    bgg_id=None,
 ):
     if not organizer.can_host_or_reserve:
         raise PermissionDenied("Only a USER may host a table.")
@@ -98,6 +99,8 @@ def create_table(
 
     assert_slot_bookable(venue, starts_at, ends_at)
 
+    from apps.bgg.services import resolve_game_types
+
     table = Table.objects.create(
         organizer=organizer,
         venue=venue,
@@ -111,6 +114,7 @@ def create_table(
         max_players=max_players,
         status=TableStatus.WAITING_FOR_VENUE_CONFIRMATION,
         seats_taken=1,
+        game_types=resolve_game_types(game_title, bgg_id, live=bool(bgg_id)),
     )
     SeatReservation.objects.create(
         table=table, user=organizer, is_organizer=True, status=SeatStatus.RESERVED
