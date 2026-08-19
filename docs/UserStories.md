@@ -2,7 +2,7 @@
 
 ## User
 
-1. As a user, I want to create new tables so that i can host board game events with the games i choose, at the time and location i want and selected the language (english, german or other (to be specified in a text field))
+1. As a user, I want to create new tables so that i can host board game events with a game from the selected venue's library, at the time and location i want and selected the language (english, german or other (to be specified in a text field))
 2. As a user, I want see all other tables offered by other users so that i can reserve seat at other tables when i do not feel like organizing one myself
 3. As a user, I want to see what locations are available for booking board gaming events so that i can assess before the event if they are likely to meet my expectations
 4. As a user, that creates a new table, i want to be able to define the duration of the game, event starting time, the minimum and maximum player count and i want to have a seat reserved for myself by default. 
