@@ -60,6 +60,7 @@ class SeatReservationSerializer(serializers.ModelSerializer):
             "is_organizer",
             "status",
             "waitlist_position",
+            "paid",
             "created_at",
             "cancelled_at",
         ]

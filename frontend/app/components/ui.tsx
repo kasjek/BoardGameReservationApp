@@ -11,13 +11,14 @@ import { LanguageSwitcher, useI18n } from "../lib/i18n";
 export function StatusChip({ status }: { status: TableStatus }) {
   const { t } = useI18n();
   const cls: Record<TableStatus, string> = {
-    waiting_for_venue_confirmation: "bg-slate-100 text-slate-600",
-    waiting_for_players: "bg-amber-100 text-amber-700",
-    confirmed: "bg-green-100 text-green-700",
+    requested: "bg-slate-100 text-slate-600",
+    available: "bg-amber-100 text-amber-700",
+    confirmed_unpaid: "bg-orange-100 text-orange-700",
+    confirmed_paid: "bg-green-100 text-green-700",
     cancelled: "bg-red-100 text-red-700",
     completed: "bg-slate-100 text-slate-600",
   };
-  return <span className={`chip ${cls[status]}`}>● {t(`status.${status}`)}</span>;
+  return <span className={`chip ${cls[status] || "bg-slate-100 text-slate-600"}`}>● {t(`status.${status}`)}</span>;
 }
 
 /**

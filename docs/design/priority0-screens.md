@@ -60,7 +60,7 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 ```
 
 - **Filters (sheet):** date, time, past/future, game name, min/max players, location/venue.
-- **Status chip** color-codes table status (waiting-venue / waiting-players / confirmed / cancelled).
+- **Status chip** color-codes table status (requested / available / confirmed unpaid / confirmed paid / cancelled).
 - **Empty/loading/error** states for the list.
 - **API:** `GET /api/tables?date=&game=&venueId=&status=…`
 
@@ -76,11 +76,12 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 │ Sat 7 Aug · 18:00–20:00    │
 │ Language: EN               │
 │                            │
-│ Status: 🟢 Confirmed        │
+│ Status: 🟢 Confirmed & paid │
 │ Seats: ●●○○  2/4            │
 │ Waitlist: 1                │
 │                            │
 │ Players: Alice(host), Bob  │
+│          [Pay] under you   │
 │                            │
 │ [   Reserve a seat   ]     │
 └────────────────────────────┘
@@ -90,9 +91,10 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
   - not confirmed by venue → button disabled + hint "Waiting for venue to confirm".
   - space free → `Reserve a seat`.
   - full → `Join waitlist` (shows position after).
+  - already seated (venue game, unpaid) → `Pay` under your own seat (opens PayPal; table stays `Confirmed & unpaid` until everyone seated has paid).
   - already seated → `Cancel seat` (with a warning if within 24h → late-cancel mark).
-- **States:** each table status; full vs open; own-seat vs not; error `409`/`403` toasts.
-- **API:** `GET /api/tables/{id}`, `POST /api/tables/{id}/seats`, `POST /api/tables/{id}/seats/cancel`.
+- **States:** each table status; full vs open; own-seat vs not; paid vs unpaid; error `409`/`403` toasts.
+- **API:** `GET /api/tables/{id}`, `POST /api/tables/{id}/seats`, `POST /api/tables/{id}/seats/pay`, `POST /api/tables/{id}/seats/cancel`.
 
 ---
 
@@ -116,7 +118,7 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 └────────────────────────────┘
 ```
 
-- Host is auto-seated; table starts `waiting_for_venue_confirmation`.
+- Host is auto-seated; table starts `requested`. Payment is **not** collected at create time.
 - **Bring-own** → language EN/DE (Other allowed). **Venue game** → venue must confirm availability.
 - **Validation:** to > from; max ≥ min ≥ 1; required game.
 - **Note:** only a `USER` sees Create (a `VENUE_USER` cannot host — hide/disable).
@@ -169,7 +171,7 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 └────────────────────────────┘
 ```
 
-- **Confirm** checks table availability + (for venue games) game availability; enforces the 15‑min turnover; moves status to `waiting_for_players`.
+- **Confirm** checks table availability + (for venue games) game availability; enforces the 15‑min turnover; moves status to `available`.
 - **Calendar tab:** all events at the venue in one view; **Availability** editor sets days/times/#tables.
 - **States:** empty queue; capacity-conflict error (`409`) on confirm.
 - **API:** `GET /api/venues/{id}/availability`, `POST …/availability`, `POST /api/tables/{id}/confirm|reject`.

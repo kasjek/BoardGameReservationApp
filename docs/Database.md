@@ -177,15 +177,15 @@ The core booking unit — a hosted board game event. *(stories 1, 4, 33)*
 | `ends_at` | timestamptz | Event end (to) *(decision 4)* |
 | `min_players` | int | Minimum capacity needed to confirm |
 | `max_players` | int | Maximum seat capacity |
-| `status` | enum(`waiting_for_venue_confirmation`,`waiting_for_players`,`confirmed`,`cancelled`,`completed`) | Lifecycle state |
+| `status` | enum(`requested`,`available`,`confirmed_unpaid`,`confirmed_paid`,`cancelled`,`completed`) | Lifecycle state (`Requested` → `Available` → `Confirmed & unpaid` → `Confirmed & paid`) |
 | `seats_taken` | int | Active-seat counter (capacity guard — `ADR-011`) |
 | `created_at` | timestamptz | Created time |
 | `updated_at` | timestamptz | Last update |
 
 | id | organizer_id | venue_id | game_id | bring_own_game | game_language | venue_game_confirmed | starts_at | ends_at | min_players | max_players | status | seats_taken |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| t_1 | u_1 | v_1 | g_1 | true | en | — | 2026-08-15 19:00 | 2026-08-15 20:30 | 2 | 4 | confirmed | 2 |
-| t_2 | u_5 | v_1 | g_2 | false | de | false | 2026-08-16 18:00 | 2026-08-16 20:00 | 3 | 5 | waiting_for_venue_confirmation | 1 |
+| t_1 | u_1 | v_1 | g_1 | true | en | — | 2026-08-15 19:00 | 2026-08-15 20:30 | 2 | 4 | confirmed_paid | 2 |
+| t_2 | u_5 | v_1 | g_2 | false | de | false | 2026-08-16 18:00 | 2026-08-16 20:00 | 3 | 5 | requested | 1 |
 
 ### SeatReservation
 
@@ -199,6 +199,7 @@ One user's seat at a table (organizer seated by default). *(stories 2, 4, 21)*
 | `is_organizer` | bool | True for the host's seat |
 | `status` | enum(`reserved`,`waitlisted`,`cancelled`) | Seat state *(decision 7)* |
 | `waitlist_position` | int (null) | Order in the waitlist when `status=waitlisted` *(decision 7)* |
+| `paid` | bool | Venue-game fee paid for this reserved seat (bring-own seats start `true`; waitlisted seats cannot pay) |
 | `created_at` | timestamptz | Reserved/queued time |
 | `cancelled_at` | timestamptz (null) | Cancellation time |
 

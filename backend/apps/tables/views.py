@@ -3,8 +3,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from .models import SeatStatus, Table, TableStatus
+from .models import SeatStatus, Table
 from .serializers import SeatReservationSerializer, TableCreateSerializer, TableSerializer
+from .services import JOINABLE_FILTER_STATUSES, STATUS_QUERY_ALIASES
 
 
 class TableListCreateView(generics.ListCreateAPIView):
@@ -34,7 +35,9 @@ class TableListCreateView(generics.ListCreateAPIView):
         if status_ := params.get("status"):
             if status_ == "available":
                 # Tables a user can still join (browse default).
-                qs = qs.filter(status__in=[TableStatus.WAITING_FOR_PLAYERS, TableStatus.CONFIRMED])
+                qs = qs.filter(status__in=JOINABLE_FILTER_STATUSES)
+            elif status_ in STATUS_QUERY_ALIASES:
+                qs = qs.filter(status__in=STATUS_QUERY_ALIASES[status_])
             else:
                 qs = qs.filter(status=status_)
         if game := params.get("game"):
@@ -115,6 +118,15 @@ class SeatReserveView(APIView):
         table = generics.get_object_or_404(Table, pk=pk)
         seat = services.reserve_seat(table=table, user=request.user)
         return Response(SeatReservationSerializer(seat).data, status=status.HTTP_201_CREATED)
+
+
+class SeatPayView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        table = generics.get_object_or_404(Table, pk=pk)
+        seat = services.pay_seat(table=table, user=request.user)
+        return Response(SeatReservationSerializer(seat).data)
 
 
 class SeatCancelView(APIView):

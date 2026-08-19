@@ -4,9 +4,10 @@ from django.db.models import Q
 
 
 class TableStatus(models.TextChoices):
-    WAITING_FOR_VENUE_CONFIRMATION = "waiting_for_venue_confirmation", "Waiting for venue confirmation"
-    WAITING_FOR_PLAYERS = "waiting_for_players", "Waiting for players"
-    CONFIRMED = "confirmed", "Confirmed"
+    REQUESTED = "requested", "Requested"
+    AVAILABLE = "available", "Available"
+    CONFIRMED_UNPAID = "confirmed_unpaid", "Confirmed & unpaid"
+    CONFIRMED_PAID = "confirmed_paid", "Confirmed & paid"
     CANCELLED = "cancelled", "Cancelled"
     COMPLETED = "completed", "Completed"
 
@@ -45,7 +46,7 @@ class Table(models.Model):
     status = models.CharField(
         max_length=40,
         choices=TableStatus.choices,
-        default=TableStatus.WAITING_FOR_VENUE_CONFIRMATION,
+        default=TableStatus.REQUESTED,
     )
     seats_taken = models.PositiveIntegerField(default=0)
 
@@ -70,6 +71,7 @@ class SeatReservation(models.Model):
     is_organizer = models.BooleanField(default=False)
     status = models.CharField(max_length=16, choices=SeatStatus.choices, default=SeatStatus.RESERVED)
     waitlist_position = models.PositiveIntegerField(null=True, blank=True)
+    paid = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
 

@@ -23,7 +23,7 @@ Ground every screen in:
 ## Design constraints
 
 - **Mobile-first (ADR-012 / NFR-6):** design phone-first (small viewport as default), then scale up to tablet/desktop. Touch-friendly targets, thumb-reachable primary actions, minimal typing, fast first load.
-- **Clear status:** table status (`waiting for venue confirmation`, `waiting for players`, `confirmed`, `cancelled`, `completed`), seat vs waitlist, and payment state must be obvious at a glance.
+- **Clear status:** table status (`Requested`, `Available`, `Confirmed & unpaid`, `Confirmed & paid`, `cancelled`, `completed`), seat vs waitlist, and payment state must be obvious at a glance.
 - **Privacy:** public profiles show only avatar, display name, and rating (plus visible late-cancellation marks) — nothing more (`NFR-1`).
 - **Internationalization:** support English and German copy from the start; keep layouts flexible for longer strings.
 - **Accessibility:** sufficient contrast, scalable text, labeled controls.

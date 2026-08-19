@@ -119,7 +119,8 @@ function ensureDb() {
       user_id INTEGER NOT NULL,
       is_organizer INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL,
-      waitlist_position INTEGER
+      waitlist_position INTEGER,
+      paid INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS reviews (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,8 +134,81 @@ function ensureDb() {
       created_at TEXT NOT NULL
     );
   `);
+  migrateSchema(db);
   seedIfEmpty(db);
   return db;
+}
+
+const STATUS_ALIASES = {
+  waiting_for_venue_confirmation: "requested",
+  waiting_for_players: "available",
+  confirmed: "confirmed_unpaid",
+};
+
+const JOINABLE_STATUSES = ["available", "confirmed_unpaid", "confirmed_paid"];
+
+function canonicalTableStatus(status) {
+  return STATUS_ALIASES[status] || status;
+}
+
+function migrateSchema(database) {
+  const seatCols = database.prepare("PRAGMA table_info(seats)").all().map((c) => c.name);
+  if (!seatCols.includes("paid")) {
+    database.exec("ALTER TABLE seats ADD COLUMN paid INTEGER NOT NULL DEFAULT 0");
+  }
+  database.exec(`
+    UPDATE tables SET status='requested' WHERE status='waiting_for_venue_confirmation';
+    UPDATE tables SET status='available' WHERE status='waiting_for_players';
+    UPDATE tables SET status='confirmed_unpaid' WHERE status='confirmed';
+  `);
+  database.exec(`
+    UPDATE seats SET paid=1
+    WHERE status='reserved'
+      AND table_id IN (SELECT id FROM tables WHERE bring_own_game=1);
+  `);
+  const unpaidConfirmed = database
+    .prepare(
+      `SELECT t.id FROM tables t
+       WHERE t.status='confirmed_unpaid' AND t.bring_own_game=1
+         AND (SELECT COUNT(*) FROM seats s WHERE s.table_id=t.id AND s.status='reserved') >= t.min_players
+         AND NOT EXISTS (
+           SELECT 1 FROM seats s WHERE s.table_id=t.id AND s.status='reserved' AND s.paid=0
+         )`,
+    )
+    .all();
+  const markPaid = database.prepare("UPDATE tables SET status='confirmed_paid' WHERE id=?");
+  for (const row of unpaidConfirmed) markPaid.run(row.id);
+}
+
+function expandStatusFilter(status) {
+  if (!status) return null;
+  if (status === "available") return JOINABLE_STATUSES;
+  if (status === "waiting_for_venue_confirmation") return ["requested"];
+  if (status === "waiting_for_players") return ["available"];
+  if (status === "confirmed") return ["confirmed_unpaid", "confirmed_paid"];
+  return [canonicalTableStatus(status)];
+}
+
+function syncOpenTableStatus(database, tableId) {
+  const table = database.prepare("SELECT * FROM tables WHERE id=?").get(tableId);
+  if (!table) return null;
+  const status = canonicalTableStatus(table.status);
+  if (status === "requested" || status === "cancelled" || status === "completed") {
+    return table;
+  }
+  const reserved = database
+    .prepare(`SELECT id, paid FROM seats WHERE table_id=? AND status='reserved'`)
+    .all(tableId);
+  let next = "available";
+  if (reserved.length >= table.min_players) {
+    const needsPay = !table.bring_own_game;
+    const unpaid = needsPay && reserved.some((s) => !s.paid);
+    next = unpaid ? "confirmed_unpaid" : "confirmed_paid";
+  }
+  if (next !== status) {
+    database.prepare("UPDATE tables SET status=? WHERE id=?").run(next, tableId);
+  }
+  return database.prepare("SELECT * FROM tables WHERE id=?").get(tableId);
 }
 
 function hashPassword(password) {
@@ -172,10 +246,10 @@ function seedIfEmpty(database) {
   );
   const insertTable = database.prepare(
     `INSERT INTO tables (organizer_id, venue_id, game_title, bring_own_game, game_language, venue_game_confirmed, starts_at, ends_at, min_players, max_players, status, seats_taken, created_at)
-     VALUES (?, ?, ?, 0, 'de', 1, ?, ?, 2, 4, 'waiting_for_players', 1, ?)`,
+     VALUES (?, ?, ?, 0, 'de', 1, ?, ?, 2, 4, 'available', 1, ?)`,
   );
   const insertSeat = database.prepare(
-    `INSERT INTO seats (table_id, user_id, is_organizer, status, waitlist_position) VALUES (?, ?, 1, 'reserved', NULL)`,
+    `INSERT INTO seats (table_id, user_id, is_organizer, status, waitlist_position, paid) VALUES (?, ?, 1, 'reserved', NULL, 0)`,
   );
 
   const tx = database.transaction(() => {
@@ -333,7 +407,7 @@ function gameStats(database, userId) {
       starts_at: row.starts_at,
       ends_at: row.ends_at,
       venue_name: row.venue_name || "",
-      status: row.status,
+      status: canonicalTableStatus(row.status),
       is_organizer: !!row.is_organizer,
     }));
   const grouped = new Map();
@@ -414,7 +488,7 @@ function serializeTable(row) {
     ends_at: row.ends_at,
     min_players: row.min_players,
     max_players: row.max_players,
-    status: row.status,
+    status: canonicalTableStatus(row.status),
     seats_taken: row.seats_taken,
     created_at: row.created_at,
   };
@@ -431,6 +505,7 @@ function serializeSeat(row) {
     is_organizer: !!row.is_organizer,
     status: row.status,
     waitlist_position: row.waitlist_position,
+    paid: !!row.paid,
   };
 }
 
@@ -454,5 +529,9 @@ module.exports = {
   validPassword,
   gameStats,
   mapsUrl,
+  canonicalTableStatus,
+  expandStatusFilter,
+  syncOpenTableStatus,
+  JOINABLE_STATUSES,
   getDb: () => ensureDb(),
 };

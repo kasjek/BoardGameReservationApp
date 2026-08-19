@@ -9,6 +9,10 @@ const {
   serializeSeat,
   validPassword,
   gameStats,
+  canonicalTableStatus,
+  expandStatusFilter,
+  syncOpenTableStatus,
+  JOINABLE_STATUSES,
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
 const {
@@ -423,11 +427,10 @@ async function handleApi(req, res) {
           sql += " AND venue_id=?";
           params.push(Number(venueId));
         }
-        if (status === "available") {
-          sql += " AND status IN ('waiting_for_players','confirmed')";
-        } else if (status) {
-          sql += " AND status=?";
-          params.push(status);
+        if (status) {
+          const expanded = expandStatusFilter(status);
+          sql += ` AND status IN (${expanded.map(() => "?").join(",")})`;
+          params.push(...expanded);
         }
         if (game) {
           sql += " AND game_title LIKE ?";
@@ -468,7 +471,7 @@ async function handleApi(req, res) {
         const info = db
           .prepare(
             `INSERT INTO tables (organizer_id, venue_id, game_title, bring_own_game, game_language, game_language_other, venue_game_confirmed, starts_at, ends_at, min_players, max_players, status, seats_taken, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'waiting_for_venue_confirmation', 1, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'requested', 1, ?)`,
           )
           .run(
             u.id,
@@ -483,9 +486,10 @@ async function handleApi(req, res) {
             body.max_players || venue.max_players,
             now,
           );
+        const paid = body.bring_own_game ? 1 : 0;
         db.prepare(
-          `INSERT INTO seats (table_id, user_id, is_organizer, status) VALUES (?, ?, 1, 'reserved')`,
-        ).run(info.lastInsertRowid, u.id);
+          `INSERT INTO seats (table_id, user_id, is_organizer, status, paid) VALUES (?, ?, 1, 'reserved', ?)`,
+        ).run(info.lastInsertRowid, u.id, paid);
         return send(
           res,
           201,
@@ -506,12 +510,13 @@ async function handleApi(req, res) {
       const table = db.prepare("SELECT * FROM tables WHERE id=?").get(Number(m[1]));
       if (!table) return send(res, 404, { detail: "Not found." });
       if (!managesVenue(u, table.venue_id)) return send(res, 403, { detail: "Forbidden." });
-      if (table.status !== "waiting_for_venue_confirmation") {
+      if (canonicalTableStatus(table.status) !== "requested") {
         return send(res, 409, { detail: "Table is not awaiting confirmation." });
       }
       db.prepare(
-        `UPDATE tables SET status='waiting_for_players', venue_game_confirmed=? WHERE id=?`,
+        `UPDATE tables SET status='available', venue_game_confirmed=? WHERE id=?`,
       ).run(table.bring_own_game ? 0 : 1, table.id);
+      syncOpenTableStatus(db, table.id);
       return send(res, 200, serializeTable(db.prepare("SELECT * FROM tables WHERE id=?").get(table.id)));
     }
 
@@ -556,7 +561,7 @@ async function handleApi(req, res) {
         const u = requireUser(req, res);
         if (!u) return;
         if (!canHost(u)) return send(res, 403, { detail: "Only USER/ADMIN can reserve." });
-        if (!["waiting_for_players", "confirmed"].includes(table.status)) {
+        if (!JOINABLE_STATUSES.includes(canonicalTableStatus(table.status))) {
           return send(res, 409, { detail: "Venue has not confirmed this table yet." });
         }
         const existing = db
@@ -580,20 +585,44 @@ async function handleApi(req, res) {
               .get(tableId).m || 0;
           waitlist_position = maxPos + 1;
         }
+        const paid = table.bring_own_game ? 1 : 0;
         const info = db
           .prepare(
-            `INSERT INTO seats (table_id, user_id, is_organizer, status, waitlist_position) VALUES (?, ?, 0, ?, ?)`,
+            `INSERT INTO seats (table_id, user_id, is_organizer, status, waitlist_position, paid) VALUES (?, ?, 0, ?, ?, ?)`,
           )
-          .run(tableId, u.id, status, waitlist_position);
+          .run(tableId, u.id, status, waitlist_position, paid);
         if (status === "reserved") {
           const taken = reserved + 1;
           db.prepare("UPDATE tables SET seats_taken=? WHERE id=?").run(taken, tableId);
-          if (taken >= table.min_players && table.status === "waiting_for_players") {
-            db.prepare("UPDATE tables SET status='confirmed' WHERE id=?").run(tableId);
-          }
+          syncOpenTableStatus(db, tableId);
         }
         return send(res, 201, serializeSeat(db.prepare("SELECT * FROM seats WHERE id=?").get(info.lastInsertRowid)));
       }
+    }
+
+    if ((m = path.match(/^\/api\/tables\/(\d+)\/seats\/pay$/)) && method === "POST") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      if (!canHost(u)) return send(res, 403, { detail: "Only USER/ADMIN can pay." });
+      const tableId = Number(m[1]);
+      const table = db.prepare("SELECT * FROM tables WHERE id=?").get(tableId);
+      if (!table) return send(res, 404, { detail: "Not found." });
+      const status = canonicalTableStatus(table.status);
+      if (status === "cancelled" || status === "completed") {
+        return send(res, 409, { detail: "This table is no longer active." });
+      }
+      if (table.bring_own_game) {
+        return send(res, 409, { detail: "No payment is required for this table." });
+      }
+      const seat = db
+        .prepare(
+          `SELECT * FROM seats WHERE table_id=? AND user_id=? AND status='reserved'`,
+        )
+        .get(tableId, u.id);
+      if (!seat) return send(res, 409, { detail: "You need a reserved seat to pay." });
+      db.prepare("UPDATE seats SET paid=1 WHERE id=?").run(seat.id);
+      syncOpenTableStatus(db, tableId);
+      return send(res, 200, serializeSeat(db.prepare("SELECT * FROM seats WHERE id=?").get(seat.id)));
     }
 
     if ((m = path.match(/^\/api\/tables\/(\d+)\/seats\/cancel$/)) && method === "POST") {
@@ -608,6 +637,7 @@ async function handleApi(req, res) {
       if (!seat) return send(res, 404, { detail: "No seat." });
       db.prepare(`UPDATE seats SET status='cancelled', waitlist_position=NULL WHERE id=?`).run(seat.id);
       if (seat.status === "reserved") {
+        const table = db.prepare("SELECT * FROM tables WHERE id=?").get(tableId);
         const taken = db
           .prepare(`SELECT COUNT(*) AS c FROM seats WHERE table_id=? AND status='reserved'`)
           .get(tableId).c;
@@ -618,18 +648,13 @@ async function handleApi(req, res) {
           )
           .get(tableId);
         if (next) {
+          const paid = table.bring_own_game ? 1 : 0;
           db.prepare(
-            `UPDATE seats SET status='reserved', waitlist_position=NULL WHERE id=?`,
-          ).run(next.id);
+            `UPDATE seats SET status='reserved', waitlist_position=NULL, paid=? WHERE id=?`,
+          ).run(paid, next.id);
           db.prepare("UPDATE tables SET seats_taken=? WHERE id=?").run(taken + 1, tableId);
         }
-        const table = db.prepare("SELECT * FROM tables WHERE id=?").get(tableId);
-        const reserved = db
-          .prepare(`SELECT COUNT(*) AS c FROM seats WHERE table_id=? AND status='reserved'`)
-          .get(tableId).c;
-        if (table.status === "confirmed" && reserved < table.min_players) {
-          db.prepare("UPDATE tables SET status='waiting_for_players' WHERE id=?").run(tableId);
-        }
+        syncOpenTableStatus(db, tableId);
       }
       return send(res, 200, serializeSeat(db.prepare("SELECT * FROM seats WHERE id=?").get(seat.id)));
     }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { VenueGameFeePrompt } from "../../components/VenueGameFeePrompt";
 import {
@@ -27,6 +27,7 @@ import {
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
+import { isJoinable, isRequested } from "../../lib/tableStatus";
 
 function formatGameLanguage(
   table: Table,
@@ -45,6 +46,7 @@ export default function TableDetailPage() {
   const { t, localeTag } = useI18n();
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const id = Number(params.id);
 
   const [table, setTable] = useState<Table | null>(null);
@@ -56,6 +58,7 @@ export default function TableDetailPage() {
   const [busy, setBusy] = useState(false);
   const [rating, setRating] = useState(5);
   const [feePrompt, setFeePrompt] = useState<"host" | "guest" | null>(null);
+  const paypalReturnHandled = useRef(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -81,6 +84,27 @@ export default function TableDetailPage() {
     if (user) load();
   }, [user, load]);
 
+  useEffect(() => {
+    if (!user || !table || paypalReturnHandled.current) return;
+    if (searchParams.get("paypal") !== "return") return;
+    const mine = seats.find((s) => s.user === user.id && s.status === "reserved" && !s.paid);
+    paypalReturnHandled.current = true;
+    router.replace(`/tables/${id}`);
+    if (!mine || table.bring_own_game) return;
+    void (async () => {
+      setBusy(true);
+      try {
+        await tableApi.paySeat(id);
+        setInfo(t("tableDetail.payOk"));
+        await load();
+      } catch (e) {
+        setError(errorMessage(e, t));
+      } finally {
+        setBusy(false);
+      }
+    })();
+  }, [user, table, seats, searchParams, id, router, t, load]);
+
   if (loading) return <LoadingScreen />;
   if (!user) return null;
   if (!table) {
@@ -99,7 +123,7 @@ export default function TableDetailPage() {
   const isOrganizer = table.organizer === user.id;
   const canManageVenue =
     user.role === "ADMIN" || (user.role === "VENUE_USER" && user.venue === table.venue);
-  const bookable = table.status === "waiting_for_players" || table.status === "confirmed";
+  const bookable = isJoinable(table.status);
   const full = table.seats_taken >= table.max_players;
   const eventEnded = new Date(table.ends_at).getTime() < Date.now();
   const reservedSeats = seats.filter((s) => s.status === "reserved");
@@ -122,8 +146,6 @@ export default function TableDetailPage() {
   }
 
   async function reserveSeat() {
-    const current = table;
-    if (!current) return;
     setBusy(true);
     setError(null);
     setInfo(null);
@@ -133,13 +155,21 @@ export default function TableDetailPage() {
         seat.status === "waitlisted" ? t("tableDetail.waitlistedOk") : t("tableDetail.reservedOk"),
       );
       await load();
-      if (!current.bring_own_game && seat.status === "reserved") {
-        setFeePrompt("guest");
-      }
     } catch (e) {
       setError(errorMessage(e, t));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function confirmPayFromPrompt() {
+    try {
+      await tableApi.paySeat(id);
+      setInfo(t("tableDetail.payOk"));
+      setFeePrompt(null);
+      await load();
+    } catch (e) {
+      setError(errorMessage(e, t));
     }
   }
 
@@ -223,26 +253,57 @@ export default function TableDetailPage() {
         <div className="mt-2 grid grid-cols-3 gap-2">
           {reservedSeats.map((s) => {
             const isMe = s.user === user.id;
+            const showPay =
+              isMe &&
+              s.status === "reserved" &&
+              !table.bring_own_game &&
+              !s.paid &&
+              table.status !== "cancelled" &&
+              table.status !== "completed";
             return (
-              <button
+              <div
                 key={s.id}
-                type="button"
-                onClick={() => router.push(isMe ? "/profile" : `/users/${s.user}`)}
                 className={`flex flex-col items-center rounded-xl border p-2 text-center ${
                   isMe ? "border-brand bg-brand/5 ring-1 ring-brand" : "border-slate-200"
                 }`}
               >
-                <Avatar
-                  userId={s.user}
-                  customAvatarUrl={s.avatar_seed ? dicebearUrl(s.avatar_seed) : undefined}
-                  size={40}
-                />
-                <div className="mt-1 w-full truncate text-xs font-semibold">{s.username}</div>
-                <div className="flex gap-1 text-[10px] font-bold uppercase tracking-wide">
-                  {s.is_organizer ? <span className="text-brand">{t("common.host")}</span> : null}
-                  {isMe ? <span className="text-fun-pink">{t("common.you")}</span> : null}
-                </div>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => router.push(isMe ? "/profile" : `/users/${s.user}`)}
+                  className="flex w-full flex-col items-center"
+                >
+                  <Avatar
+                    userId={s.user}
+                    customAvatarUrl={s.avatar_seed ? dicebearUrl(s.avatar_seed) : undefined}
+                    size={40}
+                  />
+                  <div className="mt-1 w-full truncate text-xs font-semibold">{s.username}</div>
+                  <div className="flex gap-1 text-[10px] font-bold uppercase tracking-wide">
+                    {s.is_organizer ? <span className="text-brand">{t("common.host")}</span> : null}
+                    {isMe ? <span className="text-fun-pink">{t("common.you")}</span> : null}
+                  </div>
+                </button>
+                {!table.bring_own_game && s.status === "reserved" ? (
+                  showPay ? (
+                    <button
+                      type="button"
+                      className="btn mt-2 w-full py-1 text-xs"
+                      disabled={busy}
+                      onClick={() => setFeePrompt(s.is_organizer ? "host" : "guest")}
+                    >
+                      {t("tableDetail.pay")}
+                    </button>
+                  ) : s.paid ? (
+                    <div className="mt-2 text-[10px] font-bold uppercase tracking-wide text-green-700">
+                      {t("tableDetail.paid")}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-[10px] font-bold uppercase tracking-wide text-orange-600">
+                      {t("tableDetail.unpaid")}
+                    </div>
+                  )
+                ) : null}
+              </div>
             );
           })}
           {Array.from({ length: openSeats }).map((_, i) => (
@@ -277,11 +338,11 @@ export default function TableDetailPage() {
       </div>
 
       <div className="mt-4 space-y-2">
-        {table.status === "waiting_for_venue_confirmation" && !canManageVenue ? (
+        {isRequested(table.status) && !canManageVenue ? (
           <Banner kind="info">{t("tableDetail.waitingVenue")}</Banner>
         ) : null}
 
-        {canManageVenue && table.status === "waiting_for_venue_confirmation" ? (
+        {canManageVenue && isRequested(table.status) ? (
           <div className="flex gap-2">
             <button
               className="btn-ghost"
@@ -385,6 +446,7 @@ export default function TableDetailPage() {
           startsAt={table.starts_at}
           endsAt={table.ends_at}
           tableId={table.id}
+          onPaid={() => confirmPayFromPrompt()}
           onClose={() => setFeePrompt(null)}
         />
       ) : null}

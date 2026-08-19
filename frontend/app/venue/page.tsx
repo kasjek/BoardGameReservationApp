@@ -67,9 +67,14 @@ export default function VenueAdminPage() {
     setError(null);
     try {
       const all = await tableApi.list({ venueId: String(selectedVenueId) });
-      setPending(all.filter((tbl) => tbl.status === "waiting_for_venue_confirmation"));
+      setPending(all.filter((tbl) => tbl.status === "requested"));
       setUpcoming(
-        all.filter((tbl) => tbl.status === "waiting_for_players" || tbl.status === "confirmed"),
+        all.filter(
+          (tbl) =>
+            tbl.status === "available" ||
+            tbl.status === "confirmed_unpaid" ||
+            tbl.status === "confirmed_paid",
+        ),
       );
     } catch (e) {
       setError(errorMessage(e, t));

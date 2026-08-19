@@ -83,10 +83,10 @@ The launch client is a **single responsive web app** with role-based views (play
 ## High-Level Flow (create & confirm a table)
 
 1. A `USER` (host) creates a table at a venue (date, from/to time, min/max players, game with bring-own + language or a venue game); the host's seat is reserved by default. *(1, 4; decisions 4, 6)*
-2. The request goes to the venue; table status is `waiting for venue confirmation`. **No other user can book yet.** *(33; decision 2)*
-3. Venue admin accepts (confirming table availability, and the requested game if it is a venue game) or rejects; on accept, status becomes `waiting for players`. *(24, 35; decisions 2, 4)*
-4. Only now do other `USER`s browse/filter, reserve seats (or join the **waitlist** if full), and pay the fee (full-table by host, or per-seat). *(2, 30; decisions 1, 6, 7)*
-5. When enough seats fill, status becomes `confirmed`; relevant users are notified. *(28, 33)*
+2. The request goes to the venue; table status is `Requested`. **No other user can book yet.** *(33; decision 2)*
+3. Venue admin accepts (confirming table availability, and the requested game if it is a venue game) or rejects; on accept, status becomes `Available`. *(24, 35; decisions 2, 4)*
+4. Only now do other `USER`s browse/filter and reserve seats (or join the **waitlist** if full). Payment is **not** collected at booking — each seated user pays later from their seat. *(2, 30; decisions 1, 6, 7)*
+5. When enough seats fill, status becomes `Confirmed & unpaid`; when every reserved seat has paid (or there is no fee), it becomes `Confirmed & paid`. Relevant users are notified. *(28, 33, 30)*
 6. Cancellations trigger notifications and automatic refunds; a within-24h cancellation is *late* (30-day profile mark) and a reserved-seat cancellation **promotes the next waitlisted user**. *(21, 22, 25, 31; decision 7)*
 7. After the event, participants can add photos and write reviews. *(5, 7)*
 
@@ -97,14 +97,15 @@ sequenceDiagram
     participant VA as Venue admin
     participant U as Other user
     O->>API: POST /tables (venue,time,game,min/max)
-    API->>API: create table (status=waiting_for_venue_confirmation), seat organizer
+    API->>API: create table (status=requested), seat organizer
     API-->>VA: notify: reservation request
     VA->>API: POST /requests/{id}/accept (confirm table + venue game)
-    API->>API: capacity check -> status=waiting_for_players
+    API->>API: capacity check -> status=available
     U->>API: POST /tables/{id}/seats (FOR UPDATE; if full -> waitlisted)
+    U->>API: POST /tables/{id}/seats/pay (per reserved seat, later)
     API->>PAY: start reservation-fee payment
     PAY-->>API: success -> Payment.succeeded
-    API->>API: if seats>=min -> status=confirmed
+    API->>API: if seats>=min -> status=confirmed_unpaid; if all reserved seats paid -> confirmed_paid
     API-->>O: notify: confirmed
     API-->>U: notify: payment result + confirmed
 ```
@@ -113,13 +114,18 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> waiting_for_venue_confirmation
-    waiting_for_venue_confirmation --> waiting_for_players: venue accepts
-    waiting_for_venue_confirmation --> cancelled: venue rejects / organizer cancels
-    waiting_for_players --> confirmed: seats >= min_players
-    waiting_for_players --> cancelled: organizer/venue/admin cancels
-    confirmed --> completed: event ends
-    confirmed --> cancelled: organizer/venue/admin cancels
+    [*] --> requested
+    requested --> available: venue accepts
+    requested --> cancelled: venue rejects / organizer cancels
+    available --> confirmed_unpaid: seats >= min_players (venue game)
+    available --> confirmed_paid: seats >= min_players and no unpaid seats
+    available --> cancelled: organizer/venue/admin cancels
+    confirmed_unpaid --> confirmed_paid: all reserved seats paid
+    confirmed_unpaid --> available: seats drop below min_players
+    confirmed_unpaid --> cancelled: organizer/venue/admin cancels
+    confirmed_paid --> available: seats drop below min_players
+    confirmed_paid --> completed: event ends
+    confirmed_paid --> cancelled: organizer/venue/admin cancels
     cancelled --> [*]
     completed --> [*]
 ```

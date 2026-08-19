@@ -34,7 +34,7 @@
 30. As a user, I want to be able to pay for my table reservation quick and easily with paypal or revolut
 31. As a user, I want to receive my money back in the the table or seat i reserved get cancelled 
 32. As a user, I want to receive a notification of the successfull or insuccessfull payment
-33. As a user, I want to see the status of the table as confirmed / or waiting for players / or waiting for venue confirmation so that i know what is the next step in the process at any time
+33. As a user, I want to see the status of the table as requested / available / confirmed & unpaid / confirmed & paid so that i know what is the next step in the process at any time
 
 ## Venue Admins
 

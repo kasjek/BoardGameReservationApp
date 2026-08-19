@@ -27,9 +27,10 @@ import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
 
 const PLANNED_STATUSES = new Set([
-  "waiting_for_venue_confirmation",
-  "waiting_for_players",
-  "confirmed",
+  "requested",
+  "available",
+  "confirmed_unpaid",
+  "confirmed_paid",
 ]);
 
 function TableRow({ table, localeTag, t }: { table: Table; localeTag: string; t: (key: string, vars?: Record<string, string | number>) => string }) {

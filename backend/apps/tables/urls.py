@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     SeatCancelView,
+    SeatPayView,
     SeatReserveView,
     TableCancelView,
     TableConfirmView,
@@ -17,5 +18,6 @@ urlpatterns = [
     path("tables/<int:pk>/reject", TableRejectView.as_view(), name="table-reject"),
     path("tables/<int:pk>/cancel", TableCancelView.as_view(), name="table-cancel"),
     path("tables/<int:pk>/seats", SeatReserveView.as_view(), name="seat-reserve"),
+    path("tables/<int:pk>/seats/pay", SeatPayView.as_view(), name="seat-pay"),
     path("tables/<int:pk>/seats/cancel", SeatCancelView.as_view(), name="seat-cancel"),
 ]
