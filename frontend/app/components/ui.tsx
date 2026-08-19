@@ -372,25 +372,26 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
 export function FooterMenu() {
   const { t } = useI18n();
   const path = usePathname();
-  const item = (href: string, label: string, active: boolean) => (
+  const item = (href: string, label: string, icon: string, active: boolean) => (
     <Link
       href={href}
-      className={`flex flex-1 items-center justify-center gap-1 py-2 text-center text-xs ${
-        active ? "font-black text-brand" : "font-semibold text-slate-600 hover:text-brand"
+      className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-center text-xs ${
+        active ? "font-black text-brand" : "font-bold text-slate-700 hover:text-brand"
       }`}
       aria-current={active ? "page" : undefined}
     >
+      <span aria-hidden>{icon}</span>
       <span>{label}</span>
     </Link>
   );
   return (
     <nav
-      className="flex shrink-0 border-t border-violet-200 bg-violet-50"
+      className="flex shrink-0 border-t-2 border-violet-200 bg-violet-50"
       aria-label={t("nav.more")}
     >
-      {item("/how-it-works", t("nav.howItWorks"), path.startsWith("/how-it-works"))}
-      <span aria-hidden className="self-center h-4 w-px bg-violet-200" />
-      {item("/map", t("nav.venueMap"), path.startsWith("/map"))}
+      {item("/how-it-works", t("nav.howItWorks"), "✨", path.startsWith("/how-it-works"))}
+      <span aria-hidden className="self-center h-5 w-px bg-violet-300" />
+      {item("/map", t("nav.venueMap"), "🗺️", path.startsWith("/map"))}
     </nav>
   );
 }
