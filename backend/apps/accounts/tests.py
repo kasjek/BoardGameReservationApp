@@ -278,3 +278,68 @@ def test_google_only_user_cannot_change_password(db, client, settings, monkeypat
     assert resp.status_code == 400
     assert "Google" in resp.data["detail"]
 
+
+def test_public_profile_includes_game_stats_not_email(db, client):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.tables.models import SeatReservation, SeatStatus, Table, TableStatus
+    from apps.venues.models import Venue
+
+    venue = Venue.objects.create(name="Stats Cafe")
+    host = mk("host_for_stats")
+    guest = mk("guest_for_stats")
+    now = timezone.now()
+
+    def add_table(organizer, title, status=TableStatus.CONFIRMED):
+        table = Table.objects.create(
+            organizer=organizer,
+            venue=venue,
+            game_title=title,
+            starts_at=now + timedelta(days=2),
+            ends_at=now + timedelta(days=2, hours=2),
+            min_players=2,
+            max_players=4,
+            status=status,
+            seats_taken=1,
+        )
+        SeatReservation.objects.create(
+            table=table, user=organizer, is_organizer=True, status=SeatStatus.RESERVED
+        )
+        return table
+
+    catan = add_table(host, "Catan")
+    SeatReservation.objects.create(table=catan, user=guest, status=SeatStatus.RESERVED)
+    add_table(guest, "Carcassonne")
+    add_table(guest, "Catan")
+    cancelled = add_table(guest, "Secret Hitler", status=TableStatus.CANCELLED)
+    waitlisted = add_table(host, "Patchwork")
+    SeatReservation.objects.create(
+        table=waitlisted, user=guest, status=SeatStatus.WAITLISTED, waitlist_position=1
+    )
+    dropped = add_table(host, "Onitama")
+    SeatReservation.objects.create(table=dropped, user=guest, status=SeatStatus.CANCELLED)
+
+    resp = client.get(f"/api/users/{guest.id}")
+    assert resp.status_code == 200
+    assert "email" not in resp.data
+    assert resp.data["username"] == "guest_for_stats"
+    assert resp.data["games_played"] == 3
+    assert resp.data["different_games"] == 2
+    assert "late_cancel_marks_active" in resp.data
+    assert cancelled.status == TableStatus.CANCELLED
+
+    games = client.get(f"/api/users/{guest.id}/games")
+    assert games.status_code == 200
+    titles = {row["title"] for row in games.data["titles"]}
+    assert titles == {"Catan", "Carcassonne"}
+    assert games.data["games_played"] == 3
+    assert len(games.data["sessions"]) == 3
+    assert all(row["game_title"] not in {"Secret Hitler", "Patchwork", "Onitama"} for row in games.data["sessions"])
+
+
+def test_public_user_games_404(db, client):
+    resp = client.get("/api/users/999999/games")
+    assert resp.status_code == 404
+

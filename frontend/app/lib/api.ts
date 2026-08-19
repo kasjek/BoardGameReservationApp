@@ -11,7 +11,49 @@ export interface User {
   rating_avg: number | null;
   cancellations_count: number;
   late_cancel_marks_active: number;
+  games_played?: number;
+  different_games?: number;
   has_usable_password?: boolean;
+}
+
+export type TableStatus =
+  | "waiting_for_venue_confirmation"
+  | "waiting_for_players"
+  | "confirmed"
+  | "cancelled"
+  | "completed";
+
+export interface PublicUser {
+  id: number;
+  username: string;
+  avatar_seed: string;
+  rating_avg: number | null;
+  cancellations_count: number;
+  late_cancel_marks_active: number;
+  games_played: number;
+  different_games: number;
+}
+
+export interface PublicUserGameSession {
+  table_id: number;
+  game_title: string;
+  starts_at: string;
+  ends_at: string;
+  venue_name: string;
+  status: TableStatus;
+  is_organizer: boolean;
+}
+
+export interface PublicUserGameTitle {
+  title: string;
+  count: number;
+}
+
+export interface PublicUserGames {
+  games_played: number;
+  different_games: number;
+  sessions: PublicUserGameSession[];
+  titles: PublicUserGameTitle[];
 }
 
 export interface Review {
@@ -25,13 +67,6 @@ export interface Review {
   body: string;
   created_at: string;
 }
-
-export type TableStatus =
-  | "waiting_for_venue_confirmation"
-  | "waiting_for_players"
-  | "confirmed"
-  | "cancelled"
-  | "completed";
 
 export interface Table {
   id: number;
@@ -300,7 +335,8 @@ export const reviewApi = {
 };
 
 export const userApi = {
-  public: (id: number) => request<Omit<User, "email" | "role" | "venue" | "allow_invites">>(`/users/${id}`),
+  public: (id: number) => request<PublicUser>(`/users/${id}`),
+  games: (id: number) => request<PublicUserGames>(`/users/${id}/games`),
 };
 
 // --- Tables ---

@@ -19,9 +19,9 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 ### A. Accounts, authentication & profiles
 
 - **FR-A1 (Must)** Users register and log in quickly to access a personalized history of events attended and organized. *(9)*
-- **FR-A2 (Must)** A public profile exposes only avatar, display name, and aggregate rating — no other personal information. *(26)*
+- **FR-A2 (Must)** A public profile does not expose email or other contact details. It may show avatar, username (login), aggregate rating, late-cancellation count, and games the user has joined. *(26, 23)*
 - **FR-A3 (Should)** Users can change their avatar from a system-allocated set. *(10)*
-- **FR-A4 (Should)** Users can view another user's public profile including rating, reviews, and number of past cancellations. *(20, 23)*
+- **FR-A4 (Should)** Anyone can open another user's public profile from a table they booked (avatar, username, rating, late cancellations, games played, different games). Tapping **Games played** or **Different games** lists those titles. *(20, 23, 26)*
 
 ### B. Tables / events (core)
 
@@ -90,7 +90,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 
 ## Non-Functional Requirements
 
-- **NFR-1 Privacy** — Public views expose only avatar, display name, and rating; personal data is protected and a data-deletion path is provided. *(26)*
+- **NFR-1 Privacy** — Public views do not expose email or other contact details. They may show avatar, username, rating, late cancellations, and games joined. Personal data is protected and a data-deletion path is provided. *(26)*
 - **NFR-2 Authorization** — The permission matrix in `docs/Permissions.md` is enforced server-side on every endpoint; hiding UI is not sufficient.
 - **NFR-3 Payments compliance** — Payments use hosted PayPal/Revolut flows; the app never stores card data.
 - **NFR-4 Notifications** — Notifications are reliable across email and in-app, and scoped to relevance so users are not spammed.

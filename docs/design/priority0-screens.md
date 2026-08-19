@@ -143,7 +143,7 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 └────────────────────────────┘
 ```
 
-- Public view of **other** users shows only avatar, name, rating, active late-cancel marks (privacy, `NFR-1`).
+- Public view of **other** users shows avatar, username, rating, active late-cancel marks, games played, and different games (no email).
 - **API:** `GET /api/auth/me`, `GET /api/users/{id}` (later), `PATCH /me/avatar` (later).
 
 ---

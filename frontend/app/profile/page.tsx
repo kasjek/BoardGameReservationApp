@@ -41,6 +41,7 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [showUniqueTitles, setShowUniqueTitles] = useState(false);
 
   async function rollAvatar() {
     setRolling(true);
@@ -116,11 +117,18 @@ export default function ProfilePage() {
     );
   }, [organized, joined]);
 
+  const uniqueTitles = useMemo(() => {
+    const grouped = new Map<string, { title: string; count: number }>();
+    for (const b of bookings) {
+      const key = b.table.game_title.toLowerCase();
+      const existing = grouped.get(key);
+      if (existing) existing.count += 1;
+      else grouped.set(key, { title: b.table.game_title, count: 1 });
+    }
+    return [...grouped.values()].sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
+  }, [bookings]);
   const gamesPlayed = bookings.length;
-  const differentGames = useMemo(
-    () => new Set(bookings.map((b) => b.table.game_title.toLowerCase())).size,
-    [bookings],
-  );
+  const differentGames = uniqueTitles.length;
 
   const filtered = useMemo(() => {
     const now = Date.now();
@@ -166,14 +174,22 @@ export default function ProfilePage() {
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2">
-        <div className="card text-center">
+        <button
+          type="button"
+          className={`card text-center ${!showUniqueTitles ? "ring-2 ring-brand" : ""}`}
+          onClick={() => setShowUniqueTitles(false)}
+        >
           <div className="text-2xl font-bold text-brand">{gamesPlayed}</div>
           <div className="text-xs text-slate-500">{t("profile.gamesPlayed")}</div>
-        </div>
-        <div className="card text-center">
+        </button>
+        <button
+          type="button"
+          className={`card text-center ${showUniqueTitles ? "ring-2 ring-brand" : ""}`}
+          onClick={() => setShowUniqueTitles(true)}
+        >
           <div className="text-2xl font-bold text-brand">{differentGames}</div>
           <div className="text-xs text-slate-500">{t("profile.differentGames")}</div>
-        </div>
+        </button>
       </div>
 
       <div className="card mb-4">
@@ -222,6 +238,7 @@ export default function ProfilePage() {
       {error ? <Banner kind="error">{error}</Banner> : null}
       {passwordMessage ? <Banner kind="info">{passwordMessage}</Banner> : null}
 
+      {showUniqueTitles ? null : (
       <div className="mb-3 flex gap-2">
         <select
           className="input"
@@ -242,8 +259,27 @@ export default function ProfilePage() {
           <option value="past">{t("profile.filterPast")}</option>
         </select>
       </div>
+      )}
 
-      {filtered.length === 0 ? (
+      {showUniqueTitles ? (
+        uniqueTitles.length === 0 ? (
+          <div className="mt-6 text-center text-sm text-slate-400">{t("profile.empty")}</div>
+        ) : (
+          <div className="space-y-2">
+            {uniqueTitles.map((row) => (
+              <div key={row.title} className="card flex items-center gap-3">
+                <Cover name={row.title} size={48} />
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-semibold">
+                    <GameLink name={row.title} />
+                  </h4>
+                  <div className="text-xs text-slate-500">{t("profile.timesPlayed", { count: row.count })}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : filtered.length === 0 ? (
         <div className="mt-6 text-center text-sm text-slate-400">{t("profile.empty")}</div>
       ) : (
         <div className="space-y-2">

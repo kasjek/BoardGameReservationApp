@@ -8,6 +8,7 @@ const {
   serializeTable,
   serializeSeat,
   validPassword,
+  gameStats,
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
 
@@ -706,6 +707,12 @@ async function handleApi(req, res) {
         res,
         `https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=${encodeURIComponent(q)}`,
       );
+    }
+
+    if ((m = path.match(/^\/api\/users\/(\d+)\/games$/)) && method === "GET") {
+      const u = db.prepare("SELECT id FROM users WHERE id=?").get(Number(m[1]));
+      if (!u) return send(res, 404, { detail: "Not found." });
+      return send(res, 200, gameStats(db, u.id));
     }
 
     if ((m = path.match(/^\/api\/users\/(\d+)$/)) && method === "GET") {
