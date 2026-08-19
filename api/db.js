@@ -154,6 +154,7 @@ function canonicalTableStatus(status) {
 }
 
 function migrateSchema(database) {
+  const { capExistingTwoPlayerTables } = require("./game-limits");
   const seatCols = database.prepare("PRAGMA table_info(seats)").all().map((c) => c.name);
   if (!seatCols.includes("paid")) {
     database.exec("ALTER TABLE seats ADD COLUMN paid INTEGER NOT NULL DEFAULT 0");
@@ -184,6 +185,7 @@ function migrateSchema(database) {
     .all();
   const markPaid = database.prepare("UPDATE tables SET status='confirmed_paid' WHERE id=?");
   for (const row of unpaidConfirmed) markPaid.run(row.id);
+  capExistingTwoPlayerTables(database);
 }
 
 function expandStatusFilter(status) {

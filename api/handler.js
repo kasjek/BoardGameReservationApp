@@ -15,6 +15,7 @@ const {
   JOINABLE_STATUSES,
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
+const { applyGamePlayerLimits, effectiveMaxPlayers } = require("./game-limits");
 const { listCategories, parseCategoryIds } = require("./bgg-categories");
 const {
   friendshipPayload,
@@ -481,6 +482,13 @@ async function handleApi(req, res) {
           )
           .get(venue.id, date, startT, endT);
         if (!avail) return send(res, 400, { detail: "Venue not available for that slot." });
+        const seats = applyGamePlayerLimits(
+          body.game_title,
+          body.min_players || venue.min_players,
+          body.max_players || venue.max_players,
+          venue.min_players,
+          venue.max_players,
+        );
         const now = new Date().toISOString();
         const info = db
           .prepare(
@@ -496,8 +504,8 @@ async function handleApi(req, res) {
             body.game_language_other || "",
             body.starts_at,
             body.ends_at,
-            body.min_players || venue.min_players,
-            body.max_players || venue.max_players,
+            seats.min_players,
+            seats.max_players,
             now,
           );
         const paid = body.bring_own_game ? 1 : 0;
@@ -589,7 +597,7 @@ async function handleApi(req, res) {
           .get(tableId).c;
         let status = "reserved";
         let waitlist_position = null;
-        if (reserved >= table.max_players) {
+        if (reserved >= effectiveMaxPlayers(table)) {
           status = "waitlisted";
           const maxPos =
             db

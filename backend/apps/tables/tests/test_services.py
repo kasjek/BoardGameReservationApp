@@ -153,6 +153,40 @@ def test_reserve_beyond_max_waitlists(db, venue, wide_availability):
     assert waitlisted.waitlist_position == 1
 
 
+def test_patchwork_forces_two_player_table(db, venue, wide_availability):
+    host = make_user("alice")
+    table = make_table(host, venue, game_title="Patchwork", min_players=2, max_players=4)
+    assert table.min_players == 2
+    assert table.max_players == 2
+
+
+def test_patchwork_third_player_is_waitlisted(db, venue, wide_availability):
+    host = make_user("alice")
+    staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
+    table = make_table(host, venue, game_title="Patchwork", min_players=2, max_players=4)
+    services.confirm_table(table=table, by_user=staff)
+    second = services.reserve_seat(table=table, user=make_user("bob"))
+    third = services.reserve_seat(table=table, user=make_user("dora"))
+    table.refresh_from_db()
+    assert second.status == SeatStatus.RESERVED
+    assert third.status == SeatStatus.WAITLISTED
+    assert table.seats_taken == 2
+
+
+def test_patchwork_caps_existing_table_even_if_max_was_four(db, venue, wide_availability):
+    host = make_user("alice")
+    staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
+    table = make_table(host, venue, game_title="Catan", min_players=2, max_players=4)
+    table.game_title = "Patchwork"
+    table.save(update_fields=["game_title"])
+    services.confirm_table(table=table, by_user=staff)
+    services.reserve_seat(table=table, user=make_user("bob"))
+    waitlisted = services.reserve_seat(table=table, user=make_user("dora"))
+    table.refresh_from_db()
+    assert waitlisted.status == SeatStatus.WAITLISTED
+    assert table.seats_taken == 2
+
+
 def test_duplicate_reserve_conflicts(db, venue, wide_availability):
     host = make_user("alice")
     staff = make_user("carol", role=Role.VENUE_USER, venue=venue)
