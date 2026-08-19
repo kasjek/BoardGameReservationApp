@@ -7,6 +7,15 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .friends import (
+    accept_request,
+    list_friends,
+    list_requests,
+    other_user,
+    reject_request,
+    search_users,
+    send_request,
+)
 from .google import (
     GoogleAuthError,
     google_client_id,
@@ -17,6 +26,7 @@ from .google import (
 from .profile_stats import game_stats
 from .serializers import (
     ChangePasswordSerializer,
+    FriendUserSerializer,
     PublicUserSerializer,
     RegisterSerializer,
     UserSerializer,
@@ -135,3 +145,69 @@ class ChangePasswordView(APIView):
         Token.objects.filter(user=user).delete()
         token = Token.objects.create(user=user)
         return Response({"detail": "Password updated.", "token": token.key})
+
+
+def _request_payload(request, row):
+    return {
+        "id": row.id,
+        "status": row.status,
+        "requester_id": row.requester_id,
+        "addressee_id": row.addressee_id,
+        "user": FriendUserSerializer(other_user(row, request.user), context={"request": request}).data,
+    }
+
+
+class UserSearchView(APIView):
+    """Find users by login (username). *(14)*"""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        users = search_users(request.user, request.query_params.get("q") or "")
+        return Response(FriendUserSerializer(users, many=True, context={"request": request}).data)
+
+
+class FriendListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        users = list_friends(request.user)
+        return Response(FriendUserSerializer(users, many=True, context={"request": request}).data)
+
+
+class FriendRequestListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        incoming, outgoing = list_requests(request.user)
+        return Response(
+            {
+                "incoming": [_request_payload(request, row) for row in incoming],
+                "outgoing": [_request_payload(request, row) for row in outgoing],
+            }
+        )
+
+    def post(self, request):
+        row = send_request(
+            request.user,
+            username=request.data.get("username"),
+            user_id=request.data.get("user_id"),
+        )
+        status = 200 if row.status == "accepted" else 201
+        return Response(_request_payload(request, row), status=status)
+
+
+class FriendRequestAcceptView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        row = accept_request(request.user, pk)
+        return Response(_request_payload(request, row))
+
+
+class FriendRequestRejectView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        row = reject_request(request.user, pk)
+        return Response(_request_payload(request, row))

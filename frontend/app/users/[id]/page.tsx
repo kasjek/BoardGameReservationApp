@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { FriendAction } from "../../components/Friends";
 import {
   Avatar,
   Banner,
@@ -16,6 +17,7 @@ import {
 } from "../../components/ui";
 import {
   errorMessage,
+  friendApi,
   type PublicUser,
   type PublicUserGames,
   userApi,
@@ -36,6 +38,7 @@ export default function PublicUserPage() {
   const [games, setGames] = useState<PublicUserGames | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<GameList>(null);
+  const [friendBusy, setFriendBusy] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -109,7 +112,52 @@ export default function PublicUserPage() {
               >
                 {t("publicProfile.you")} · {t("publicProfile.myBookings")}
               </button>
-            ) : null}
+            ) : (
+              <div className="mt-3">
+                <FriendAction
+                  friendship={profile.friendship}
+                  busy={friendBusy}
+                  onAdd={async () => {
+                    setFriendBusy(true);
+                    setError(null);
+                    try {
+                      await friendApi.add({ user_id: profile.id });
+                      await load();
+                    } catch (e) {
+                      setError(errorMessage(e, t));
+                    } finally {
+                      setFriendBusy(false);
+                    }
+                  }}
+                  onAccept={async () => {
+                    if (!profile.friendship?.request_id) return;
+                    setFriendBusy(true);
+                    setError(null);
+                    try {
+                      await friendApi.accept(profile.friendship.request_id);
+                      await load();
+                    } catch (e) {
+                      setError(errorMessage(e, t));
+                    } finally {
+                      setFriendBusy(false);
+                    }
+                  }}
+                  onReject={async () => {
+                    if (!profile.friendship?.request_id) return;
+                    setFriendBusy(true);
+                    setError(null);
+                    try {
+                      await friendApi.reject(profile.friendship.request_id);
+                      await load();
+                    } catch (e) {
+                      setError(errorMessage(e, t));
+                    } finally {
+                      setFriendBusy(false);
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="mb-4 grid grid-cols-2 gap-2">

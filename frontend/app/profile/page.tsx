@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { FriendsList, IncomingRequests } from "../components/Friends";
 import {
   Avatar,
   Banner,
@@ -14,7 +15,16 @@ import {
   Shell,
   StatusChip,
 } from "../components/ui";
-import { authApi, errorMessage, setToken, tableApi, type Table } from "../lib/api";
+import {
+  authApi,
+  errorMessage,
+  friendApi,
+  setToken,
+  tableApi,
+  type FriendRequest,
+  type FriendUser,
+  type Table,
+} from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 
@@ -32,6 +42,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const [organized, setOrganized] = useState<Table[]>([]);
   const [joined, setJoined] = useState<Table[]>([]);
+  const [friends, setFriends] = useState<FriendUser[]>([]);
+  const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [rolling, setRolling] = useState(false);
@@ -94,6 +106,8 @@ export default function ProfilePage() {
     try {
       setOrganized(await tableApi.list({ organizerId: String(user.id) }));
       setJoined(await tableApi.list({ attendeeId: String(user.id) }));
+      setFriends(await friendApi.list());
+      setIncoming((await friendApi.requests()).incoming);
     } catch (e) {
       setError(errorMessage(e, t));
     }
@@ -171,6 +185,13 @@ export default function ProfilePage() {
         <div className="text-xs text-slate-500">
           {t(roleLineKey, { role: user.role, count: user.late_cancel_marks_active })}
         </div>
+      </div>
+
+      <IncomingRequests incoming={incoming} onChanged={load} />
+
+      <div className="mb-4">
+        <div className="mb-2 text-sm font-bold">{t("friends.myFriends")}</div>
+        <FriendsList friends={friends} />
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2">

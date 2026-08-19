@@ -176,6 +176,32 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 
 ---
 
+## 8. Find friends — *(stories 14, 27; FR-E1)*
+
+```
+┌────────────────────────────┐
+│  All Tables  New  Bookings │  ← purple menu
+├────────────────────────────┤
+│ ( Search friends by login )│  ← under the menu, every signed-in screen
+├────────────────────────────┤
+│ Results for “alice”        │
+│ ┌────────────────────────┐ │
+│ │ ☺ alice     [Add friend]│ │
+│ └────────────────────────┘ │
+│                            │
+│ Own profile:               │
+│ Friends                    │
+│  ☺ alice                   │
+└────────────────────────────┘
+```
+
+- Search is **by login (username)** only — never email.
+- **Add friend** sends a request; the other person **Accepts** on their profile or the Find friends page. Adding someone who already requested you accepts it.
+- Own `/profile` lists **your** friends (avatars + logins). Tapping a friend opens their public profile.
+- **API:** `GET /api/users?q=`, `POST /api/friends/requests`, `GET /api/friends`, `POST …/accept|reject`.
+
+---
+
 ## Flow summary
 
 ```

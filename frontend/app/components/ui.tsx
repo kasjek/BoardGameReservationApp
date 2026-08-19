@@ -271,6 +271,7 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
   const { t } = useI18n();
   const router = useRouter();
   const path = usePathname();
+  const [friendQuery, setFriendQuery] = useState("");
   const canManageVenue = user?.role === "VENUE_USER" || user?.role === "ADMIN";
   const canHost = user?.role === "USER" || user?.role === "ADMIN";
 
@@ -298,6 +299,33 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
         {canManageVenue ? tab("/venue", t("nav.venue"), path.startsWith("/venue")) : null}
         {tab("/profile", t("nav.myBookings"), path.startsWith("/profile"))}
       </nav>
+      {user ? (
+        <form
+          className="flex shrink-0 items-center gap-2 border-b border-violet-200 bg-violet-50 px-3 py-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const q = friendQuery.trim();
+            if (!q) return;
+            router.push(`/friends?q=${encodeURIComponent(q)}`);
+          }}
+        >
+          <input
+            className="input py-1.5"
+            value={friendQuery}
+            onChange={(e) => setFriendQuery(e.target.value)}
+            placeholder={t("friends.searchPlaceholder")}
+            aria-label={t("friends.searchPlaceholder")}
+            autoComplete="off"
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-full bg-brand px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+            disabled={!friendQuery.trim()}
+          >
+            {t("friends.search")}
+          </button>
+        </form>
+      ) : null}
       <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
         <div className="font-bold">{title}</div>
         {user ? (
