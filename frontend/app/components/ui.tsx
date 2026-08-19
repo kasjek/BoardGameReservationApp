@@ -329,6 +329,14 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
           >
             {t("friends.search")}
           </button>
+          <Link
+            href="/chats"
+            className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold ${
+              path.startsWith("/chats") ? "bg-brand text-white" : "bg-white text-brand"
+            }`}
+          >
+            {t("nav.chats")}
+          </Link>
         </form>
       ) : null}
       <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-3">

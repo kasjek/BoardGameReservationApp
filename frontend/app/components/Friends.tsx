@@ -168,24 +168,32 @@ export function FriendsList({
   return (
     <div className="space-y-2">
       {friends.map((person) => (
-        <button
-          key={person.id}
-          type="button"
-          className="card flex w-full items-center gap-3 py-3 text-left"
-          onClick={() => router.push(`/users/${person.id}`)}
-        >
-          <Avatar
-            userId={person.id}
-            customAvatarUrl={person.avatar_seed ? dicebearUrl(person.avatar_seed) : undefined}
-            size={40}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="truncate font-semibold">{person.username}</div>
-            {person.rating_avg != null ? (
-              <div className="text-xs text-yellow-600">★ {person.rating_avg.toFixed(1)}</div>
-            ) : null}
-          </div>
-        </button>
+        <div key={person.id} className="card flex items-center gap-3 py-3">
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            onClick={() => router.push(`/users/${person.id}`)}
+          >
+            <Avatar
+              userId={person.id}
+              customAvatarUrl={person.avatar_seed ? dicebearUrl(person.avatar_seed) : undefined}
+              size={40}
+            />
+            <div className="min-w-0">
+              <div className="truncate font-semibold">{person.username}</div>
+              {person.rating_avg != null ? (
+                <div className="text-xs text-yellow-600">★ {person.rating_avg.toFixed(1)}</div>
+              ) : null}
+            </div>
+          </button>
+          <button
+            type="button"
+            className="shrink-0 rounded-full border border-brand px-2.5 py-1 text-[11px] font-bold text-brand"
+            onClick={() => router.push(`/chats/${person.id}`)}
+          >
+            {t("friends.message")}
+          </button>
+        </div>
       ))}
     </div>
   );

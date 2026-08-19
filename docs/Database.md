@@ -327,6 +327,22 @@ Per-table event chat. *(story 8)*
 |---|---|---|---|
 | cm_1 | t_1 | u_1 | Running 5 min late, start without me! |
 
+### DirectMessage
+
+Private 1:1 chat between two users. *(story 12)*
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid (PK) | Message id |
+| `sender_id` | uuid (FK→User) | Author |
+| `recipient_id` | uuid (FK→User) | Recipient |
+| `body` | text | Message text |
+| `created_at` | timestamptz | Sent time |
+
+| id | sender_id | recipient_id | body |
+|---|---|---|---|
+| dm_1 | u_1 | u_2 | See you at Catan tonight? |
+
 ### Review
 
 Reviews of users and venues (and venue responses). *(stories 5, 20, 37, 39)*

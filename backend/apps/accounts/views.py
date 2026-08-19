@@ -7,6 +7,13 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .chats import (
+    list_chats,
+    require_other,
+    send_message,
+    serialize_message,
+    thread_messages,
+)
 from .friends import (
     accept_request,
     list_friends,
@@ -211,3 +218,38 @@ class FriendRequestRejectView(APIView):
     def post(self, request, pk):
         row = reject_request(request.user, pk)
         return Response(_request_payload(request, row))
+
+
+class ChatListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        items = []
+        for other, last in list_chats(request.user):
+            items.append(
+                {
+                    "user": FriendUserSerializer(other, context={"request": request}).data,
+                    "last_message": serialize_message(last, request.user),
+                }
+            )
+        return Response(items)
+
+
+class ChatThreadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        other = require_other(request.user, pk)
+        messages = [
+            serialize_message(row, request.user) for row in thread_messages(request.user, other)
+        ]
+        return Response(
+            {
+                "user": FriendUserSerializer(other, context={"request": request}).data,
+                "messages": messages,
+            }
+        )
+
+    def post(self, request, pk):
+        row = send_message(request.user, pk, request.data.get("body"))
+        return Response(serialize_message(row, request.user), status=201)

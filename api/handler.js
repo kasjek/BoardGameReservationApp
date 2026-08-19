@@ -20,6 +20,7 @@ const {
   acceptRequest,
   rejectRequest,
 } = require("./friends");
+const { listChats, getThread, sendMessage } = require("./chats");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -753,6 +754,25 @@ async function handleApi(req, res) {
       const u = requireUser(req, res);
       if (!u) return;
       return send(res, 200, rejectRequest(db, u.id, m[1]));
+    }
+
+    if (method === "GET" && path === "/api/chats") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      return send(res, 200, listChats(db, u.id));
+    }
+
+    if ((m = path.match(/^\/api\/chats\/(\d+)$/)) && method === "GET") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      return send(res, 200, getThread(db, u.id, m[1]));
+    }
+
+    if ((m = path.match(/^\/api\/chats\/(\d+)$/)) && method === "POST") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      const payload = await readBody(req);
+      return send(res, 201, sendMessage(db, u.id, m[1], payload.body));
     }
 
     if ((m = path.match(/^\/api\/users\/(\d+)\/games$/)) && method === "GET") {

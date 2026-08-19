@@ -74,3 +74,29 @@ class Friendship(models.Model):
             ),
         ]
 
+
+class DirectMessage(models.Model):
+    """Private 1:1 chat between two users (story 12)."""
+
+    sender = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="direct_messages_sent"
+    )
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="direct_messages_received"
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(sender=models.F("recipient")),
+                name="direct_message_no_self",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["sender", "recipient", "id"]),
+        ]
+
+
