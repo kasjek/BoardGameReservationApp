@@ -196,15 +196,17 @@ class VenueCreateSerializer(VenueSerializer):
 
     weekly_hours = VenueWeeklyHoursSerializer(many=True, required=False)
     closures = VenueClosureWriteSerializer(many=True, required=False)
+    games = VenueGameWriteSerializer(many=True, required=False)
     description = serializers.CharField(max_length=100, required=False, allow_blank=True)
     picture_data = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     class Meta(VenueSerializer.Meta):
-        fields = VenueSerializer.Meta.fields + ["weekly_hours", "closures", "picture_data"]
+        fields = VenueSerializer.Meta.fields + ["weekly_hours", "closures", "games", "picture_data"]
 
     def create(self, validated_data):
         hours = validated_data.pop("weekly_hours", None)
         closures = validated_data.pop("closures", [])
+        games = validated_data.pop("games", [])
         picture_data = (validated_data.pop("picture_data", None) or "").strip()
         venue = Venue.objects.create(**validated_data)
 
@@ -249,6 +251,13 @@ class VenueCreateSerializer(VenueSerializer):
             )
         if closures:
             sync_availability_from_hours(venue)
+
+        for raw in games:
+            try:
+                VenueGameWriteSerializer(context={"venue": venue}).create(raw)
+            except serializers.ValidationError as exc:
+                venue.delete()
+                raise serializers.ValidationError({"games": exc.detail}) from exc
         return venue
 
     def to_representation(self, instance):

@@ -464,6 +464,48 @@ def test_admin_adds_venue_game_from_bgg(db, client, monkeypatch):
     assert dup.status_code == 400
 
 
+def test_admin_can_remove_game_from_any_venue(db, client):
+    from apps.venues.models import VenueGame
+
+    venue = Venue.objects.create(name="Unlinked Cafe")
+    game = VenueGame.objects.create(venue=venue, title="Catan", bgg_id=13)
+    admin = mk("platform_admin", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.delete(f"/api/venues/{venue.id}/games/{game.id}")
+    assert resp.status_code == 204
+    assert not VenueGame.objects.filter(id=game.id).exists()
+
+
+def test_admin_creates_venue_with_games(db, client, monkeypatch):
+    from apps.bgg import services as bgg
+    from apps.venues.models import VenueGame
+
+    monkeypatch.setattr(
+        bgg,
+        "fetch_thing",
+        lambda bgg_id: {
+            "bgg_id": bgg_id,
+            "name": "Catan",
+            "thumbnail_url": "https://cf.geekdo-images.com/catan.jpg",
+        },
+    )
+    admin = mk("platform_admin", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        "/api/venues",
+        {
+            "name": "Game Cafe",
+            "location": "Berlin",
+            "games": [{"bgg_id": 13, "title": "Catan"}],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    venue = Venue.objects.get(name="Game Cafe")
+    game = VenueGame.objects.get(venue=venue, bgg_id=13)
+    assert game.title == "Catan"
+
+
 def test_non_manager_cannot_add_venue_game(db, client):
     venue = Venue.objects.create(name="Game Shelf")
     someone = mk("not_a_manager")

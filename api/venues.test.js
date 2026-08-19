@@ -153,6 +153,91 @@ const PNG_1X1 =
   const row = listed.body.find((v) => v.id === created.body.id);
   assert(row && row.picture_url && row.min_spend === "€10 per person", "list includes new venue fields");
 
+  const knorz = db.prepare("SELECT * FROM venues WHERE name='Hotel Knorz'").get();
+  const photoId = created.body.id;
+
+  const added = await api(
+    "POST",
+    `/api/venues/${photoId}/games`,
+    { bgg_id: 13, title: "Catan" },
+    token,
+  );
+  assert(
+    added.statusCode === 201 && added.body.title === "Catan",
+    `admin adds game to any venue (got ${added.statusCode} ${JSON.stringify(added.body)})`,
+  );
+
+  const games = await api("GET", `/api/venues/${photoId}/games`);
+  assert(games.body.some((g) => g.bgg_id === 13), "new venue lists added game");
+
+  const dup = await api(
+    "POST",
+    `/api/venues/${photoId}/games`,
+    { bgg_id: 13, title: "Catan" },
+    token,
+  );
+  assert(dup.statusCode === 400, "duplicate game rejected");
+
+  const removed = await api("DELETE", `/api/venues/${photoId}/games/${added.body.id}`, undefined, token);
+  assert(removed.statusCode === 204, "admin removes game from any venue");
+  const after = await api("GET", `/api/venues/${photoId}/games`);
+  assert(!after.body.some((g) => g.bgg_id === 13), "removed game gone from list");
+
+  const readd = await api(
+    "POST",
+    `/api/venues/${photoId}/games`,
+    { bgg_id: 13, title: "Catan" },
+    token,
+  );
+  assert(readd.statusCode === 201, "re-add after remove works");
+
+  const datehouseUser = db.prepare("SELECT * FROM users WHERE username='datehouse'").get();
+  const venueToken = newToken();
+  db.prepare("INSERT INTO tokens (key, user_id) VALUES (?, ?)").run(venueToken, datehouseUser.id);
+  const cross = await api(
+    "POST",
+    `/api/venues/${knorz.id}/games`,
+    { bgg_id: 13, title: "Catan" },
+    venueToken,
+  );
+  assert(cross.statusCode === 403, "venue user cannot add games to another venue");
+
+  const knorzCatan = db
+    .prepare("SELECT * FROM venue_games WHERE venue_id=? AND title='Catan'")
+    .get(knorz.id);
+  const crossDel = await api(
+    "DELETE",
+    `/api/venues/${knorz.id}/games/${knorzCatan.id}`,
+    undefined,
+    venueToken,
+  );
+  assert(crossDel.statusCode === 403, "venue user cannot remove games from another venue");
+
+  const adminDel = await api(
+    "DELETE",
+    `/api/venues/${knorz.id}/games/${knorzCatan.id}`,
+    undefined,
+    token,
+  );
+  assert(adminDel.statusCode === 204, "admin removes a game from Hotel Knorz");
+
+  const withGames = await api(
+    "POST",
+    "/api/venues",
+    {
+      name: "Shelf Cafe",
+      location: "Berlin",
+      games: [{ bgg_id: 13, title: "Catan" }],
+    },
+    token,
+  );
+  assert(withGames.statusCode === 201, `create venue with games (got ${withGames.statusCode})`);
+  const shelfGames = await api("GET", `/api/venues/${withGames.body.id}/games`);
+  assert(
+    shelfGames.body.some((g) => g.title === "Catan"),
+    "created venue includes posted games",
+  );
+
   if (failed) {
     console.error(`\n${failed} failed`);
     process.exit(1);

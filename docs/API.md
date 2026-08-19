@@ -30,7 +30,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET /venues` — list/browse venues (with location info) *(3)*
 - `GET /venues/{id}` — venue details, description, photos, rating *(3)*
 - `GET /venues/{id}/picture` — location picture bytes (public; 404 if none)
-- `POST /venues` — create venue (ADMIN); fields: `name`, `location`, `description` (max 100), `min_spend` (short text), `min_reservation_minutes`, `max_reservation_minutes`, `booking_horizon_weeks` (1–52), optional `picture_data` (image data URL), optional `weekly_hours` and `closures` *(46)*
+- `POST /venues` — create venue (ADMIN); fields: `name`, `location`, `description` (max 100), `min_spend` (short text), `min_reservation_minutes`, `max_reservation_minutes`, `booking_horizon_weeks` (1–52), optional `picture_data` (image data URL), optional `weekly_hours`, `closures`, and `games` (`bgg_id` / `title`) *(46, 47)*
 - `PATCH /venues/{id}` — edit venue description/photos (VENUE_USER own, ADMIN any) *(36, 46)*
 - `DELETE /venues/{id}` — remove venue (ADMIN) *(46)*
 - `GET /venues/{id}/availability` — days/times/table counts *(34)*
@@ -39,7 +39,8 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET/POST /venues/{id}/closures` / `DELETE /venues/{id}/closures/{id}` — date-specific closure alerts with comment; closed dates cannot be booked *(34)*
 - `GET /venues/{id}/rules` / `POST|PATCH|DELETE /venues/{id}/rules/{ruleId}` — reservation rules *(45)*
 - `GET /venues/{id}/games` — games available at the venue *(29)*
-- `POST|PATCH|DELETE /venues/{id}/games/{inventoryId}` — manage venue inventory: copies, condition, language (VENUE_USER own, ADMIN any) *(38, 44, 47)*
+- `POST /venues/{id}/games` — add a game from BoardGameGeek (`bgg_id` preferred) (VENUE_USER own, ADMIN any) *(38, 47)*
+- `DELETE /venues/{id}/games/{inventoryId}` — remove a game from that venue (VENUE_USER own, ADMIN any) *(38, 47)*
 - `GET /venues/{id}/tables` — all events at a venue, single view (VENUE_USER own, ADMIN) *(41)*
 - `GET /venues/{id}/history` — past tables at the venue *(40)*
 

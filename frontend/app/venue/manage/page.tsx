@@ -250,6 +250,7 @@ export default function ManageVenuePage() {
   const [createPicturePreview, setCreatePicturePreview] = useState<string | null>(null);
   const [createHours, setCreateHours] = useState<WeeklyHours[]>(defaultHours());
   const [createClosures, setCreateClosures] = useState<{ date: string; comment: string }[]>([]);
+  const [createGames, setCreateGames] = useState<BggSearchHit[]>([]);
   const [closureDate, setClosureDate] = useState("");
   const [closureComment, setClosureComment] = useState("");
 
@@ -389,6 +390,7 @@ export default function ManageVenuePage() {
         picture_data,
         weekly_hours: createHours,
         closures: createClosures,
+        games: createGames.map((g) => ({ bgg_id: g.bgg_id, title: g.name })),
       });
       setInfo(t("venueManage.createdOk", { name: v.name }));
       setNewName("");
@@ -402,6 +404,7 @@ export default function ManageVenuePage() {
       setCreatePicturePreview(null);
       setCreateHours(defaultHours());
       setCreateClosures([]);
+      setCreateGames([]);
       await loadVenues();
       setVenueId(v.id);
       setTab("manage");
@@ -669,6 +672,42 @@ export default function ManageVenuePage() {
               required
             />
             <div className="mt-1 text-xs text-slate-400">{t("venueManage.weeksAheadHint")}</div>
+          </div>
+
+          <div className="card">
+            <div className="text-sm font-bold">{t("venueManage.boardGames")}</div>
+            <div className="mt-1 text-xs text-slate-500">{t("venueManage.boardGamesHint")}</div>
+            <div className="mt-2">
+              <BggGamePicker
+                onPick={(hit) => {
+                  setCreateGames((rows) =>
+                    rows.some((g) => g.bgg_id === hit.bgg_id) ? rows : [...rows, hit],
+                  );
+                }}
+                disabled={busy}
+                t={t}
+              />
+            </div>
+            <div className="mt-3 space-y-2">
+              {createGames.length === 0 ? (
+                <div className="text-sm text-slate-400">{t("venueManage.noGames")}</div>
+              ) : (
+                createGames.map((g) => (
+                  <div key={g.bgg_id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                    <div className="min-w-0 flex-1 text-sm font-semibold">{g.name}</div>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-red-500"
+                      onClick={() =>
+                        setCreateGames((rows) => rows.filter((row) => row.bgg_id !== g.bgg_id))
+                      }
+                    >
+                      {t("common.remove")}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           <div>

@@ -31,6 +31,7 @@ const {
   horizonDaysFor,
 } = require("./hours");
 const { readPicture, savePicture } = require("./pictures");
+const { addVenueGame, listVenueGames, removeVenueGame } = require("./venueGames");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -335,6 +336,16 @@ async function handleApi(req, res) {
         db.prepare("DELETE FROM venues WHERE id=?").run(venueId);
         return send(res, err.status || 400, { weekly_hours: [err.message] });
       }
+      if (Array.isArray(body.games) && body.games.length) {
+        try {
+          for (const g of body.games) {
+            await addVenueGame(db, venueId, g);
+          }
+        } catch (err) {
+          db.prepare("DELETE FROM venues WHERE id=?").run(venueId);
+          return send(res, err.status || 400, err.body || { games: [err.message] });
+        }
+      }
       return send(res, 201, serializeVenue(db.prepare("SELECT * FROM venues WHERE id=?").get(venueId)));
     }
 
@@ -491,43 +502,19 @@ async function handleApi(req, res) {
     if ((m = path.match(/^\/api\/venues\/(\d+)\/games$/))) {
       const id = Number(m[1]);
       if (method === "GET") {
-        const rows = db
-          .prepare(`SELECT * FROM venue_games WHERE venue_id=? AND is_active=1 ORDER BY title`)
-          .all(id)
-          .map((g) => ({
-            id: g.id,
-            venue: g.venue_id,
-            title: g.title,
-            bgg_id: g.bgg_id,
-            thumbnail_url: g.thumbnail_url || "",
-            cover_url: g.thumbnail_url || null,
-            bgg_url: g.bgg_id ? `https://boardgamegeek.com/boardgame/${g.bgg_id}` : null,
-            is_active: !!g.is_active,
-          }));
-        return send(res, 200, rows);
+        return send(res, 200, listVenueGames(db, id));
       }
       if (method === "POST") {
         const u = requireUser(req, res);
         if (!u) return;
         if (!managesVenue(u, id)) return send(res, 403, { detail: "Forbidden." });
         const body = await readBody(req);
-        const title = body.title || `Game ${body.bgg_id || ""}`;
-        const info = db
-          .prepare(
-            `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url) VALUES (?, ?, ?, '')`,
-          )
-          .run(id, title, body.bgg_id || null);
-        const g = db.prepare("SELECT * FROM venue_games WHERE id=?").get(info.lastInsertRowid);
-        return send(res, 201, {
-          id: g.id,
-          venue: g.venue_id,
-          title: g.title,
-          bgg_id: g.bgg_id,
-          thumbnail_url: "",
-          cover_url: null,
-          bgg_url: g.bgg_id ? `https://boardgamegeek.com/boardgame/${g.bgg_id}` : null,
-          is_active: true,
-        });
+        try {
+          const game = await addVenueGame(db, id, body);
+          return send(res, 201, game);
+        } catch (err) {
+          return send(res, err.status || 400, err.body || { detail: err.message });
+        }
       }
     }
 
@@ -536,10 +523,8 @@ async function handleApi(req, res) {
       const u = requireUser(req, res);
       if (!u) return;
       if (!managesVenue(u, venueId)) return send(res, 403, { detail: "Forbidden." });
-      db.prepare("UPDATE venue_games SET is_active=0 WHERE id=? AND venue_id=?").run(
-        Number(m[2]),
-        venueId,
-      );
+      const ok = removeVenueGame(db, venueId, Number(m[2]));
+      if (!ok) return send(res, 404, { detail: "Not found." });
       return send(res, 204, null);
     }
 

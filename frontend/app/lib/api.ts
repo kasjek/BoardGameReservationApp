@@ -254,6 +254,7 @@ export const venueApi = {
     picture_data?: string;
     weekly_hours?: WeeklyHours[];
     closures?: { date: string; comment: string }[];
+    games?: { bgg_id?: number; title?: string }[];
   }) => request<Venue>("/venues", { method: "POST", body: JSON.stringify(payload) }),
   update: (
     id: number,
