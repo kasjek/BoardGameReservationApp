@@ -28,6 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
     rating_avg = serializers.SerializerMethodField()
     cancellations_count = serializers.SerializerMethodField()
     late_cancel_marks_active = serializers.SerializerMethodField()
+    has_usable_password = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -42,8 +43,12 @@ class UserSerializer(serializers.ModelSerializer):
             "rating_avg",
             "cancellations_count",
             "late_cancel_marks_active",
+            "has_usable_password",
         ]
-        read_only_fields = ["id", "role", "venue", "avatar_seed"]
+        read_only_fields = ["id", "role", "venue", "avatar_seed", "has_usable_password"]
+
+    def get_has_usable_password(self, obj):
+        return obj.has_usable_password()
 
     def get_rating_avg(self, obj):
         return _derived(obj)["rating_avg"]

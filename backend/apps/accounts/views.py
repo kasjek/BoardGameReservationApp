@@ -7,6 +7,13 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .google import (
+    GoogleAuthError,
+    google_client_id,
+    raise_as_api,
+    user_from_google,
+    verify_google_id_token,
+)
 from .serializers import (
     ChangePasswordSerializer,
     PublicUserSerializer,
@@ -19,6 +26,41 @@ User = get_user_model()
 
 class LoginView(ObtainAuthToken):
     throttle_scope = "login"
+
+
+class GoogleConfigView(APIView):
+    """Public: whether GIS is enabled and which client ID the browser should use."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        cid = google_client_id()
+        return Response({"google_client_id": cid or None, "google_enabled": bool(cid)})
+
+
+class GoogleLoginView(APIView):
+    """Exchange a Google Identity Services ID token for an app auth token.
+
+    Self-serve Google sign-in creates a USER (docs/Permissions.md), or logs into
+    an existing account that already has the same verified email.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "login"
+
+    def post(self, request):
+        credential = request.data.get("credential") or request.data.get("id_token") or ""
+        try:
+            info = verify_google_id_token(str(credential))
+            user, created = user_from_google(info)
+        except GoogleAuthError as exc:
+            raise_as_api(exc)
+            raise  # raise_as_api always raises; keeps type-checkers happy
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response(
+            {"token": token.key, "user": UserSerializer(user).data},
+            status=201 if created else 200,
+        )
 
 
 class RegisterView(generics.CreateAPIView):
@@ -68,6 +110,11 @@ class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        if not request.user.has_usable_password():
+            return Response(
+                {"detail": "This account uses Google sign-in and has no password yet."},
+                status=400,
+            )
         serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user = request.user

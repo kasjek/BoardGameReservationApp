@@ -79,6 +79,9 @@ DATABASES = {
 
 AUTH_USER_MODEL = "accounts.User"
 
+# Google Identity Services (GIS) web client ID. Empty = Google button hidden.
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",

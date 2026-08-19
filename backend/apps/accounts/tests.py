@@ -10,7 +10,12 @@ def client():
 
 
 def mk(username, role=Role.USER):
-    return User.objects.create_user(username=username, password="pw-testing-123", role=role)
+    """Password-backed test user. Demo seed migrations already create alice/bob/etc."""
+    user, _ = User.objects.get_or_create(username=username, defaults={"role": role})
+    user.role = role
+    user.set_password("pw-testing-123")
+    user.save()
+    return user
 
 
 def test_new_user_has_empty_avatar_seed(db, client):
@@ -154,3 +159,122 @@ def test_change_password_success_rotates_token(db, client):
     user.refresh_from_db()
     assert user.check_password("NewPass1!")
     assert not user.check_password("pw-testing-123")
+
+
+def test_google_config_disabled_without_client_id(db, client, settings):
+    settings.GOOGLE_CLIENT_ID = ""
+    resp = client.get("/api/auth/google/config")
+    assert resp.status_code == 200
+    assert resp.data["google_enabled"] is False
+    assert resp.data["google_client_id"] is None
+
+
+def test_google_config_enabled_with_client_id(db, client, settings):
+    settings.GOOGLE_CLIENT_ID = "test-client.apps.googleusercontent.com"
+    resp = client.get("/api/auth/google/config")
+    assert resp.status_code == 200
+    assert resp.data["google_enabled"] is True
+    assert resp.data["google_client_id"] == "test-client.apps.googleusercontent.com"
+
+
+def test_google_login_not_configured(db, client, settings):
+    settings.GOOGLE_CLIENT_ID = ""
+    resp = client.post("/api/auth/google", {"credential": "fake"}, format="json")
+    assert resp.status_code == 503
+
+
+def test_google_login_rejects_bad_token(db, client, settings, monkeypatch):
+    settings.GOOGLE_CLIENT_ID = "test-client.apps.googleusercontent.com"
+
+    def boom(_credential):
+        from apps.accounts.google import GoogleAuthError
+
+        raise GoogleAuthError("Google sign-in could not be verified.")
+
+    monkeypatch.setattr("apps.accounts.views.verify_google_id_token", boom)
+    resp = client.post("/api/auth/google", {"credential": "nope"}, format="json")
+    assert resp.status_code == 400
+    assert "detail" in resp.data
+
+
+def _stub_google(monkeypatch, settings, payload):
+    settings.GOOGLE_CLIENT_ID = "test-client.apps.googleusercontent.com"
+    monkeypatch.setattr("apps.accounts.views.verify_google_id_token", lambda _c: payload)
+
+
+def test_google_login_creates_user(db, client, settings, monkeypatch):
+    _stub_google(
+        monkeypatch,
+        settings,
+        {
+            "sub": "gid-new-1",
+            "email": "pat.google@example.com",
+            "email_verified": True,
+            "name": "Pat Google",
+        },
+    )
+    resp = client.post("/api/auth/google", {"credential": "id-token"}, format="json")
+    assert resp.status_code == 201, resp.data
+    assert resp.data["token"]
+    user = User.objects.get(google_sub="gid-new-1")
+    assert user.email == "pat.google@example.com"
+    assert user.role == Role.USER
+    assert not user.has_usable_password()
+    assert user.username.startswith("pat.google") or user.username == "pat.google"
+    assert resp.data["user"]["has_usable_password"] is False
+
+    again = client.post("/api/auth/google", {"credential": "id-token"}, format="json")
+    assert again.status_code == 200
+    assert User.objects.filter(google_sub="gid-new-1").count() == 1
+
+
+def test_google_login_links_existing_email(db, client, settings, monkeypatch):
+    existing = User.objects.create_user(
+        username="already",
+        email="same@example.com",
+        password="pw-testing-123",
+        role=Role.USER,
+    )
+    _stub_google(
+        monkeypatch,
+        settings,
+        {
+            "sub": "gid-link-1",
+            "email": "same@example.com",
+            "email_verified": True,
+        },
+    )
+    resp = client.post("/api/auth/google", {"credential": "id-token"}, format="json")
+    assert resp.status_code == 200, resp.data
+    existing.refresh_from_db()
+    assert existing.google_sub == "gid-link-1"
+    assert existing.has_usable_password()
+    assert resp.data["user"]["id"] == existing.id
+    assert resp.data["user"]["has_usable_password"] is True
+
+
+def test_google_only_user_cannot_change_password(db, client, settings, monkeypatch):
+    _stub_google(
+        monkeypatch,
+        settings,
+        {
+            "sub": "gid-nopw",
+            "email": "nopw@example.com",
+            "email_verified": True,
+        },
+    )
+    created = client.post("/api/auth/google", {"credential": "id-token"}, format="json")
+    token = created.data["token"]
+    client.credentials(HTTP_AUTHORIZATION=f"Token {token}")
+    resp = client.post(
+        "/api/me/password",
+        {
+            "current_password": "anything",
+            "new_password": "NewPass1!",
+            "confirm_password": "NewPass1!",
+        },
+        format="json",
+    )
+    assert resp.status_code == 400
+    assert "Google" in resp.data["detail"]
+
