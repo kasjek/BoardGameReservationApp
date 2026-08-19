@@ -52,6 +52,44 @@ def test_public_profile_exposes_avatar_seed_not_email(db, client):
     assert resp.status_code == 200
     assert resp.data["avatar_seed"] == "abc123"
     assert "email" not in resp.data
+    assert resp.data["favorite_categories"] == []
+
+
+def test_favorite_categories_max_three_from_bgg_list(db, client):
+    user = mk("alice")
+    client.force_authenticate(user=user)
+
+    listed = client.get("/api/bgg/categories")
+    assert listed.status_code == 200
+    assert len(listed.data["results"]) == 84
+    assert any(c["name"] == "Card Game" and c["id"] == 1002 for c in listed.data["results"])
+
+    too_many = client.patch(
+        "/api/me/favorite-categories",
+        {"category_ids": [1002, 1010, 1030, 1021]},
+        format="json",
+    )
+    assert too_many.status_code == 400
+
+    unknown = client.patch(
+        "/api/me/favorite-categories",
+        {"category_ids": [999999]},
+        format="json",
+    )
+    assert unknown.status_code == 400
+
+    saved = client.patch(
+        "/api/me/favorite-categories",
+        {"category_ids": [1010, 1002, 1002, 1030]},
+        format="json",
+    )
+    assert saved.status_code == 200
+    names = [c["name"] for c in saved.data["favorite_categories"]]
+    assert names == ["Fantasy", "Card Game", "Party Game"]
+
+    public = client.get(f"/api/users/{user.id}")
+    assert [c["id"] for c in public.data["favorite_categories"]] == [1010, 1002, 1030]
+    assert "email" not in public.data
 
 
 def test_register_rejects_weak_passwords(db, client):

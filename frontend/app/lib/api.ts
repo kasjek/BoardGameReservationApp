@@ -1,5 +1,11 @@
 export type Role = "USER" | "VENUE_USER" | "ADMIN";
 
+export interface BggCategory {
+  id: number;
+  name: string;
+  url: string;
+}
+
 export interface User {
   id: number;
   username: string;
@@ -14,6 +20,7 @@ export interface User {
   games_played?: number;
   different_games?: number;
   has_usable_password?: boolean;
+  favorite_categories?: BggCategory[];
 }
 
 export type TableStatus =
@@ -33,6 +40,7 @@ export interface PublicUser {
   late_cancel_marks_active: number;
   games_played: number;
   different_games: number;
+  favorite_categories?: BggCategory[];
   friendship?: FriendshipState | null;
 }
 
@@ -265,6 +273,11 @@ export const authApi = {
     }),
   me: () => request<User>("/auth/me"),
   rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),
+  setFavoriteCategories: (categoryIds: number[]) =>
+    request<User>("/me/favorite-categories", {
+      method: "PATCH",
+      body: JSON.stringify({ category_ids: categoryIds }),
+    }),
   changePassword: (payload: {
     current_password: string;
     new_password: string;
@@ -344,6 +357,7 @@ export const bggApi = {
     ),
   directory: () => request<{ results: BggSearchHit[] }>("/bgg/directory"),
   thing: (bggId: number) => request<BggThing>(`/bgg/thing?id=${bggId}`),
+  categories: () => request<{ results: BggCategory[] }>("/bgg/categories"),
 };
 
 // --- Reviews ---

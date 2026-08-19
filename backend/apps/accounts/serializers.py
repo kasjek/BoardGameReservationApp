@@ -9,6 +9,12 @@ from .models import Role
 User = get_user_model()
 
 
+def _favorite_categories(user):
+    from apps.bgg.categories import hydrate_categories
+
+    return hydrate_categories(getattr(user, "favorite_categories", None))
+
+
 def _derived(user):
     cached = getattr(user, "_derived_cache", None)
     if cached is not None:
@@ -41,6 +47,7 @@ class UserSerializer(serializers.ModelSerializer):
     games_played = serializers.SerializerMethodField()
     different_games = serializers.SerializerMethodField()
     has_usable_password = serializers.SerializerMethodField()
+    favorite_categories = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -58,6 +65,7 @@ class UserSerializer(serializers.ModelSerializer):
             "games_played",
             "different_games",
             "has_usable_password",
+            "favorite_categories",
         ]
         read_only_fields = ["id", "role", "venue", "avatar_seed", "has_usable_password"]
 
@@ -79,6 +87,9 @@ class UserSerializer(serializers.ModelSerializer):
     def get_different_games(self, obj):
         return _derived(obj)["different_games"]
 
+    def get_favorite_categories(self, obj):
+        return _favorite_categories(obj)
+
 
 class PublicUserSerializer(serializers.ModelSerializer):
     """Public profile: username, avatar, rating, late cancels, games joined — no email."""
@@ -88,6 +99,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
     late_cancel_marks_active = serializers.SerializerMethodField()
     games_played = serializers.SerializerMethodField()
     different_games = serializers.SerializerMethodField()
+    favorite_categories = serializers.SerializerMethodField()
 
     friendship = serializers.SerializerMethodField()
 
@@ -102,6 +114,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
             "late_cancel_marks_active",
             "games_played",
             "different_games",
+            "favorite_categories",
             "friendship",
         ]
 
@@ -126,6 +139,9 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
     def get_different_games(self, obj):
         return _derived(obj)["different_games"]
+
+    def get_favorite_categories(self, obj):
+        return _favorite_categories(obj)
 
 
 class RegisterSerializer(serializers.ModelSerializer):

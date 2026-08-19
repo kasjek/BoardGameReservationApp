@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FriendsList, IncomingRequests } from "../components/Friends";
+import { FavoriteCategoryPicker } from "../components/FavoriteCategories";
 import {
   Avatar,
   Banner,
@@ -17,10 +18,12 @@ import {
 } from "../components/ui";
 import {
   authApi,
+  bggApi,
   errorMessage,
   friendApi,
   setToken,
   tableApi,
+  type BggCategory,
   type FriendRequest,
   type FriendUser,
   type Table,
@@ -54,6 +57,8 @@ export default function ProfilePage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [showUniqueTitles, setShowUniqueTitles] = useState(false);
+  const [categoryOptions, setCategoryOptions] = useState<BggCategory[]>([]);
+  const [savingCategories, setSavingCategories] = useState(false);
 
   async function rollAvatar() {
     setRolling(true);
@@ -96,9 +101,18 @@ export default function ProfilePage() {
     }
   }
 
-  useEffect(() => {
-    if (!loading && !user) router.replace("/login");
-  }, [loading, user, router]);
+  async function saveFavoriteCategories(ids: number[]) {
+    setSavingCategories(true);
+    setError(null);
+    try {
+      await authApi.setFavoriteCategories(ids);
+      await refresh();
+    } catch (e) {
+      setError(errorMessage(e, t));
+    } finally {
+      setSavingCategories(false);
+    }
+  }
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -108,10 +122,15 @@ export default function ProfilePage() {
       setJoined(await tableApi.list({ attendeeId: String(user.id) }));
       setFriends(await friendApi.list());
       setIncoming((await friendApi.requests()).incoming);
+      setCategoryOptions((await bggApi.categories()).results);
     } catch (e) {
       setError(errorMessage(e, t));
     }
   }, [user, t]);
+
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [loading, user, router]);
 
   useEffect(() => {
     if (user) load();
@@ -186,6 +205,13 @@ export default function ProfilePage() {
           {t(roleLineKey, { role: user.role, count: user.late_cancel_marks_active })}
         </div>
       </div>
+
+      <FavoriteCategoryPicker
+        selected={user.favorite_categories || []}
+        options={categoryOptions}
+        saving={savingCategories}
+        onChange={saveFavoriteCategories}
+      />
 
       <IncomingRequests incoming={incoming} onChanged={load} />
 

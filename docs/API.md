@@ -13,12 +13,13 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET /auth/google/config` — `{ google_enabled, google_client_id }` for the GIS button (public)
 - `POST /auth/google` — exchange a Google Identity Services ID token (`credential`) for an app token; creates a `USER` or logs into the existing account with the same verified email *(9)*
 - `POST /auth/logout` — end session
-- `GET /auth/me` — current user profile and role (and venue link for `VENUE_USER`)
+- `GET /auth/me` — current user profile and role (and venue link for `VENUE_USER`), including `favorite_categories`
 - `POST /me/password` — change own password (`current_password`, `new_password`, `confirm_password`); rotates auth token *(9)*
 - `PATCH /me/avatar` — set avatar from the allocated set *(10)*
+- `PATCH /me/favorite-categories` — set up to 3 BoardGameGeek categories (`category_ids`) the user likes most
 - `PATCH /me/settings` — e.g. toggle `allow_invites` *(17)*
 - `GET /users?q=` — search users by login (username); authenticated *(14)*
-- `GET /users/{id}` — public profile: avatar, username, rating, late-cancellation count, games played, different games — no email. When authenticated, includes `friendship` (`none`/`outgoing`/`incoming`/`friends`/`self`) *(20, 23, 26, 14)*
+- `GET /users/{id}` — public profile: avatar, username, rating, late-cancellation count, games played, different games, favorite categories — no email. When authenticated, includes `friendship` (`none`/`outgoing`/`incoming`/`friends`/`self`) *(20, 23, 26, 14)*
 - `GET /users/{id}/games` — tables the user reserved a seat at (`sessions`) and unique titles (`titles`) *(20, 26)*
 
 ## Venues
@@ -43,6 +44,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET /games` — list/search catalog *(6)*
 - `GET /games/{id}` — game details + picture *(6)*
 - `POST|PATCH|DELETE /games/{id}` — manage catalog (ADMIN) *(47)*
+- `GET /bgg/categories` — BoardGameGeek board-game categories from [browse/boardgamecategory](https://boardgamegeek.com/browse/boardgamecategory) (authenticated)
 
 ## Tables (events)
 

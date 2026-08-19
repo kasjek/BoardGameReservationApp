@@ -21,6 +21,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 - **FR-A1 (Must)** Users register and log in quickly to access a personalized history of events attended and organized. *(9)*
 - **FR-A2 (Must)** A public profile does not expose email or other contact details. It may show avatar, username (login), aggregate rating, late-cancellation count, and games the user has joined. *(26, 23)*
 - **FR-A3 (Should)** Users can change their avatar from a system-allocated set. *(10)*
+- **FR-A5 (Should)** On their own profile, a user can pick up to 3 favorite BoardGameGeek board-game categories (from [browse/boardgamecategory](https://boardgamegeek.com/browse/boardgamecategory)). The selection is stored on the account and shown on their public profile.
 - **FR-A4 (Should)** Anyone can open another user's public profile from a table they booked (avatar, username, rating, late cancellations, games played, different games). Tapping **Games played** or **Different games** lists those titles. *(20, 23, 26)*
 
 ### B. Tables / events (core)

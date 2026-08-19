@@ -145,8 +145,9 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 └────────────────────────────┘
 ```
 
-- Public view of **other** users shows avatar, username, rating, active late-cancel marks, games played, and different games (no email).
-- **API:** `GET /api/auth/me`, `GET /api/users/{id}` (later), `PATCH /me/avatar` (later).
+- Public view of **other** users shows avatar, username, rating, active late-cancel marks, favorite BoardGameGeek categories (up to 3), games played, and different games (no email).
+- Own profile: roll avatar and **multi-select up to 3** favorite categories from [BGG board game categories](https://boardgamegeek.com/browse/boardgamecategory).
+- **API:** `GET /api/auth/me`, `GET /api/users/{id}`, `POST /me/avatar/roll`, `PATCH /me/favorite-categories`, `GET /api/bgg/categories`.
 
 ---
 

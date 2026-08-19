@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { FriendAction } from "../../components/Friends";
+import { FavoriteCategoryChips } from "../../components/FavoriteCategories";
 import {
   Avatar,
   Banner,
@@ -104,6 +105,7 @@ export default function PublicUserPage() {
             <div className="text-xs text-slate-500">
               {t(lateKey, { count: profile.late_cancel_marks_active })}
             </div>
+            <FavoriteCategoryChips categories={profile.favorite_categories} />
             {isMe ? (
               <button
                 type="button"

@@ -34,6 +34,7 @@ Accounts and roles. *(stories 9, 10, 17, 23, 26, 53, 54)*
 | `late_cancel_marks_active` | int | Derived count of non-expired `LateCancellationMark`s; visible to others for 30 days each *(decision 7)* |
 | `games_played` | int | Derived; reserved seats on non-cancelled tables (public) |
 | `different_games` | int | Derived; unique game titles among `games_played` (public) |
+| `favorite_categories` | int[≤3] | BoardGameGeek `boardgamecategory` ids the user likes most (own profile editable; public) |
 | `is_super_user` | bool | Marked "super user" by admin |
 | `is_blocked` | bool | Platform-level block |
 | `created_at` | timestamptz | Registration time |

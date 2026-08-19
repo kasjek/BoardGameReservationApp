@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -129,6 +130,24 @@ class RollAvatarView(APIView):
         user = request.user
         user.avatar_seed = secrets.token_hex(6)
         user.save(update_fields=["avatar_seed"])
+        return Response(UserSerializer(user).data)
+
+
+class FavoriteCategoriesView(APIView):
+    """Set up to 3 BoardGameGeek categories the signed-in user likes most."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        from apps.bgg.categories import parse_category_ids
+
+        try:
+            ids = parse_category_ids(request.data.get("category_ids"))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+        user = request.user
+        user.favorite_categories = ids
+        user.save(update_fields=["favorite_categories"])
         return Response(UserSerializer(user).data)
 
 
