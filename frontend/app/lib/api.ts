@@ -11,6 +11,7 @@ export interface User {
   rating_avg: number | null;
   cancellations_count: number;
   late_cancel_marks_active: number;
+  has_usable_password?: boolean;
 }
 
 export interface Review {
@@ -193,6 +194,13 @@ export const authApi = {
     request<{ token: string }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
+    }),
+  googleConfig: () =>
+    request<{ google_client_id: string | null; google_enabled: boolean }>("/auth/google/config"),
+  loginGoogle: (credential: string) =>
+    request<{ token: string; user: User }>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
     }),
   me: () => request<User>("/auth/me"),
   rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),

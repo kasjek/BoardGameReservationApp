@@ -28,6 +28,8 @@ class User(AbstractUser):
     # Seed for the user's DiceBear "adventurer" avatar. Empty => seed with the user id.
     # Re-rolling generates a new random seed (users cannot upload their own picture).
     avatar_seed = models.CharField(max_length=64, blank=True, default="")
+    # Google account subject (`sub`). Null for password-only users.
+    google_sub = models.CharField(max_length=64, unique=True, null=True, blank=True)
 
     @property
     def is_admin_role(self) -> bool:

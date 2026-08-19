@@ -8,6 +8,7 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  loginGoogle: (credential: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
@@ -58,6 +59,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refresh],
   );
 
+  const loginGoogle = useCallback(
+    async (credential: string) => {
+      const { token } = await authApi.loginGoogle(credential);
+      setToken(token);
+      await refresh();
+    },
+    [refresh],
+  );
+
   const register = useCallback(
     async (username: string, email: string, password: string) => {
       const { token } = await authApi.register(username, email, password);
@@ -73,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, login, loginGoogle, register, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

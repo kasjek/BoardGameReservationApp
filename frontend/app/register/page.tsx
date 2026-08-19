@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AuthHero, Banner, PasswordField } from "../components/ui";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { errorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, loginGoogle } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -53,6 +54,21 @@ export default function RegisterPage() {
       <AuthHero />
       <div className="flex flex-1 flex-col px-6 pb-8 pt-4">
         {error ? <Banner kind="error">{error}</Banner> : null}
+        <GoogleSignInButton
+          disabled={busy}
+          onCredential={async (credential) => {
+            setBusy(true);
+            setError(null);
+            try {
+              await loginGoogle(credential);
+              router.push("/");
+            } catch (err) {
+              setError(errorMessage(err, t));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
         <form onSubmit={submit} className="space-y-2">
           <input
             className="input"

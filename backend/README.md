@@ -35,6 +35,7 @@ uv run ruff check .
 ## API (Priority‑0)
 
 - `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`
+- `GET /api/auth/google/config`, `POST /api/auth/google` (set `GOOGLE_CLIENT_ID` for GIS)
 - `GET/POST /api/venues`, `GET /api/venues/{id}`, `GET/POST /api/venues/{id}/availability`
 - `GET/POST /api/tables`, `GET /api/tables/{id}`
 - `POST /api/tables/{id}/confirm`, `POST /api/tables/{id}/reject`
