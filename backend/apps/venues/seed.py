@@ -150,6 +150,84 @@ def _venues():
     return qs.defer(*missing) if missing else qs
 
 
+def _game_db_columns() -> set[str]:
+    table = VenueGame._meta.db_table
+    if table not in connection.introspection.table_names():
+        return set()
+    with connection.cursor() as cursor:
+        desc = connection.introspection.get_table_description(cursor, table)
+    return {col.name for col in desc}
+
+
+def _unmigrated_game_fields() -> list[str]:
+    existing = _game_db_columns()
+    missing: list[str] = []
+    for field in VenueGame._meta.local_concrete_fields:
+        if field.primary_key or not field.column:
+            continue
+        if field.column not in existing:
+            missing.append(field.name)
+    return missing
+
+
+def _games():
+    missing = _unmigrated_game_fields()
+    qs = VenueGame.objects.all()
+    return qs.defer(*missing) if missing else qs
+
+
+def _upsert_game(*, venue: Venue, title: str, bgg_id: int) -> VenueGame:
+    """Create/update a venue game without SELECTing columns older migrations have not added yet."""
+    existing_cols = _game_db_columns()
+    payload: dict = {"title": title}
+    if VenueGame._meta.get_field("is_active").column in existing_cols:
+        payload["is_active"] = True
+    if VenueGame._meta.get_field("bgg_id").column in existing_cols:
+        payload["bgg_id"] = bgg_id
+    game = _games().filter(venue=venue, title=title).first()
+    if game:
+        changed = []
+        for key, value in payload.items():
+            if key == "title":
+                continue
+            if getattr(game, key) != value:
+                setattr(game, key, value)
+                changed.append(key)
+        if changed:
+            game.save(update_fields=changed)
+        return game
+    missing = _unmigrated_game_fields()
+    if not missing:
+        return VenueGame.objects.create(venue=venue, **payload)
+    row = {"venue_id": venue.id}
+    for key, value in payload.items():
+        row[VenueGame._meta.get_field(key).column] = value
+    for field in VenueGame._meta.local_concrete_fields:
+        if field.primary_key or not field.column or field.column not in existing_cols:
+            continue
+        if field.column in row:
+            continue
+        if field.is_relation:
+            continue
+        if field.has_default():
+            row[field.column] = field.get_default()
+        elif field.blank and not field.null:
+            row[field.column] = ""
+    created_field = VenueGame._meta.get_field("created_at")
+    if created_field.column in existing_cols and created_field.column not in row:
+        row[created_field.column] = timezone.now()
+    table = VenueGame._meta.db_table
+    columns = list(row.keys())
+    placeholders = ", ".join(["%s"] * len(columns))
+    col_sql = ", ".join(columns)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"INSERT INTO {table} ({col_sql}) VALUES ({placeholders})",
+            list(row.values()),
+        )
+    return _games().get(venue=venue, title=title)
+
+
 def _upsert_venue(*, name: str, defaults: dict) -> Venue:
     """Create/update a venue without SELECTing columns that older migrations have not added yet."""
     existing_cols = _venue_db_columns()
@@ -251,11 +329,7 @@ def ensure_date_house_cafe(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue
         from apps.bgg import services as bgg_services
 
         for title, bgg_id in DATE_HOUSE_GAMES:
-            game, _ = VenueGame.objects.update_or_create(
-                venue=venue,
-                title=title,
-                defaults={"is_active": True, "bgg_id": bgg_id},
-            )
+            game = _upsert_game(venue=venue, title=title, bgg_id=bgg_id)
             if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
                 bgg_services.refresh_venue_game_cover(game)
     return venue
@@ -319,15 +393,11 @@ def ensure_katzentempel(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
     if "venues_venuegame" in tables:
         wanted_titles = {title for title, _ in KATZENTEMPEL_GAMES}
         # Drop obsolete titles from earlier incorrect seeds (e.g. "Island of Cats").
-        VenueGame.objects.filter(venue=venue).exclude(title__in=wanted_titles).delete()
+        _games().filter(venue=venue).exclude(title__in=wanted_titles).delete()
         from apps.bgg import services as bgg_services
 
         for title, bgg_id in KATZENTEMPEL_GAMES:
-            game, _ = VenueGame.objects.update_or_create(
-                venue=venue,
-                title=title,
-                defaults={"is_active": True, "bgg_id": bgg_id},
-            )
+            game = _upsert_game(venue=venue, title=title, bgg_id=bgg_id)
             if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
                 bgg_services.refresh_venue_game_cover(game)
     return venue
@@ -383,13 +453,9 @@ def ensure_hotel_knorz(*, horizon_days: int = DEFAULT_HORIZON_DAYS) -> Venue:
         from apps.bgg import services as bgg_services
 
         wanted_titles = {title for title, _ in HOTEL_KNORZ_GAMES}
-        VenueGame.objects.filter(venue=venue).exclude(title__in=wanted_titles).delete()
+        _games().filter(venue=venue).exclude(title__in=wanted_titles).delete()
         for title, bgg_id in HOTEL_KNORZ_GAMES:
-            game, _ = VenueGame.objects.update_or_create(
-                venue=venue,
-                title=title,
-                defaults={"is_active": True, "bgg_id": bgg_id},
-            )
+            game = _upsert_game(venue=venue, title=title, bgg_id=bgg_id)
             if not bgg_services._is_bgg_cover_url(game.thumbnail_url):
                 bgg_services.refresh_venue_game_cover(game)
     return venue

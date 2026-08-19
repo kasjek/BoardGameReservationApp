@@ -44,6 +44,8 @@ Aligned with `docs/Vision.md`: people who **create a table**, people who **reser
 | Reserve a seat at an existing table | yes | **no** — needs a separate USER account (not inherited) | yes (as USER) |
 | View users visiting a venue | no (except self / own bookings as needed) | **own venue only** | **all venues** |
 | Manage venue capacity / operations | no | **own venue only** | **all venues** |
+| Add / remove games at a venue | no | **no** — request maintenance instead | **yes** (any venue) |
+| Flag a venue game as needing maintenance | no | **own venue only** (emails `info@toomanygames.de`) | **any venue** |
 | Add / edit / delete any other resource (users, roles, venues, settings, etc.) | no | no | **yes** |
 
 ## Notes

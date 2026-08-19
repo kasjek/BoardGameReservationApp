@@ -98,6 +98,16 @@ class VenueGame(models.Model):
     bgg_id = models.PositiveIntegerField(null=True, blank=True)
     thumbnail_url = models.URLField(max_length=500, blank=True)
     is_active = models.BooleanField(default=True)
+    needs_maintenance = models.BooleanField(default=False)
+    maintenance_note = models.CharField(max_length=500, blank=True, default="")
+    maintenance_requested_at = models.DateTimeField(null=True, blank=True)
+    maintenance_requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="venue_game_maintenance_requests",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -118,6 +118,8 @@ class VenueGameSerializer(serializers.ModelSerializer):
             "cover_url",
             "bgg_url",
             "is_active",
+            "needs_maintenance",
+            "maintenance_note",
         ]
         read_only_fields = fields
 

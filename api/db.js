@@ -81,7 +81,10 @@ function ensureDb() {
       title TEXT NOT NULL,
       bgg_id INTEGER,
       thumbnail_url TEXT NOT NULL DEFAULT '',
-      is_active INTEGER NOT NULL DEFAULT 1
+      is_active INTEGER NOT NULL DEFAULT 1,
+      needs_maintenance INTEGER NOT NULL DEFAULT 0,
+      maintenance_note TEXT NOT NULL DEFAULT '',
+      maintenance_requested_at TEXT
     );
     CREATE TABLE IF NOT EXISTS tables (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -153,6 +156,16 @@ function migrateSchema(database) {
   }
   if (!venueCols.includes("picture_ext")) {
     database.exec("ALTER TABLE venues ADD COLUMN picture_ext TEXT NOT NULL DEFAULT ''");
+  }
+  const gameCols = database.prepare("PRAGMA table_info(venue_games)").all().map((c) => c.name);
+  if (!gameCols.includes("needs_maintenance")) {
+    database.exec("ALTER TABLE venue_games ADD COLUMN needs_maintenance INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!gameCols.includes("maintenance_note")) {
+    database.exec("ALTER TABLE venue_games ADD COLUMN maintenance_note TEXT NOT NULL DEFAULT ''");
+  }
+  if (!gameCols.includes("maintenance_requested_at")) {
+    database.exec("ALTER TABLE venue_games ADD COLUMN maintenance_requested_at TEXT");
   }
 }
 

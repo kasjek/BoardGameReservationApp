@@ -108,6 +108,9 @@ EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "0") == "1"
 DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL", "Too Many Games <noreply@localhost>"
 )
+MAINTENANCE_NOTIFY_EMAIL = os.environ.get(
+    "MAINTENANCE_NOTIFY_EMAIL", "info@toomanygames.de"
+)
 PUBLIC_APP_URL = os.environ.get("PUBLIC_APP_URL", "http://127.0.0.1:3000").rstrip("/")
 ACTIVATION_TOKEN_HOURS = int(os.environ.get("ACTIVATION_TOKEN_HOURS", "48"))
 EMAIL_BACKEND = (

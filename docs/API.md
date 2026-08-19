@@ -39,8 +39,9 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET/POST /venues/{id}/closures` / `DELETE /venues/{id}/closures/{id}` — date-specific closure alerts with comment; closed dates cannot be booked *(34)*
 - `GET /venues/{id}/rules` / `POST|PATCH|DELETE /venues/{id}/rules/{ruleId}` — reservation rules *(45)*
 - `GET /venues/{id}/games` — games available at the venue *(29)*
-- `POST /venues/{id}/games` — add a game from BoardGameGeek (`bgg_id` preferred) (VENUE_USER own, ADMIN any) *(38, 47)*
-- `DELETE /venues/{id}/games/{inventoryId}` — remove a game from that venue (VENUE_USER own, ADMIN any) *(38, 47)*
+- `POST /venues/{id}/games` — add a game from BoardGameGeek (`bgg_id` preferred) (**ADMIN only**) *(47)*
+- `DELETE /venues/{id}/games/{inventoryId}` — remove a game from that venue (**ADMIN only**) *(47)*
+- `POST /venues/{id}/games/{inventoryId}/maintenance` — VENUE_USER (own venue) or ADMIN: mark the game as needing maintenance and email `info@toomanygames.de` (`note` optional, max 500) *(38)*
 - `GET /venues/{id}/tables` — all events at a venue, single view (VENUE_USER own, ADMIN) *(41)*
 - `GET /venues/{id}/history` — past tables at the venue *(40)*
 
