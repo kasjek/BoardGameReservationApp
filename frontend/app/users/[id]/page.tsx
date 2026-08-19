@@ -105,7 +105,6 @@ export default function PublicUserPage() {
             <div className="text-xs text-slate-500">
               {t(lateKey, { count: profile.late_cancel_marks_active })}
             </div>
-            <FavoriteCategoryChips categories={profile.favorite_categories} />
             {isMe ? (
               <button
                 type="button"
@@ -168,6 +167,13 @@ export default function PublicUserPage() {
               </div>
             )}
           </div>
+
+          {profile.favorite_categories?.length ? (
+            <div className="card mb-4 text-center">
+              <div className="text-sm font-bold">{t("publicProfile.favoriteCategories")}</div>
+              <FavoriteCategoryChips categories={profile.favorite_categories} />
+            </div>
+          ) : null}
 
           <div className="mb-4 grid grid-cols-2 gap-2">
             <button

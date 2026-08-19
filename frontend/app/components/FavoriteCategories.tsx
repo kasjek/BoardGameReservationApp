@@ -21,7 +21,7 @@ export function FavoriteCategoryChips({
           href={c.url}
           target="_blank"
           rel="noreferrer noopener"
-          className="chip bg-violet-100 text-brand"
+          className="chip bg-violet-100 px-3 py-1 text-brand"
         >
           {c.name}
         </a>

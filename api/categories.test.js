@@ -132,6 +132,16 @@ function tokenFor(username) {
     "public profile shows favorite names",
   );
 
+  const aliceTok = tokenFor("alice");
+  const asAlice = await api("GET", `/api/users/${demo.user.id}`, { token: aliceTok.token });
+  assert(asAlice.statusCode === 200, "another user can open the profile");
+  assert(
+    asAlice.body.favorite_categories.map((c) => c.name).join(",") ===
+      "Fantasy,Card Game,Party Game",
+    "visiting user sees the same favorite categories",
+  );
+  assert(asAlice.body.email === undefined, "visitor still does not see email");
+
   const cleared = await api("PATCH", "/api/me/favorite-categories", {
     token: demo.token,
     body: { category_ids: [] },

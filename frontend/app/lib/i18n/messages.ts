@@ -187,6 +187,7 @@ export const en: Messages = {
     noGames: "No games joined yet.",
     sessionsHeading: "Games joined",
     titlesHeading: "Different games",
+    favoriteCategories: "Games they like most",
   },
   friends: {
     title: "Find friends",
@@ -606,6 +607,7 @@ export const de: Messages = {
     noGames: "Noch keine Spiele mitgespielt.",
     sessionsHeading: "Mitgespielte Spiele",
     titlesHeading: "Verschiedene Spiele",
+    favoriteCategories: "Lieblingskategorien",
   },
   friends: {
     title: "Freunde finden",

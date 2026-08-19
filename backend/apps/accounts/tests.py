@@ -91,6 +91,16 @@ def test_favorite_categories_max_three_from_bgg_list(db, client):
     assert [c["id"] for c in public.data["favorite_categories"]] == [1010, 1002, 1030]
     assert "email" not in public.data
 
+    visitor = mk("bob")
+    client.force_authenticate(user=visitor)
+    as_bob = client.get(f"/api/users/{user.id}")
+    assert [c["name"] for c in as_bob.data["favorite_categories"]] == [
+        "Fantasy",
+        "Card Game",
+        "Party Game",
+    ]
+    assert "email" not in as_bob.data
+
 
 def test_register_rejects_weak_passwords(db, client):
     cases = [
