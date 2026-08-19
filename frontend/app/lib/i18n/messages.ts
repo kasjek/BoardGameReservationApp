@@ -35,6 +35,7 @@ export const en: Messages = {
     more: "More",
     howItWorks: "How it works",
     venueMap: "Venue map",
+    aboutUs: "About us",
   },
   lang: {
     switcher: "Language",
@@ -369,6 +370,11 @@ export const en: Messages = {
     venuePage: "Venue page",
     openMaps: "Open in Maps",
   },
+  aboutUs: {
+    meetupAlt: "MeetUp",
+    meetupEvents: "Check out our gaming events on MeetUp",
+    privateEvents: "& get in touch for company & private events",
+  },
   venueManage: {
     title: "Manage venue",
     createTab: "Create a new venue",
@@ -440,6 +446,7 @@ export const de: Messages = {
     more: "Mehr",
     howItWorks: "So funktioniert's",
     venueMap: "Location-Karte",
+    aboutUs: "Über uns",
   },
   lang: {
     switcher: "Sprache",
@@ -777,6 +784,11 @@ export const de: Messages = {
     empty: "Noch keine Locations auf der Karte.",
     venuePage: "Location-Seite",
     openMaps: "In Maps öffnen",
+  },
+  aboutUs: {
+    meetupAlt: "MeetUp",
+    meetupEvents: "Schau dir unsere Spiele-Events auf MeetUp an",
+    privateEvents: "& kontaktiere uns für Firmen- & Privatevents",
   },
   venueManage: {
     title: "Location verwalten",

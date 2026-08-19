@@ -375,7 +375,7 @@ export function FooterMenu() {
   const item = (href: string, label: string, icon: string, active: boolean) => (
     <Link
       href={href}
-      className={`flex flex-1 items-center justify-center gap-1.5 py-2.5 text-center text-xs ${
+      className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-center text-[11px] leading-tight sm:flex-row sm:gap-1.5 sm:text-xs ${
         active ? "font-black text-brand" : "font-bold text-slate-700 hover:text-brand"
       }`}
       aria-current={active ? "page" : undefined}
@@ -392,6 +392,8 @@ export function FooterMenu() {
       {item("/how-it-works", t("nav.howItWorks"), "✨", path.startsWith("/how-it-works"))}
       <span aria-hidden className="self-center h-5 w-px bg-violet-300" />
       {item("/map", t("nav.venueMap"), "🗺️", path.startsWith("/map"))}
+      <span aria-hidden className="self-center h-5 w-px bg-violet-300" />
+      {item("/about", t("nav.aboutUs"), "💜", path.startsWith("/about"))}
     </nav>
   );
 }
