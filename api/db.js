@@ -138,6 +138,7 @@ function migrateSchema(database) {
   if (!tableCols.includes("game_types")) {
     database.exec("ALTER TABLE tables ADD COLUMN game_types TEXT NOT NULL DEFAULT '[]'");
   }
+  database.exec("UPDATE tables SET bring_own_game=0 WHERE bring_own_game!=0");
   database.exec(`
     CREATE TABLE IF NOT EXISTS bgg_games (
       bgg_id INTEGER PRIMARY KEY,

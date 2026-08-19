@@ -166,11 +166,11 @@ The core booking unit — a hosted board game event. *(stories 1, 4, 33)*
 | `id` | uuid (PK) | Table id |
 | `organizer_id` | uuid (FK→User) | Host |
 | `venue_id` | uuid (FK→Venue) | Location |
-| `game_id` | uuid (FK→Game, null) | Game played (venue's game or the host's own; null only if not yet chosen) |
-| `bring_own_game` | bool | `true` = host brings the game; `false` = uses a venue game (venue must confirm it) *(decision 4)* |
-| `game_language` | enum(`en`,`de`,`other`) | Language of the game/event. For host-brought games the choice is English or German *(decision 4)*; `other` retained per story 1 |
+| `game_id` | uuid (FK→Game, null) | Game from the venue library (null only for spontaneous selection) |
+| `bring_own_game` | bool | Always `false`. Hosts may only book a venue-library game. Kept for existing rows. |
+| `game_language` | enum(`en`,`de`,`other`) | Language of the game/event *(story 1)* |
 | `game_language_other` | text (null) | Free text when `game_language=other` |
-| `venue_game_confirmed` | bool | For `bring_own_game=false`: venue confirmed the requested game is available *(decision 4)* |
+| `venue_game_confirmed` | bool | Venue confirmed the requested library game is available *(decision 4)* |
 | `starts_at` | timestamptz | Event start (from) |
 | `ends_at` | timestamptz | Event end (to) *(decision 4)* |
 | `min_players` | int | Minimum capacity needed to confirm |
@@ -437,7 +437,7 @@ Concrete relational details for implementation. Datastore is PostgreSQL (see `AD
 
 - **Seat capacity:** reserving a seat runs in a transaction that takes `SELECT ... FOR UPDATE` on the `Table` row, checks `seats_taken < max_players`, inserts the `SeatReservation`, and increments `seats_taken`. When full, the user is added as `waitlisted` instead. Over-capacity errors → `409`.
 - **Venue capacity + 15-min turnover:** when a venue confirms a table, count pending/confirmed `Table`s at that venue whose `[starts_at, ends_at]` windows fall within **15 minutes** of the requested one, and require the total to be `< venue_availability.tables_available`. Slots therefore start at least 15 minutes apart *(decision 3)*. Conflict → `409`.
-- **Venue confirmation covers the game:** for `bring_own_game=false`, the venue confirms `venue_game_confirmed` (requested game available in `VenueGameInventory`) as part of accepting *(decision 4)*.
+- **Venue confirmation covers the game:** the venue confirms `venue_game_confirmed` (requested game available in `VenueGameInventory`) as part of accepting *(decision 4)*.
 - **Waitlist promotion:** cancelling a `reserved` seat promotes the lowest-`waitlist_position` `waitlisted` seat to `reserved` in the same transaction *(decision 7; `ADR-013`)*.
 - **Late cancellation:** cancelling within 24h of `starts_at` writes a `LateCancellationMark` (`expires_at = now + 30 days`) *(decision 7)*.
 - **Refunds:** cancelling a `Table` or `SeatReservation` triggers `Payment` refund(s) in the same unit of work where possible.

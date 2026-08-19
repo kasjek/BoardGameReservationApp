@@ -25,7 +25,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 
 ### B. Tables / events (core)
 
-- **FR-B1 (Must)** A `USER` (host) creates a table confirming: **minimum capacity**, **maximum capacity**, **date**, **time from and to**, the **game name**, and whether the host **brings the game** (if yes, its language — **English or German**; `Other` retained per story 1) **or uses a venue game** (in which case the venue must also confirm that game's availability). The organizer is seated by default. Hosting is a `USER`-only action — a `VENUE_USER` cannot host. *(1, 4, 6, 29; decisions 4, 6)*
+- **FR-B1 (Must)** A `USER` (host) creates a table confirming: **minimum capacity**, **maximum capacity**, **date**, **time from and to**, a **game from the venue's library**, and the **game language** (English, German, or Other). The organizer is seated by default. The venue must confirm table **and** game availability. Hosting is a `USER`-only action — a `VENUE_USER` cannot host. *(1, 4, 6, 29; decisions 4, 6)*
 - **FR-B2 (Must)** Users can browse all tables offered by other users and reserve a seat at one. Reserving is a `USER`-only action — a `VENUE_USER` cannot reserve. *(2; decision 6)*
 - **FR-B3 (Must)** Users can view table details, including the game description and picture. *(6)*
 - **FR-B4 (Must)** Users can filter events by date, time, past/future, board game name, min/max player count, and location. *(13)*
@@ -40,7 +40,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 ### C. Venues & capacity (VENUE_USER)
 
 - **FR-C1 (Must)** A venue admin defines the days, times, and number of tables available at their location. *(34)*
-- **FR-C2 (Must)** A venue admin accepts or rejects reservation requests, **confirming table availability first** and, when the host requested a **venue game**, also confirming that **game's availability** — making the outcome visible to all parties before other users may book seats. *(35; decisions 2, 4)*
+- **FR-C2 (Must)** A venue admin accepts or rejects reservation requests, **confirming table availability** and that the **requested venue-library game is available** — making the outcome visible to all parties before other users may book seats. *(35; decisions 2, 4)*
 - **FR-C3 (Must)** A venue admin sees all events planned at their location on a single screen. *(41)*
 - **FR-C4 (Should)** A venue admin edits the venue description and pictures. *(36)*
 - **FR-C5 (Should)** A venue admin manages the venue's game inventory: number of copies, condition (new / like new / good), and language. *(38, 44, 29)*

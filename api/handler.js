@@ -520,7 +520,22 @@ async function handleApi(req, res) {
           )
           .get(venue.id, date, startT, endT);
         if (!avail) return send(res, 400, { detail: "Venue not available for that slot." });
-        const types = await resolveGameTypes(body.game_title, body.bgg_id || null, { live: true });
+        const title = String(body.game_title || "").trim();
+        if (!title) return send(res, 400, { game_title: ["Choose a game from this venue's library."] });
+        const spontaneous = title.toLowerCase() === "spontaneous selection";
+        let bggId = body.bgg_id || null;
+        if (!spontaneous) {
+          const vg = db
+            .prepare(
+              `SELECT * FROM venue_games WHERE venue_id=? AND is_active=1 AND lower(title)=lower(?) LIMIT 1`,
+            )
+            .get(venue.id, title);
+          if (!vg) {
+            return send(res, 400, { game_title: ["Choose a game from this venue's library."] });
+          }
+          if (!bggId) bggId = vg.bgg_id || null;
+        }
+        const types = await resolveGameTypes(title, bggId, { live: true });
         const now = new Date().toISOString();
         const info = db
           .prepare(
@@ -530,8 +545,8 @@ async function handleApi(req, res) {
           .run(
             u.id,
             venue.id,
-            body.game_title,
-            body.bring_own_game ? 1 : 0,
+            title,
+            0,
             body.game_language || "en",
             body.game_language_other || "",
             body.starts_at,
@@ -569,8 +584,8 @@ async function handleApi(req, res) {
         return send(res, 409, { detail: "Table is not awaiting confirmation." });
       }
       db.prepare(
-        `UPDATE tables SET status='waiting_for_players', venue_game_confirmed=? WHERE id=?`,
-      ).run(table.bring_own_game ? 0 : 1, table.id);
+        `UPDATE tables SET status='waiting_for_players', venue_game_confirmed=1 WHERE id=?`,
+      ).run(table.id);
       return send(res, 200, serializeTable(db.prepare("SELECT * FROM tables WHERE id=?").get(table.id)));
     }
 

@@ -72,7 +72,7 @@ export default function BrowsePage() {
       });
       await load();
       // Venue-game fee applies to reserved seats only (not waitlist).
-      if (!tbl.bring_own_game && seat.status === "reserved") {
+      if (seat.status === "reserved") {
         setFeePrompt(tbl);
       }
     } catch (e) {

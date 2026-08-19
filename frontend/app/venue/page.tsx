@@ -152,11 +152,7 @@ export default function VenueAdminPage() {
                     <div className="text-xs text-slate-500">
                       {formatWhen(tbl.starts_at, tbl.ends_at, localeTag)}
                     </div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {tbl.bring_own_game
-                        ? t("venueAdmin.hostBrings")
-                        : t("venueAdmin.usesVenueGame")}
-                    </div>
+                    <div className="mt-1 text-xs text-slate-500">{t("venueAdmin.usesVenueGame")}</div>
                     <div className="mt-2 flex gap-2">
                       <button
                         className="btn-ghost"

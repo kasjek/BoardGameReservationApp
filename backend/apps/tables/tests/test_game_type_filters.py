@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import Role
 from apps.tables import services
 from apps.tables.models import TableStatus
-from apps.venues.models import Venue, VenueAvailability
+from apps.venues.models import Venue, VenueAvailability, VenueGame
 
 User = get_user_model()
 
@@ -24,7 +24,8 @@ def future_dt(days=10, hour=18, minute=0):
     return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
 
-def make_table(organizer, venue, bring_own_game=True, **kwargs):
+def make_table(organizer, venue, **kwargs):
+    kwargs.pop("bring_own_game", None)
     params = {
         "organizer": organizer,
         "venue": venue,
@@ -33,7 +34,6 @@ def make_table(organizer, venue, bring_own_game=True, **kwargs):
         "ends_at": future_dt(hour=20),
         "min_players": 2,
         "max_players": 3,
-        "bring_own_game": bring_own_game,
     }
     params.update(kwargs)
     VenueAvailability.objects.get_or_create(
@@ -45,6 +45,8 @@ def make_table(organizer, venue, bring_own_game=True, **kwargs):
             "tables_available": 5,
         },
     )
+    title = params["game_title"]
+    VenueGame.objects.get_or_create(venue=venue, title=title, defaults={"is_active": True})
     return services.create_table(**params)
 
 

@@ -30,7 +30,7 @@
 26. As a user, I want to be able to see other users rating, profile avatar and profile name but no other info so that privacy rules are maintained
 27. As a user, I want to be able to send accept and reject friends requests from other users of the app so that i can manage who i have on my friends list
 28. As a user, I want to receive notifications only when tables relevant for me (that i organize or that i reserve a seat at) make a change in time of the event, day, venue or are cancelled or missing players or have reached sufficient number of players to confirm the event 
-29. As a user, I want to be able to to see what games are available at the selected venue so that i can decide if i bring my own games for a table i plan or i want to use a game available at the venue
+29. As a user, I want to see what games are available at the selected venue so that I can book a table using a game from that venue's library
 30. As a user, I want to be able to pay for my table reservation quick and easily with paypal or revolut
 31. As a user, I want to receive my money back in the the table or seat i reserved get cancelled 
 32. As a user, I want to receive a notification of the successfull or insuccessfull payment

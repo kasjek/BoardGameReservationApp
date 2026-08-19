@@ -29,6 +29,8 @@ ACTIVE_TABLE_STATUSES = (
     TableStatus.CONFIRMED,
 )
 BOOKABLE_STATUSES = (TableStatus.WAITING_FOR_PLAYERS, TableStatus.CONFIRMED)
+# Hosts may pick this instead of a named shelf game; still a venue booking (not BYO).
+SPONTANEOUS_TITLE = "Spontaneous selection"
 
 
 class Conflict(APIException):
@@ -60,6 +62,20 @@ def covering_availability(venue, starts_at, ends_at):
     ]
 
 
+def _require_venue_library_game(venue, game_title: str) -> None:
+    """Tables may only use an active game from the venue library (or spontaneous)."""
+    title = (game_title or "").strip()
+    if not title:
+        raise ValidationError("Choose a game from this venue's library.")
+    if title.lower() == SPONTANEOUS_TITLE.lower():
+        return
+    from apps.venues.models import VenueGame
+
+    found = VenueGame.objects.filter(venue=venue, is_active=True, title__iexact=title).exists()
+    if not found:
+        raise ValidationError("Choose a game from this venue's library.")
+
+
 def create_table(
     *,
     organizer,
@@ -69,11 +85,12 @@ def create_table(
     ends_at,
     min_players,
     max_players,
-    bring_own_game=True,
+    bring_own_game=False,
     game_language="en",
     game_language_other="",
     bgg_id=None,
 ):
+    del bring_own_game  # hosts can no longer bring their own game
     if not organizer.can_host_or_reserve:
         raise PermissionDenied("Only a USER may host a table.")
     if ends_at <= starts_at:
@@ -98,14 +115,15 @@ def create_table(
     from apps.venues.hours import assert_slot_bookable
 
     assert_slot_bookable(venue, starts_at, ends_at)
+    _require_venue_library_game(venue, game_title)
 
     from apps.bgg.services import resolve_game_types
 
     table = Table.objects.create(
         organizer=organizer,
         venue=venue,
-        game_title=game_title,
-        bring_own_game=bring_own_game,
+        game_title=game_title.strip(),
+        bring_own_game=False,
         game_language=game_language,
         game_language_other=game_language_other,
         starts_at=starts_at,
@@ -161,9 +179,8 @@ def confirm_table(*, table: Table, by_user) -> Table:
 
     _check_venue_capacity(table)
 
-    if not table.bring_own_game:
-        # Venue confirms the requested venue game is available (decision 4).
-        table.venue_game_confirmed = True
+    # Every table uses a venue-library game; confirmation covers table + game.
+    table.venue_game_confirmed = True
     table.status = TableStatus.WAITING_FOR_PLAYERS
     table.save(update_fields=["status", "venue_game_confirmed", "updated_at"])
     return table

@@ -28,31 +28,31 @@ DEMO_HOSTS = (
     ("demo", "demopass"),
 )
 
-# day_offset from today, start, end, game, bring_own, confirm, host index
+# day_offset from today, start, end, game, confirm, host index
 DATE_HOUSE_DEMO_TABLES = (
-    (1, time(11, 0), time(13, 0), "Love Letter", False, True, 0),
-    (1, time(14, 0), time(16, 0), "Patchwork", False, True, 1),
-    (2, time(12, 0), time(14, 0), "7 Wonders Duel", False, True, 2),
-    (2, time(16, 0), time(18, 0), "Fog of Love", False, False, 3),  # leave pending for venue QA
-    (3, time(11, 0), time(13, 0), "Onitama", False, True, 4),
-    (4, time(15, 0), time(17, 0), "Chronicles of Crime", True, True, 0),
+    (1, time(11, 0), time(13, 0), "Love Letter", True, 0),
+    (1, time(14, 0), time(16, 0), "Patchwork", True, 1),
+    (2, time(12, 0), time(14, 0), "7 Wonders Duel", True, 2),
+    (2, time(16, 0), time(18, 0), "Fog of Love", False, 3),  # leave pending for venue QA
+    (3, time(11, 0), time(13, 0), "Onitama", True, 4),
+    (4, time(15, 0), time(17, 0), "Chronicles of Crime", True, 0),
 )
 
 KATZENTEMPEL_DEMO_TABLES = (
-    (1, time(11, 0), time(13, 0), "The Isle of Cats", False, True, 0),
-    (1, time(14, 0), time(16, 0), "Calico", False, True, 1),
-    (2, time(10, 0), time(12, 0), "Spicy", False, True, 2),
-    (2, time(15, 0), time(17, 0), "Nekojima", False, False, 3),  # leave pending for venue QA
-    (3, time(12, 0), time(14, 0), "Wingspan", True, True, 4),
-    (4, time(16, 0), time(18, 0), "Azul", True, True, 0),
+    (1, time(11, 0), time(13, 0), "The Isle of Cats", True, 0),
+    (1, time(14, 0), time(16, 0), "Calico", True, 1),
+    (2, time(10, 0), time(12, 0), "Spicy", True, 2),
+    (2, time(15, 0), time(17, 0), "Nekojima", False, 3),  # leave pending for venue QA
+    (3, time(12, 0), time(14, 0), "Calico", True, 4),
+    (4, time(16, 0), time(18, 0), "The Isle of Cats", True, 0),
 )
 
 HOTEL_KNORZ_DEMO_TABLES = (
-    (1, time(10, 0), time(12, 0), "Secret Hitler", False, True, 0),
-    (1, time(14, 0), time(16, 0), "Codenames Pictures", False, True, 1),
-    (2, time(11, 0), time(13, 0), "Cascadia", False, True, 2),
-    (2, time(15, 0), time(17, 0), "Verdant", False, False, 3),  # leave pending for venue QA
-    (3, time(12, 0), time(14, 0), "Let's Summon Demons", False, True, 4),
+    (1, time(10, 0), time(12, 0), "Secret Hitler", True, 0),
+    (1, time(14, 0), time(16, 0), "Codenames Pictures", True, 1),
+    (2, time(11, 0), time(13, 0), "Cascadia", True, 2),
+    (2, time(15, 0), time(17, 0), "Verdant", False, 3),  # leave pending for venue QA
+    (3, time(12, 0), time(14, 0), "Let's Summon Demons", True, 4),
 )
 
 
@@ -107,7 +107,7 @@ def _seed_demo_tables(venue, specs) -> list[Table]:
     hosts = _ensure_demo_hosts()
     admin = _confirming_admin()
     created: list[Table] = []
-    for day_offset, start_t, end_t, game, bring_own, confirm, host_idx in specs:
+    for day_offset, start_t, end_t, game, confirm, host_idx in specs:
         starts_at = _slot(day_offset, start_t)
         ends_at = _slot(day_offset, end_t)
         host = hosts[host_idx]
@@ -136,8 +136,8 @@ def _seed_demo_tables(venue, specs) -> list[Table]:
             ends_at=ends_at,
             min_players=2,
             max_players=4,
-            bring_own_game=bring_own,
-            game_language="en" if bring_own else "de",
+            bring_own_game=False,
+            game_language="de",
         )
         if confirm:
             services.confirm_table(table=table, by_user=admin)

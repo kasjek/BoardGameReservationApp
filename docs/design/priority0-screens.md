@@ -105,19 +105,16 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 │ Date       ( Sat 7 Aug   ▾ )│
 │ From ( 18:00 )  To ( 20:00 )│
 │ Players  min (2)  max (4)   │
-│ Game     ( Catan )          │
-│ Who brings the game?        │
-│  (•) I bring it             │
-│      Language ( EN ▾ )      │
-│  ( ) Use a venue game       │
-│      Game ( pick ▾ )        │
+│ Game     ( venue library ▾) │
+│ Language ( EN ▾ )           │
 │                            │
 │ [   Request table   ]      │
 └────────────────────────────┘
 ```
 
 - Host is auto-seated; table starts `waiting_for_venue_confirmation`.
-- **Bring-own** → language EN/DE (Other allowed). **Venue game** → venue must confirm availability.
+- Game must be picked from the **venue library** (or spontaneous selection). Language EN/DE/Other.
+- Venue confirms table **and** game availability.
 - **Validation:** to > from; max ≥ min ≥ 1; required game.
 - **Note:** only a `USER` sees Create (a `VENUE_USER` cannot host — hide/disable).
 - **API:** `POST /api/tables`.
@@ -158,7 +155,7 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 │ Pending requests           │
 │ ┌────────────────────────┐ │
 │ │ Catan · Sat 7 · 18–20  │ │
-│ │ Host: Alice · own game │ │
+│ │ Host: Alice · venue game │ │
 │ │ [ Reject ]  [ Confirm ]│ │
 │ └────────────────────────┘ │
 │ ┌────────────────────────┐ │
