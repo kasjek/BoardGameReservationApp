@@ -48,6 +48,7 @@ Thumbs.db
 
 # Runtime SQLite (GoDaddy / local Node API)
 data/
+api/db.sqlite3
 
 # Large / generated archives
 *.zip

@@ -1,6 +1,13 @@
+const path = require("path");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./app/**/*.{ts,tsx}"],
+  content: [
+    // Next may compile with cwd at repo root (server.js) or frontend/.
+    "./app/**/*.{js,ts,jsx,tsx}",
+    "./frontend/app/**/*.{js,ts,jsx,tsx}",
+    path.join(__dirname, "app/**/*.{js,ts,jsx,tsx}"),
+  ],
   theme: {
     extend: {
       colors: {
