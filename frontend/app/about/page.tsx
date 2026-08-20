@@ -37,11 +37,21 @@ export default function AboutUsPage() {
           {t("brand.name")}
         </div>
 
+        <p className="mt-5 flex max-w-sm items-start justify-center gap-2 text-center text-sm font-semibold leading-snug text-slate-700">
+          <span aria-hidden className="shrink-0">
+            💜
+          </span>
+          <span>{t("aboutUs.tagline")}</span>
+          <span aria-hidden className="shrink-0">
+            💜
+          </span>
+        </p>
+
         <a
           href={MEETUP_URL}
           target="_blank"
           rel="noreferrer noopener"
-          className="mt-8 flex w-full max-w-sm flex-col items-center gap-3 rounded-[1.6rem] border-[3px] border-[#ed1c40] bg-white px-4 py-4 shadow-[3px_3px_0_0_#1e1b4b] transition hover:-translate-y-0.5"
+          className="mt-5 flex w-full max-w-sm flex-col items-center gap-3 rounded-[1.6rem] border-[3px] border-[#ed1c40] bg-white px-4 py-4 shadow-[3px_3px_0_0_#1e1b4b] transition hover:-translate-y-0.5"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

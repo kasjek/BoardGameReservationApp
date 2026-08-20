@@ -416,6 +416,7 @@ export const en: Messages = {
     illustrationAlt: "Treasure map of Nürnberg and Fürth",
   },
   aboutUs: {
+    tagline: "We are an organized group of board game geeks passionate about spreading the hobby",
     meetupAlt: "MeetUp",
     meetupEvents: "Check out our gaming events on MeetUp",
     privateEvents: "& get in touch for company & private events",
@@ -887,6 +888,8 @@ export const de: Messages = {
     illustrationAlt: "Schatzkarte von Nürnberg und Fürth",
   },
   aboutUs: {
+    tagline:
+      "Wir sind eine organisierte Gruppe von Brettspiel-Geeks, die das Hobby mit Leidenschaft verbreiten",
     meetupAlt: "MeetUp",
     meetupEvents: "Schau dir unsere Spiele-Events auf MeetUp an",
     privateEvents: "& kontaktiere uns für Firmen- & Privatevents",
