@@ -413,10 +413,6 @@ export const en: Messages = {
     enjoy: "You can enjoy the game together",
   },
   venueMap: {
-    mapTitle: "Map of {name}",
-    empty: "No venues to show on the map yet.",
-    venuePage: "Venue page",
-    openMaps: "Open in Maps",
     illustrationAlt: "Treasure map of Nürnberg and Fürth",
   },
   aboutUs: {
@@ -888,10 +884,6 @@ export const de: Messages = {
     enjoy: "Zusammen spielen und Spaß haben",
   },
   venueMap: {
-    mapTitle: "Karte von {name}",
-    empty: "Noch keine Locations auf der Karte.",
-    venuePage: "Location-Seite",
-    openMaps: "In Maps öffnen",
     illustrationAlt: "Schatzkarte von Nürnberg und Fürth",
   },
   aboutUs: {
