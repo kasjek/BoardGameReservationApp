@@ -72,10 +72,10 @@ export function CosmeticAsset({
     case "glasses-round":
       return (
         <Svg className={className}>
-          <circle cx="34" cy="52" r="14" fill="none" stroke="#111827" strokeWidth="4" />
-          <circle cx="66" cy="52" r="14" fill="none" stroke="#111827" strokeWidth="4" />
-          <path d="M48 52h4" stroke="#111827" strokeWidth="4" />
-          <path d="M20 50h-8M80 50h8" stroke="#111827" strokeWidth="3" />
+          <circle cx="34" cy="48" r="16" fill="rgba(255,255,255,0.35)" stroke="#111827" strokeWidth="5" />
+          <circle cx="66" cy="48" r="16" fill="rgba(255,255,255,0.35)" stroke="#111827" strokeWidth="5" />
+          <path d="M48 48h4" stroke="#111827" strokeWidth="5" />
+          <path d="M18 48h-10M82 48h10" stroke="#111827" strokeWidth="4" />
         </Svg>
       );
     case "glasses-star":
@@ -144,10 +144,10 @@ export function CosmeticAsset({
 
 const LAYER_CLASS: Record<string, string> = {
   background: "absolute inset-0 z-0 overflow-hidden rounded-full",
-  frame: "pointer-events-none absolute inset-0 z-[3]",
-  glasses: "pointer-events-none absolute inset-0 z-[4]",
-  hat: "pointer-events-none absolute -top-[28%] left-[8%] z-[5] h-[70%] w-[84%]",
-  companion: "pointer-events-none absolute -bottom-[6%] -right-[10%] z-[6] h-[55%] w-[55%]",
+  frame: "pointer-events-none absolute -inset-[6%] z-[3]",
+  glasses: "pointer-events-none absolute left-0 right-0 top-[6%] z-[4] h-[70%]",
+  hat: "pointer-events-none absolute -top-[38%] left-[4%] z-[5] h-[78%] w-[92%]",
+  companion: "pointer-events-none absolute -bottom-[10%] -right-[16%] z-[6] h-[62%] w-[62%]",
 };
 
 export function CosmeticLayers({ equipped }: { equipped?: AvatarEquipped | null }) {

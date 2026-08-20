@@ -120,7 +120,7 @@ export default function AvatarCustomizePage() {
         <Avatar
           userId={user.id}
           customAvatarUrl={user.avatar_seed ? dicebearUrl(user.avatar_seed) : undefined}
-          cosmetics={user.avatar_equipped}
+          cosmetics={catalog?.equipped ?? user.avatar_equipped}
           size={96}
         />
         <div className="mt-2 text-sm font-semibold">{user.username}</div>

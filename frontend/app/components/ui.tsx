@@ -88,9 +88,8 @@ export function Cover({
 }
 
 /** DiceBear "adventurer" avatar URL for a seed (per the avatar spec). */
-export function dicebearUrl(seed: string | number, transparent = false): string {
-  const bg = transparent ? "&backgroundColor=transparent" : "";
-  return `https://api.dicebear.com/10.x/adventurer/png?seed=${encodeURIComponent(String(seed))}${bg}`;
+export function dicebearUrl(seed: string | number): string {
+  return `https://api.dicebear.com/10.x/adventurer/png?seed=${encodeURIComponent(String(seed))}`;
 }
 
 /**
@@ -111,26 +110,20 @@ export function Avatar({
   cosmetics?: AvatarEquipped | null;
 }) {
   const [failed, setFailed] = useState(false);
-  const extra = cosmetics && Object.values(cosmetics).some(Boolean) ? Math.round(size * 0.28) : 0;
+  const extra = cosmetics && Object.values(cosmetics).some(Boolean) ? Math.round(size * 0.36) : 0;
   const outer = size + extra;
   const face = { width: size, height: size };
   const wrap = { width: outer, height: outer, minWidth: outer };
-  let src = customAvatarUrl || dicebearUrl(userId, Boolean(cosmetics?.background));
-  if (cosmetics?.background && src.includes("dicebear.com") && !src.includes("backgroundColor=")) {
-    src += (src.includes("?") ? "&" : "?") + "backgroundColor=transparent";
-  }
+  const src = customAvatarUrl || dicebearUrl(userId);
 
-  if (failed) {
-    return (
-      <div
-        style={wrap}
-        className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500"
-        aria-label="avatar placeholder"
-      >
-        <span style={{ fontSize: size * 0.5 }}>🙂</span>
-      </div>
-    );
-  }
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  const layers = extra ? <CosmeticLayers equipped={cosmetics} /> : null;
+  const imgClass = cosmetics?.background
+    ? "relative z-[2] shrink-0 rounded-full bg-transparent object-cover"
+    : "relative z-[2] shrink-0 rounded-full bg-slate-100 object-cover";
 
   const img = (
     // eslint-disable-next-line @next/next/no-img-element
@@ -139,13 +132,23 @@ export function Avatar({
       alt="User avatar"
       style={face}
       onError={() => setFailed(true)}
-      className="relative z-[2] shrink-0 rounded-full bg-slate-100 object-cover"
+      className={imgClass}
       loading="lazy"
     />
   );
 
   if (!extra) {
-    return img;
+    return failed ? (
+      <div
+        style={wrap}
+        className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500"
+        aria-label="avatar placeholder"
+      >
+        <span style={{ fontSize: size * 0.5 }}>🙂</span>
+      </div>
+    ) : (
+      img
+    );
   }
 
   return (
@@ -154,8 +157,18 @@ export function Avatar({
         className="absolute overflow-visible"
         style={{ top: extra / 2, left: extra / 2, width: size, height: size }}
       >
-        <CosmeticLayers equipped={cosmetics} />
-        {img}
+        {layers}
+        {failed ? (
+          <div
+            style={face}
+            className="relative z-[2] flex items-center justify-center rounded-full bg-slate-200 text-slate-500"
+            aria-label="avatar placeholder"
+          >
+            <span style={{ fontSize: size * 0.5 }}>🙂</span>
+          </div>
+        ) : (
+          img
+        )}
       </div>
     </div>
   );
