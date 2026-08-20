@@ -184,7 +184,6 @@ export const en: Messages = {
     favoriteNone: "None selected yet.",
     favoriteSearch: "Search categories",
     favoriteNoMatch: "No matching categories.",
-    favoriteSource: "Categories from BoardGameGeek",
     customizeAvatar: "Customize cosmetics",
   },
   publicProfile: {
@@ -662,7 +661,6 @@ export const de: Messages = {
     favoriteNone: "Noch keine ausgewählt.",
     favoriteSearch: "Kategorien suchen",
     favoriteNoMatch: "Keine passenden Kategorien.",
-    favoriteSource: "Kategorien von BoardGameGeek",
     customizeAvatar: "Kosmetik anpassen",
   },
   publicProfile: {

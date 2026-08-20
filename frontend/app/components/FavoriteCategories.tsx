@@ -118,14 +118,6 @@ export function FavoriteCategoryPicker({
           })
         )}
       </div>
-      <a
-        href="https://boardgamegeek.com/browse/boardgamecategory"
-        target="_blank"
-        rel="noreferrer noopener"
-        className="mt-2 inline-block text-[11px] font-semibold text-slate-400 underline decoration-dotted"
-      >
-        {t("profile.favoriteSource")}
-      </a>
     </div>
   );
 }
