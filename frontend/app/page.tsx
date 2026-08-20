@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { GameLanguageFlag } from "./components/GameLanguageFlag";
 import {
   Banner,
   ChairIcon,
@@ -137,12 +138,18 @@ export default function BrowsePage() {
                         {tbl.venue_name}
                       </div>
                     ) : null}
-                    <div className="mt-2 text-xs text-slate-500">
-                      {t("browse.seatsLine", {
-                        taken: tbl.seats_taken,
-                        max: tbl.max_players,
-                        lang: tbl.game_language.toUpperCase(),
-                      })}
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                      <span>
+                        {t("browse.seatsLine", {
+                          taken: tbl.seats_taken,
+                          max: tbl.max_players,
+                        })}
+                      </span>
+                      <span aria-hidden>·</span>
+                      <GameLanguageFlag
+                        language={tbl.game_language}
+                        other={tbl.game_language_other}
+                      />
                     </div>
                     <div className="mt-1 text-xs text-slate-500">
                       {t("browse.minMaxPlayers", { min: tbl.min_players, max: tbl.max_players })}
