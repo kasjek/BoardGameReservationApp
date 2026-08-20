@@ -6,6 +6,7 @@ const {
   serializeUser,
   serializeVenue,
   serializeTable,
+  parseGameTypes,
   serializeSeat,
   validPassword,
   gameStats,
@@ -14,7 +15,7 @@ const {
   syncOpenTableStatus,
   JOINABLE_STATUSES,
 } = require("./db");
-const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
+const { resolveCoverUrl, resolveThing, liveSearch, resolveGameTypes, GAME_TYPE_IDS } = require("./bgg");
 const { applyGamePlayerLimits, effectiveMaxPlayers, normalizeSeatLimits } = require("./game-limits");
 const { listCategories, parseCategoryIds } = require("./bgg-categories");
 const { catalogPayload, parseEquipped, setEquippedSlot } = require("./cosmetics");
@@ -90,6 +91,17 @@ function managesVenue(u, venueId) {
   if (!u) return false;
   if (u.role === "ADMIN") return true;
   return u.role === "VENUE_USER" && u.venue_id === venueId;
+}
+
+async function hydrateTableTypes(db, row, { live = false } = {}) {
+  const existing = parseGameTypes(row.game_types);
+  if (existing.length) return existing;
+  const types = await resolveGameTypes(row.game_title, null, { live });
+  row.game_types = JSON.stringify(types);
+  if (types.length) {
+    db.prepare("UPDATE tables SET game_types=? WHERE id=?").run(row.game_types, row.id);
+  }
+  return types;
 }
 
 function serializeVenueGame(g) {
@@ -519,6 +531,7 @@ async function handleApi(req, res) {
         const venueId = url.searchParams.get("venueId");
         const status = url.searchParams.get("status");
         const game = url.searchParams.get("game");
+        const gameType = (url.searchParams.get("type") || "").trim().toLowerCase();
         const organizerId = url.searchParams.get("organizerId");
         const attendeeId = url.searchParams.get("attendeeId");
         if (venueId) {
@@ -544,7 +557,25 @@ async function handleApi(req, res) {
           params.push(Number(attendeeId));
         }
         sql += " ORDER BY starts_at";
-        return send(res, 200, db.prepare(sql).all(...params).map(serializeTable));
+        const rows = db.prepare(sql).all(...params);
+        const typesByTitle = new Map();
+        for (const row of rows) {
+          const key = String(row.game_title || "").toLowerCase();
+          if (typesByTitle.has(key)) {
+            const cached = typesByTitle.get(key);
+            if (cached.length && !parseGameTypes(row.game_types).length) {
+              row.game_types = JSON.stringify(cached);
+              db.prepare("UPDATE tables SET game_types=? WHERE id=?").run(row.game_types, row.id);
+            }
+            continue;
+          }
+          const types = await hydrateTableTypes(db, row, { live: false });
+          typesByTitle.set(key, types);
+        }
+        const filtered = gameType
+          ? rows.filter((row) => parseGameTypes(row.game_types).includes(gameType))
+          : rows;
+        return send(res, 200, filtered.map(serializeTable));
       }
       if (method === "POST") {
         const u = requireUser(req, res);
@@ -572,12 +603,14 @@ async function handleApi(req, res) {
           venueMin: venue.min_players,
           venueMax: venue.max_players,
           venueId: venue.id,
+          bggId: body.bgg_id || null,
         });
+        const types = await resolveGameTypes(body.game_title, body.bgg_id || null, { live: true });
         const now = new Date().toISOString();
         const info = db
           .prepare(
-            `INSERT INTO tables (organizer_id, venue_id, game_title, bring_own_game, game_language, game_language_other, venue_game_confirmed, starts_at, ends_at, min_players, max_players, status, seats_taken, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'requested', 1, ?)`,
+            `INSERT INTO tables (organizer_id, venue_id, game_title, bring_own_game, game_language, game_language_other, venue_game_confirmed, starts_at, ends_at, min_players, max_players, status, seats_taken, created_at, game_types)
+             VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'requested', 1, ?, ?)`,
           )
           .run(
             u.id,
@@ -591,6 +624,7 @@ async function handleApi(req, res) {
             seats.min_players,
             seats.max_players,
             now,
+            JSON.stringify(types),
           );
         const paid = body.bring_own_game ? 1 : 0;
         db.prepare(
@@ -607,6 +641,7 @@ async function handleApi(req, res) {
     if ((m = path.match(/^\/api\/tables\/(\d+)$/)) && method === "GET") {
       const row = db.prepare("SELECT * FROM tables WHERE id=?").get(Number(m[1]));
       if (!row) return send(res, 404, { detail: "Not found." });
+      await hydrateTableTypes(db, row, { live: true });
       return send(res, 200, serializeTable(row));
     }
 
@@ -850,6 +885,14 @@ async function handleApi(req, res) {
     }
 
     // ---- BGG (BGG_API_TOKEN enables live XML; Geekdo/Wikipedia fallbacks otherwise) ----
+    if (method === "GET" && path === "/api/bgg/types") {
+      return send(
+        res,
+        200,
+        GAME_TYPE_IDS.map((id) => ({ id })),
+      );
+    }
+
     if (method === "GET" && path === "/api/bgg/categories") {
       if (!requireUser(req, res)) return;
       return send(res, 200, { results: listCategories() });

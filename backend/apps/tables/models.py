@@ -49,6 +49,8 @@ class Table(models.Model):
         default=TableStatus.REQUESTED,
     )
     seats_taken = models.PositiveIntegerField(default=0)
+    # BGG family types for the hosted game, e.g. ["strategy", "family"].
+    game_types = models.JSONField(default=list, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

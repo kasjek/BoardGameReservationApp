@@ -25,11 +25,14 @@ class TableSerializer(serializers.ModelSerializer):
             "status",
             "seats_taken",
             "created_at",
+            "game_types",
         ]
         read_only_fields = fields
 
 
 class TableCreateSerializer(serializers.ModelSerializer):
+    bgg_id = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+
     class Meta:
         model = Table
         fields = [
@@ -42,6 +45,7 @@ class TableCreateSerializer(serializers.ModelSerializer):
             "ends_at",
             "min_players",
             "max_players",
+            "bgg_id",
         ]
 
 

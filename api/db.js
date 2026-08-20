@@ -4,6 +4,7 @@ const Database = require("better-sqlite3");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { hydrateCategories, parseStoredCategoryIds } = require("./bgg-categories");
+const { KNOWN_GAME_TYPES, KNOWN_GAME_TYPES_BY_TITLE } = require("./game-types");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "data");
 const DB_PATH = process.env.SQLITE_PATH || path.join(DATA_DIR, "app.sqlite3");
@@ -117,7 +118,8 @@ function ensureDb() {
       max_players INTEGER NOT NULL,
       status TEXT NOT NULL,
       seats_taken INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      game_types TEXT NOT NULL DEFAULT '[]'
     );
     CREATE TABLE IF NOT EXISTS seats (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,9 +141,16 @@ function ensureDb() {
       body TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS bgg_games (
+      bgg_id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT '',
+      types TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
   `);
   migrateSchema(db);
   seedIfEmpty(db);
+  backfillGameTypes(db);
   return db;
 }
 
@@ -209,6 +218,19 @@ function migrateSchema(database) {
   const markPaid = database.prepare("UPDATE tables SET status='confirmed_paid' WHERE id=?");
   for (const row of unpaidConfirmed) markPaid.run(row.id);
   capTablesToGameLimits(database);
+  const tableCols = database.prepare("PRAGMA table_info(tables)").all().map((c) => c.name);
+  if (!tableCols.includes("game_types")) {
+    database.exec("ALTER TABLE tables ADD COLUMN game_types TEXT NOT NULL DEFAULT '[]'");
+  }
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS bgg_games (
+      bgg_id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL DEFAULT '',
+      types TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
+  `);
+  backfillGameTypes(database);
 }
 
 function expandStatusFilter(status) {
@@ -276,8 +298,8 @@ function seedIfEmpty(database) {
     `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url, min_players, max_players) VALUES (?, ?, ?, ?, ?, ?)`,
   );
   const insertTable = database.prepare(
-    `INSERT INTO tables (organizer_id, venue_id, game_title, bring_own_game, game_language, venue_game_confirmed, starts_at, ends_at, min_players, max_players, status, seats_taken, created_at)
-     VALUES (?, ?, ?, 0, 'de', 1, ?, ?, 2, 4, 'available', 1, ?)`,
+    `INSERT INTO tables (organizer_id, venue_id, game_title, bring_own_game, game_language, venue_game_confirmed, starts_at, ends_at, min_players, max_players, status, seats_taken, created_at, game_types)
+     VALUES (?, ?, ?, 0, 'de', 1, ?, ?, 2, 4, 'available', 1, ?, '[]')`,
   );
   const insertSeat = database.prepare(
     `INSERT INTO seats (table_id, user_id, is_organizer, status, waitlist_position, paid) VALUES (?, ?, 1, 'reserved', NULL, 0)`,
@@ -511,6 +533,61 @@ function serializeVenue(row) {
   };
 }
 
+function parseGameTypes(raw) {
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function backfillGameTypes(database) {
+  const now = new Date().toISOString();
+  const upsert = database.prepare(
+    `INSERT INTO bgg_games (bgg_id, title, types, updated_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(bgg_id) DO UPDATE SET
+       title=CASE WHEN excluded.title != '' THEN excluded.title ELSE bgg_games.title END,
+       types=CASE WHEN excluded.types != '[]' THEN excluded.types ELSE bgg_games.types END,
+       updated_at=excluded.updated_at`,
+  );
+  for (const [bggId, types] of Object.entries(KNOWN_GAME_TYPES)) {
+    const game = database
+      .prepare("SELECT title FROM venue_games WHERE bgg_id=? LIMIT 1")
+      .get(Number(bggId));
+    upsert.run(Number(bggId), game?.title || "", JSON.stringify(types), now);
+  }
+
+  const tables = database.prepare("SELECT id, game_title, game_types FROM tables").all();
+  const update = database.prepare("UPDATE tables SET game_types=? WHERE id=?");
+  for (const row of tables) {
+    if (parseGameTypes(row.game_types).length) continue;
+    const vg = database
+      .prepare(
+        `SELECT bgg_id, title FROM venue_games
+         WHERE is_active=1 AND lower(title)=lower(?) LIMIT 1`,
+      )
+      .get(row.game_title);
+    let types = [];
+    if (vg?.bgg_id) {
+      const cached = database.prepare("SELECT types FROM bgg_games WHERE bgg_id=?").get(vg.bgg_id);
+      types = parseGameTypes(cached?.types);
+      if (!types.length) types = KNOWN_GAME_TYPES[vg.bgg_id] || [];
+    }
+    if (!types.length) {
+      const key = String(row.game_title || "")
+        .toLowerCase()
+        .replace(/\s*\(\d{4}\)\s*/g, " ")
+        .replace(/^the\s+/, "")
+        .trim();
+      types = KNOWN_GAME_TYPES_BY_TITLE[key] || KNOWN_GAME_TYPES_BY_TITLE[String(row.game_title || "").toLowerCase()] || [];
+    }
+    if (types.length) update.run(JSON.stringify(types), row.id);
+  }
+}
+
 function serializeTable(row) {
   const venue = db.prepare("SELECT name FROM venues WHERE id=?").get(row.venue_id);
   return {
@@ -530,6 +607,7 @@ function serializeTable(row) {
     status: canonicalTableStatus(row.status),
     seats_taken: row.seats_taken,
     created_at: row.created_at,
+    game_types: parseGameTypes(row.game_types),
   };
 }
 
@@ -569,6 +647,7 @@ module.exports = {
   serializeVenue,
   serializeTable,
   serializeSeat,
+  parseGameTypes,
   validPassword,
   gameStats,
   mapsUrl,

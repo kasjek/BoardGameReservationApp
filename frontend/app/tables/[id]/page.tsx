@@ -28,6 +28,7 @@ import {
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useI18n } from "../../lib/i18n";
+import { formatGameTypes } from "../../lib/gameTypes";
 import { isJoinable, isRequested } from "../../lib/tableStatus";
 
 function formatGameLanguage(
@@ -243,6 +244,11 @@ export default function TableDetailPage() {
         {t("tableDetail.language")}: {formatGameLanguage(table, t)}
         {table.bring_own_game ? ` · ${t("tableDetail.hostBrings")}` : ` · ${t("tableDetail.venueGame")}`}
       </div>
+      {formatGameTypes(table.game_types, t) ? (
+        <div className="mt-1 text-sm text-slate-500">
+          {t("tableDetail.type")}: {formatGameTypes(table.game_types, t)}
+        </div>
+      ) : null}
 
       <div className="card mt-3 space-y-2 text-sm">
         <div className="flex justify-between">
