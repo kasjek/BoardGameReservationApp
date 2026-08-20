@@ -20,10 +20,6 @@ import { useI18n } from "../../lib/i18n";
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 180;
-/** Sentinel value in the venue-game dropdown for spontaneous choice. */
-const SPONTANEOUS_VALUE = "__spontaneous__";
-/** Stored game_title when the host picks spontaneous venue selection. */
-const SPONTANEOUS_TITLE = "Spontaneous selection";
 
 const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
@@ -95,8 +91,6 @@ export default function CreateTablePage() {
     selectedVenue?.min_reservation_minutes ?? MIN_DURATION_MINUTES;
   const maxReservationMinutes =
     selectedVenue?.max_reservation_minutes ?? MAX_DURATION_MINUTES;
-  const isSpontaneous = game === SPONTANEOUS_TITLE;
-
   const dayAvailability = useMemo(() => {
     if (!date) return null;
     return availability.find((a) => a.date === date) ?? null;
@@ -171,7 +165,6 @@ export default function CreateTablePage() {
 
   useEffect(() => {
     setGame((current) => {
-      if (current === SPONTANEOUS_TITLE) return current;
       if (venueGames.some((g) => g.title === current)) return current;
       return venueGames[0]?.title ?? "";
     });
@@ -209,7 +202,7 @@ export default function CreateTablePage() {
     }
 
     setPlaytimeLabel(null);
-    if (!isSpontaneous && bggId) {
+    if (bggId) {
       loadPlaytime(bggId);
       return () => {
         cancelled = true;
@@ -219,7 +212,7 @@ export default function CreateTablePage() {
     return () => {
       cancelled = true;
     };
-  }, [bggId, isSpontaneous, t]);
+  }, [bggId, t]);
 
   if (loading) return <LoadingScreen />;
   if (!user) return null;
@@ -252,7 +245,7 @@ export default function CreateTablePage() {
     }
     if (!hasVenueGames) {
       next.game = t("newTable.errNoVenueGames");
-    } else if (!game.trim()) {
+    } else if (!venueGames.some((g) => g.title === game)) {
       next.game = t("newTable.errGameRequired");
     }
     if (date && from && to) {
@@ -305,11 +298,7 @@ export default function CreateTablePage() {
       ? t("newTable.closedHint")
       : t("newTable.pickDateHint");
 
-  const venueSelectValue = isSpontaneous
-    ? SPONTANEOUS_VALUE
-    : venueGames.some((g) => g.title === game)
-      ? game
-      : "";
+  const venueSelectValue = venueGames.some((g) => g.title === game) ? game : "";
 
   // Keep Request table inactive until every required field is valid (e.g. date chosen).
   const formReady = Object.keys(validate()).length === 0;
@@ -430,12 +419,7 @@ export default function CreateTablePage() {
               className="input"
               value={venueSelectValue}
               onChange={(e) => {
-                const v = e.target.value;
-                if (v === SPONTANEOUS_VALUE) {
-                  setGame(SPONTANEOUS_TITLE);
-                } else {
-                  setGame(v);
-                }
+                setGame(e.target.value);
                 setFieldErrors((f) => ({ ...f, game: undefined }));
               }}
               aria-label={t("newTable.selectGame")}
@@ -448,7 +432,6 @@ export default function CreateTablePage() {
                   {g.title}
                 </option>
               ))}
-              <option value={SPONTANEOUS_VALUE}>{t("newTable.spontaneous")}</option>
             </select>
             {selectedVenue ? (
               <div className="mt-1 text-xs text-slate-500">

@@ -308,7 +308,6 @@ export const en: Messages = {
     noVenueGamesHint:
       "This venue has no games in its library. Pick another venue.",
     selectVenueGame: "Select a game…",
-    spontaneous: "I want to select spontaneously",
     recommendedPlaytime: "Recommended playing duration",
     playtimeMinutes: "{minutes} min",
     playtimeRange: "{min}–{max} min",
@@ -790,7 +789,6 @@ export const de: Messages = {
     noVenueGamesHint:
       "Diese Location hat keine Spiele in der Bibliothek. Bitte wähle eine andere Location.",
     selectVenueGame: "Spiel wählen…",
-    spontaneous: "Ich möchte spontan auswählen",
     recommendedPlaytime: "Empfohlene Spieldauer",
     playtimeMinutes: "{minutes} Min.",
     playtimeRange: "{min}–{max} Min.",
