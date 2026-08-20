@@ -362,8 +362,39 @@ export function Shell({ title, children }: { title: React.ReactNode; children: R
         ) : null}
       </header>
       <main className="min-h-0 flex-1 overflow-y-auto p-4">{children}</main>
+      <FooterMenu />
       <BggAttribution />
     </div>
+  );
+}
+
+/** Secondary footer menu, sitting above the required BGG attribution. */
+export function FooterMenu() {
+  const { t } = useI18n();
+  const path = usePathname();
+  const item = (href: string, label: string, icon: string, active: boolean) => (
+    <Link
+      href={href}
+      className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-center text-[11px] leading-tight sm:flex-row sm:gap-1.5 sm:text-xs ${
+        active ? "font-black text-brand" : "font-bold text-slate-700 hover:text-brand"
+      }`}
+      aria-current={active ? "page" : undefined}
+    >
+      <span aria-hidden>{icon}</span>
+      <span>{label}</span>
+    </Link>
+  );
+  return (
+    <nav
+      className="flex shrink-0 border-t-2 border-violet-200 bg-violet-50"
+      aria-label={t("nav.more")}
+    >
+      {item("/how-it-works", t("nav.howItWorks"), "✨", path.startsWith("/how-it-works"))}
+      <span aria-hidden className="self-center h-5 w-px bg-violet-300" />
+      {item("/map", t("nav.venueMap"), "🗺️", path.startsWith("/map"))}
+      <span aria-hidden className="self-center h-5 w-px bg-violet-300" />
+      {item("/about", t("nav.aboutUs"), "💜", path.startsWith("/about"))}
+    </nav>
   );
 }
 
