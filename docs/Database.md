@@ -35,6 +35,8 @@ Accounts and roles. *(stories 9, 10, 17, 23, 26, 53, 54)*
 | `games_played` | int | Derived; reserved seats on non-cancelled tables (public) |
 | `different_games` | int | Derived; unique game titles among `games_played` (public) |
 | `favorite_categories` | int[≤3] | BoardGameGeek `boardgamecategory` ids the user likes most (own profile editable; public) |
+| `avatar_unlocks` | text[] | Cosmetic item ids unlocked by playing unique games (persisted; never revoked; private to `/auth/me`) |
+| `avatar_equipped` | json | Equipped cosmetic ids by slot (`background`, `hat`, `glasses`, `frame`, `companion`); layered on the DiceBear avatar (public) |
 | `is_super_user` | bool | Marked "super user" by admin |
 | `is_blocked` | bool | Platform-level block |
 | `created_at` | timestamptz | Registration time |

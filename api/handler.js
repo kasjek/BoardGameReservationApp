@@ -17,6 +17,7 @@ const {
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
 const { applyGamePlayerLimits, effectiveMaxPlayers, normalizeSeatLimits } = require("./game-limits");
 const { listCategories, parseCategoryIds } = require("./bgg-categories");
+const { catalogPayload, parseEquipped, setEquippedSlot } = require("./cosmetics");
 const {
   friendshipPayload,
   searchUsers,
@@ -193,6 +194,38 @@ async function handleApi(req, res) {
       if (!u) return;
       const seed = `${u.username}-${Date.now()}`;
       db.prepare("UPDATE users SET avatar_seed=? WHERE id=?").run(seed, u.id);
+      return send(res, 200, serializeUser(db.prepare("SELECT * FROM users WHERE id=?").get(u.id)));
+    }
+
+    if (method === "GET" && path === "/api/avatar/cosmetics") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      const s = serializeUser(u);
+      return send(res, 200, catalogPayload({
+        differentGames: s.different_games,
+        unlocks: s.avatar_unlocks,
+        equipped: s.avatar_equipped,
+      }));
+    }
+
+    if (method === "PATCH" && path === "/api/me/avatar/cosmetics") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      const body = await readBody(req);
+      if (!Object.prototype.hasOwnProperty.call(body, "slot")) {
+        return send(res, 400, { slot: ["This field is required."] });
+      }
+      if (!Object.prototype.hasOwnProperty.call(body, "item_id")) {
+        return send(res, 400, { item_id: ["This field is required."] });
+      }
+      const synced = serializeUser(u);
+      const next = setEquippedSlot(
+        synced.avatar_unlocks,
+        parseEquipped(u.avatar_equipped),
+        body.slot,
+        body.item_id,
+      );
+      db.prepare("UPDATE users SET avatar_equipped=? WHERE id=?").run(JSON.stringify(next), u.id);
       return send(res, 200, serializeUser(db.prepare("SELECT * FROM users WHERE id=?").get(u.id)));
     }
 
@@ -949,6 +982,7 @@ async function handleApi(req, res) {
       delete s.role;
       delete s.venue;
       delete s.allow_invites;
+      delete s.avatar_unlocks;
       const viewer = getUser(req);
       s.friendship = friendshipPayload(db, viewer?.id, u.id);
       return send(res, 200, s);

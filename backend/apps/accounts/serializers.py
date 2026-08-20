@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import serializers
 
+from .cosmetics import parse_equipped, sync_avatar_unlocks
 from .models import Role
 
 User = get_user_model()
@@ -25,6 +26,7 @@ def _derived(user):
     from .profile_stats import game_stats
 
     stats = game_stats(user)
+    unlocks = sync_avatar_unlocks(user, stats["different_games"])
     cached = {
         "rating_avg": average_rating_for_user(user.id),
         "cancellations_count": SeatReservation.objects.filter(
@@ -35,6 +37,8 @@ def _derived(user):
         ).count(),
         "games_played": stats["games_played"],
         "different_games": stats["different_games"],
+        "avatar_unlocks": unlocks,
+        "avatar_equipped": parse_equipped(getattr(user, "avatar_equipped", None)),
     }
     user._derived_cache = cached
     return cached
@@ -48,6 +52,8 @@ class UserSerializer(serializers.ModelSerializer):
     different_games = serializers.SerializerMethodField()
     has_usable_password = serializers.SerializerMethodField()
     favorite_categories = serializers.SerializerMethodField()
+    avatar_unlocks = serializers.SerializerMethodField()
+    avatar_equipped = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -66,6 +72,8 @@ class UserSerializer(serializers.ModelSerializer):
             "different_games",
             "has_usable_password",
             "favorite_categories",
+            "avatar_unlocks",
+            "avatar_equipped",
         ]
         read_only_fields = ["id", "role", "venue", "avatar_seed", "has_usable_password"]
 
@@ -90,6 +98,12 @@ class UserSerializer(serializers.ModelSerializer):
     def get_favorite_categories(self, obj):
         return _favorite_categories(obj)
 
+    def get_avatar_unlocks(self, obj):
+        return _derived(obj)["avatar_unlocks"]
+
+    def get_avatar_equipped(self, obj):
+        return _derived(obj)["avatar_equipped"]
+
 
 class PublicUserSerializer(serializers.ModelSerializer):
     """Public profile: username, avatar, rating, late cancels, games joined — no email."""
@@ -100,6 +114,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
     games_played = serializers.SerializerMethodField()
     different_games = serializers.SerializerMethodField()
     favorite_categories = serializers.SerializerMethodField()
+    avatar_equipped = serializers.SerializerMethodField()
 
     friendship = serializers.SerializerMethodField()
 
@@ -115,6 +130,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
             "games_played",
             "different_games",
             "favorite_categories",
+            "avatar_equipped",
             "friendship",
         ]
 
@@ -142,6 +158,9 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
     def get_favorite_categories(self, obj):
         return _favorite_categories(obj)
+
+    def get_avatar_equipped(self, obj):
+        return _derived(obj)["avatar_equipped"]
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -198,10 +217,11 @@ class FriendUserSerializer(serializers.ModelSerializer):
 
     rating_avg = serializers.SerializerMethodField()
     friendship = serializers.SerializerMethodField()
+    avatar_equipped = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "avatar_seed", "rating_avg", "friendship"]
+        fields = ["id", "username", "avatar_seed", "avatar_equipped", "rating_avg", "friendship"]
 
     def get_rating_avg(self, obj):
         return _derived(obj)["rating_avg"]
@@ -212,4 +232,7 @@ class FriendUserSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         viewer = getattr(request, "user", None) if request else None
         return friendship_payload(viewer, obj)
+
+    def get_avatar_equipped(self, obj):
+        return parse_equipped(getattr(obj, "avatar_equipped", None))
 

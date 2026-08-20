@@ -15,6 +15,7 @@ from .chats import (
     serialize_message,
     thread_messages,
 )
+from .cosmetics import catalog_payload, parse_equipped, set_equipped_slot, sync_avatar_unlocks
 from .friends import (
     accept_request,
     list_friends,
@@ -130,6 +131,37 @@ class RollAvatarView(APIView):
         user = request.user
         user.avatar_seed = secrets.token_hex(6)
         user.save(update_fields=["avatar_seed"])
+        user._derived_cache = None
+        return Response(UserSerializer(user).data)
+
+
+class AvatarCosmeticsCatalogView(APIView):
+    """Catalog of XP cosmetics with lock state for the signed-in user."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(catalog_payload(request.user))
+
+
+class EquipAvatarCosmeticsView(APIView):
+    """Equip or unequip an unlocked cosmetic on a slot. Dice roll does not clear these."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        if "slot" not in request.data:
+            raise ValidationError({"slot": "This field is required."})
+        if "item_id" not in request.data:
+            raise ValidationError({"item_id": "This field is required."})
+        user = request.user
+        unlocks = sync_avatar_unlocks(user)
+        equipped = set_equipped_slot(
+            unlocks, parse_equipped(user.avatar_equipped), request.data.get("slot"), request.data.get("item_id")
+        )
+        user.avatar_equipped = equipped
+        user.save(update_fields=["avatar_equipped"])
+        user._derived_cache = None
         return Response(UserSerializer(user).data)
 
 

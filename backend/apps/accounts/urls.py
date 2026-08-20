@@ -1,9 +1,11 @@
 from django.urls import path
 
 from .views import (
+    AvatarCosmeticsCatalogView,
     ChangePasswordView,
     ChatListView,
     ChatThreadView,
+    EquipAvatarCosmeticsView,
     FavoriteCategoriesView,
     FriendListView,
     FriendRequestAcceptView,
@@ -27,6 +29,8 @@ urlpatterns = [
     path("auth/google/config", GoogleConfigView.as_view(), name="google-config"),
     path("auth/me", MeView.as_view(), name="me"),
     path("me/avatar/roll", RollAvatarView.as_view(), name="roll-avatar"),
+    path("me/avatar/cosmetics", EquipAvatarCosmeticsView.as_view(), name="equip-avatar-cosmetics"),
+    path("avatar/cosmetics", AvatarCosmeticsCatalogView.as_view(), name="avatar-cosmetics"),
     path("me/favorite-categories", FavoriteCategoriesView.as_view(), name="favorite-categories"),
     path("me/password", ChangePasswordView.as_view(), name="change-password"),
     path("users", UserSearchView.as_view(), name="user-search"),

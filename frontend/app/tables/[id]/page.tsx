@@ -288,6 +288,7 @@ export default function TableDetailPage() {
                   <Avatar
                     userId={s.user}
                     customAvatarUrl={s.avatar_seed ? dicebearUrl(s.avatar_seed) : undefined}
+                    cosmetics={s.avatar_equipped}
                     size={40}
                   />
                   <div className="mt-1 w-full truncate text-xs font-semibold">{s.username}</div>
@@ -476,6 +477,7 @@ export default function TableDetailPage() {
                     <Avatar
                       userId={s.user}
                       customAvatarUrl={s.avatar_seed ? dicebearUrl(s.avatar_seed) : undefined}
+                      cosmetics={s.avatar_equipped}
                       size={32}
                     />
                     <span className="truncate text-sm font-semibold">{s.username}</span>

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { CosmeticLayers } from "./cosmetics";
 import { type TableStatus } from "../lib/api";
+import type { AvatarEquipped } from "../lib/cosmetics";
 import { useAuth } from "../lib/auth";
 import { LanguageSwitcher, useI18n } from "../lib/i18n";
 
@@ -86,30 +88,42 @@ export function Cover({
 }
 
 /** DiceBear "adventurer" avatar URL for a seed (per the avatar spec). */
-export function dicebearUrl(seed: string | number): string {
-  return `https://api.dicebear.com/10.x/adventurer/png?seed=${encodeURIComponent(String(seed))}`;
+export function dicebearUrl(seed: string | number, transparent = false): string {
+  const bg = transparent ? "&backgroundColor=transparent" : "";
+  return `https://api.dicebear.com/10.x/adventurer/png?seed=${encodeURIComponent(String(seed))}${bg}`;
 }
 
 /**
  * Reusable circular user avatar.
  * - shows `customAvatarUrl` if provided, otherwise a DiceBear avatar seeded from `userId`
+ * - optional `cosmetics` SVG/PNG layers (background, frame, hat, glasses, companion)
  * - browser HTTP-caches the image; on load error it falls back to a placeholder
  */
 export function Avatar({
   userId,
   customAvatarUrl,
   size = 40,
+  cosmetics,
 }: {
   userId: string | number;
   customAvatarUrl?: string;
   size?: number;
+  cosmetics?: AvatarEquipped | null;
 }) {
   const [failed, setFailed] = useState(false);
-  const dim = { width: size, height: size, minWidth: size };
+  const extra = cosmetics && Object.values(cosmetics).some(Boolean) ? Math.round(size * 0.28) : 0;
+  const outer = size + extra;
+  const face = { width: size, height: size };
+  const wrap = { width: outer, height: outer, minWidth: outer };
+  let src = customAvatarUrl || dicebearUrl(userId, Boolean(cosmetics?.background));
+  if (cosmetics?.background && src.includes("dicebear.com") && !src.includes("backgroundColor=")) {
+    src += (src.includes("?") ? "&" : "?") + "backgroundColor=transparent";
+  }
+
   if (failed) {
     return (
       <div
-        style={dim}
+        style={wrap}
         className="flex shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500"
         aria-label="avatar placeholder"
       >
@@ -117,16 +131,33 @@ export function Avatar({
       </div>
     );
   }
-  return (
+
+  const img = (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={customAvatarUrl || dicebearUrl(userId)}
+      src={src}
       alt="User avatar"
-      style={dim}
+      style={face}
       onError={() => setFailed(true)}
-      className="shrink-0 rounded-full bg-slate-100 object-cover"
+      className="relative z-[2] shrink-0 rounded-full bg-slate-100 object-cover"
       loading="lazy"
     />
+  );
+
+  if (!extra) {
+    return img;
+  }
+
+  return (
+    <div style={wrap} className="relative shrink-0 overflow-visible">
+      <div
+        className="absolute overflow-visible"
+        style={{ top: extra / 2, left: extra / 2, width: size, height: size }}
+      >
+        <CosmeticLayers equipped={cosmetics} />
+        {img}
+      </div>
+    </div>
   );
 }
 

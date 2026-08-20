@@ -94,6 +94,7 @@ export default function ChatThreadPage() {
           <Avatar
             userId={other.id}
             customAvatarUrl={other.avatar_seed ? dicebearUrl(other.avatar_seed) : undefined}
+            cosmetics={other.avatar_equipped}
             size={32}
           />
           <span className="text-sm font-semibold">{other.username}</span>

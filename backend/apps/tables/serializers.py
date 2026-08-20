@@ -48,6 +48,7 @@ class TableCreateSerializer(serializers.ModelSerializer):
 class SeatReservationSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     avatar_seed = serializers.CharField(source="user.avatar_seed", read_only=True)
+    avatar_equipped = serializers.SerializerMethodField()
 
     class Meta:
         model = SeatReservation
@@ -57,6 +58,7 @@ class SeatReservationSerializer(serializers.ModelSerializer):
             "user",
             "username",
             "avatar_seed",
+            "avatar_equipped",
             "is_organizer",
             "status",
             "waitlist_position",
@@ -65,3 +67,8 @@ class SeatReservationSerializer(serializers.ModelSerializer):
             "cancelled_at",
         ]
         read_only_fields = fields
+
+    def get_avatar_equipped(self, obj):
+        from apps.accounts.cosmetics import parse_equipped
+
+        return parse_equipped(getattr(obj.user, "avatar_equipped", None))

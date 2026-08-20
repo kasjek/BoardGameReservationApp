@@ -32,6 +32,11 @@ class User(AbstractUser):
     google_sub = models.CharField(max_length=64, unique=True, null=True, blank=True)
     # Up to 3 BoardGameGeek boardgamecategory ids the user likes most.
     favorite_categories = models.JSONField(default=list, blank=True)
+    # Cosmetic ids unlocked by playing unique games (never revoked). Dice roll
+    # only changes avatar_seed — collected cosmetics stay.
+    avatar_unlocks = models.JSONField(default=list, blank=True)
+    # Equipped cosmetic ids by slot (background/hat/glasses/frame/companion).
+    avatar_equipped = models.JSONField(default=dict, blank=True)
 
     @property
     def is_admin_role(self) -> bool:

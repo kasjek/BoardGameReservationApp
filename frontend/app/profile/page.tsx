@@ -187,16 +187,26 @@ export default function ProfilePage() {
         <Avatar
           userId={user.id}
           customAvatarUrl={user.avatar_seed ? dicebearUrl(user.avatar_seed) : undefined}
+          cosmetics={user.avatar_equipped}
           size={80}
         />
-        <button
-          onClick={rollAvatar}
-          disabled={rolling}
-          className="mt-2 flex items-center gap-1 rounded-full border border-brand px-3 py-1 text-xs font-semibold text-brand disabled:opacity-50"
-          title={t("profile.rollTitle")}
-        >
-          <span aria-hidden>🎲</span> {rolling ? t("profile.rolling") : t("profile.rollAvatar")}
-        </button>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+          <button
+            onClick={rollAvatar}
+            disabled={rolling}
+            className="flex items-center gap-1 rounded-full border border-brand px-3 py-1 text-xs font-semibold text-brand disabled:opacity-50"
+            title={t("profile.rollTitle")}
+          >
+            <span aria-hidden>🎲</span> {rolling ? t("profile.rolling") : t("profile.rollAvatar")}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/profile/avatar")}
+            className="flex items-center gap-1 rounded-full border border-brand px-3 py-1 text-xs font-semibold text-brand"
+          >
+            <span aria-hidden>✨</span> {t("profile.customizeAvatar")}
+          </button>
+        </div>
         <div className="mt-2 text-lg font-bold">{user.username}</div>
         <div className="text-sm text-yellow-600">
           ★ {user.rating_avg != null ? user.rating_avg.toFixed(1) : "—"}

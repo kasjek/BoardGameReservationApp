@@ -6,6 +6,35 @@ export interface BggCategory {
   url: string;
 }
 
+export type CosmeticSlot = "background" | "hat" | "glasses" | "frame" | "companion";
+
+export interface AvatarEquipped {
+  background: string | null;
+  hat: string | null;
+  glasses: string | null;
+  frame: string | null;
+  companion: string | null;
+}
+
+export interface CosmeticItem {
+  id: string;
+  slot: CosmeticSlot;
+  xp_required: number;
+  unlocked: boolean;
+  equipped: boolean;
+}
+
+export interface CosmeticsCatalog {
+  different_games: number;
+  xp: number;
+  unlock_every: number;
+  next_unlock_at: number | null;
+  games_until_next: number;
+  unlocks: string[];
+  equipped: AvatarEquipped;
+  items: CosmeticItem[];
+}
+
 export interface User {
   id: number;
   username: string;
@@ -21,6 +50,8 @@ export interface User {
   different_games?: number;
   has_usable_password?: boolean;
   favorite_categories?: BggCategory[];
+  avatar_unlocks?: string[];
+  avatar_equipped?: AvatarEquipped;
 }
 
 export type TableStatus =
@@ -42,6 +73,7 @@ export interface PublicUser {
   different_games: number;
   favorite_categories?: BggCategory[];
   friendship?: FriendshipState | null;
+  avatar_equipped?: AvatarEquipped;
 }
 
 export type FriendshipStatus = "none" | "self" | "outgoing" | "incoming" | "friends";
@@ -57,6 +89,7 @@ export interface FriendUser {
   avatar_seed: string;
   rating_avg: number | null;
   friendship: FriendshipState | null;
+  avatar_equipped?: AvatarEquipped;
 }
 
 export interface FriendRequest {
@@ -127,6 +160,7 @@ export interface Seat {
   user: number;
   username: string;
   avatar_seed: string;
+  avatar_equipped?: AvatarEquipped;
   is_organizer: boolean;
   status: "reserved" | "waitlisted" | "cancelled";
   waitlist_position: number | null;
@@ -278,6 +312,12 @@ export const authApi = {
     }),
   me: () => request<User>("/auth/me"),
   rollAvatar: () => request<User>("/me/avatar/roll", { method: "POST" }),
+  cosmetics: () => request<CosmeticsCatalog>("/avatar/cosmetics"),
+  equipCosmetic: (slot: CosmeticSlot, itemId: string | null) =>
+    request<User>("/me/avatar/cosmetics", {
+      method: "PATCH",
+      body: JSON.stringify({ slot, item_id: itemId }),
+    }),
   setFavoriteCategories: (categoryIds: number[]) =>
     request<User>("/me/favorite-categories", {
       method: "PATCH",

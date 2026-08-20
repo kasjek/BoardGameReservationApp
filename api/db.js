@@ -31,7 +31,9 @@ function ensureDb() {
       allow_invites INTEGER NOT NULL DEFAULT 1,
       avatar_seed TEXT NOT NULL DEFAULT '',
       cancellations_count INTEGER NOT NULL DEFAULT 0,
-      favorite_categories TEXT NOT NULL DEFAULT '[]'
+      favorite_categories TEXT NOT NULL DEFAULT '[]',
+      avatar_unlocks TEXT NOT NULL DEFAULT '[]',
+      avatar_equipped TEXT NOT NULL DEFAULT '{}'
     );
     CREATE TABLE IF NOT EXISTS tokens (
       key TEXT PRIMARY KEY,
@@ -164,6 +166,12 @@ function migrateSchema(database) {
   const userCols = database.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
   if (!userCols.includes("favorite_categories")) {
     database.exec("ALTER TABLE users ADD COLUMN favorite_categories TEXT NOT NULL DEFAULT '[]'");
+  }
+  if (!userCols.includes("avatar_unlocks")) {
+    database.exec("ALTER TABLE users ADD COLUMN avatar_unlocks TEXT NOT NULL DEFAULT '[]'");
+  }
+  if (!userCols.includes("avatar_equipped")) {
+    database.exec("ALTER TABLE users ADD COLUMN avatar_equipped TEXT NOT NULL DEFAULT '{}'");
   }
   const gameCols = database.prepare("PRAGMA table_info(venue_games)").all().map((c) => c.name);
   const addedSeatLimits = !gameCols.includes("min_players") || !gameCols.includes("max_players");
@@ -453,12 +461,17 @@ function gameStats(database, userId) {
 
 function serializeUser(row) {
   if (!row) return null;
+  const {
+    parseEquipped,
+    syncUnlocks,
+  } = require("./cosmetics");
   const rating = db
     .prepare(
       `SELECT AVG(rating) AS avg FROM reviews WHERE target_type='user' AND target_user_id=?`,
     )
     .get(row.id);
   const games = gameStats(db, row.id);
+  const unlocks = syncUnlocks(db, row, games.different_games);
   return {
     id: row.id,
     username: row.username,
@@ -473,6 +486,8 @@ function serializeUser(row) {
     games_played: games.games_played,
     different_games: games.different_games,
     favorite_categories: hydrateCategories(parseStoredCategoryIds(row.favorite_categories)),
+    avatar_unlocks: unlocks,
+    avatar_equipped: parseEquipped(row.avatar_equipped),
   };
 }
 
@@ -519,13 +534,17 @@ function serializeTable(row) {
 }
 
 function serializeSeat(row) {
-  const u = db.prepare("SELECT username, avatar_seed FROM users WHERE id=?").get(row.user_id);
+  const { parseEquipped } = require("./cosmetics");
+  const u = db
+    .prepare("SELECT username, avatar_seed, avatar_equipped FROM users WHERE id=?")
+    .get(row.user_id);
   return {
     id: row.id,
     table: row.table_id,
     user: row.user_id,
     username: u?.username || "",
     avatar_seed: u?.avatar_seed || String(row.user_id),
+    avatar_equipped: parseEquipped(u?.avatar_equipped),
     is_organizer: !!row.is_organizer,
     status: row.status,
     waitlist_position: row.waitlist_position,

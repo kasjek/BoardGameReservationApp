@@ -13,13 +13,15 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET /auth/google/config` — `{ google_enabled, google_client_id }` for the GIS button (public)
 - `POST /auth/google` — exchange a Google Identity Services ID token (`credential`) for an app token; creates a `USER` or logs into the existing account with the same verified email *(9)*
 - `POST /auth/logout` — end session
-- `GET /auth/me` — current user profile and role (and venue link for `VENUE_USER`), including `favorite_categories`
+- `GET /auth/me` — current user profile and role (and venue link for `VENUE_USER`), including `favorite_categories`, `avatar_unlocks`, and `avatar_equipped`
 - `POST /me/password` — change own password (`current_password`, `new_password`, `confirm_password`); rotates auth token *(9)*
-- `PATCH /me/avatar` — set avatar from the allocated set *(10)*
+- `POST /me/avatar/roll` — re-roll the DiceBear `avatar_seed` only; collected cosmetics stay *(10)*
+- `GET /avatar/cosmetics` — catalog of layered cosmetics with lock state, `xp_required` (unique games played), and currently equipped items
+- `PATCH /me/avatar/cosmetics` — `{ slot, item_id }` equip an unlocked cosmetic or `item_id: null` to unequip. Slots: `background`, `hat`, `glasses`, `frame`, `companion`. XP is unique games played; every 10 unique titles unlocks the next catalog item (never revoked)
 - `PATCH /me/favorite-categories` — set up to 3 BoardGameGeek categories (`category_ids`) the user likes most
 - `PATCH /me/settings` — e.g. toggle `allow_invites` *(17)*
 - `GET /users?q=` — search users by login (username); authenticated *(14)*
-- `GET /users/{id}` — public profile: avatar, username, rating, late-cancellation count, games played, different games, favorite categories — no email. When authenticated, includes `friendship` (`none`/`outgoing`/`incoming`/`friends`/`self`) *(20, 23, 26, 14)*
+- `GET /users/{id}` — public profile: avatar (+ equipped cosmetics), username, rating, late-cancellation count, games played, different games, favorite categories — no email, no unlock inventory. When authenticated, includes `friendship` (`none`/`outgoing`/`incoming`/`friends`/`self`) *(20, 23, 26, 14)*
 - `GET /users/{id}/games` — tables the user reserved a seat at (`sessions`) and unique titles (`titles`) *(20, 26)*
 
 ## Venues

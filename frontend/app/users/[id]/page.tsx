@@ -102,6 +102,7 @@ export default function PublicUserPage() {
             <Avatar
               userId={profile.id}
               customAvatarUrl={profile.avatar_seed ? dicebearUrl(profile.avatar_seed) : undefined}
+              cosmetics={profile.avatar_equipped}
               size={80}
             />
             <div className="mt-2 text-lg font-bold">{profile.username}</div>

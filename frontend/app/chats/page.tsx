@@ -57,6 +57,7 @@ export default function ChatsPage() {
               <Avatar
                 userId={chat.user.id}
                 customAvatarUrl={chat.user.avatar_seed ? dicebearUrl(chat.user.avatar_seed) : undefined}
+                cosmetics={chat.user.avatar_equipped}
                 size={40}
               />
               <div className="min-w-0 flex-1">

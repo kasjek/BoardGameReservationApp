@@ -33,6 +33,7 @@ function publicPreview(db, row, viewerId) {
     id: s.id,
     username: s.username,
     avatar_seed: s.avatar_seed,
+    avatar_equipped: s.avatar_equipped,
     rating_avg: s.rating_avg,
     friendship: friendshipPayload(db, viewerId, row.id),
   };

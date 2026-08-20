@@ -53,6 +53,8 @@ def test_public_profile_exposes_avatar_seed_not_email(db, client):
     assert resp.data["avatar_seed"] == "abc123"
     assert "email" not in resp.data
     assert resp.data["favorite_categories"] == []
+    assert "avatar_unlocks" not in resp.data
+    assert resp.data["avatar_equipped"]["hat"] is None
 
 
 def test_favorite_categories_max_three_from_bgg_list(db, client):
@@ -478,6 +480,112 @@ def test_private_chat_rejects_self_and_empty(db, client):
     other = mk("chat_other")
     assert client.post(f"/api/chats/{other.id}", {"body": "  "}, format="json").status_code == 400
     assert client.get("/api/chats/999999").status_code == 404
+
+
+def _add_unique_games(user, n, venue=None, prefix="Cosmetic Game"):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.tables.models import SeatReservation, SeatStatus, Table, TableStatus
+    from apps.venues.models import Venue
+
+    venue = venue or Venue.objects.create(name=f"Cosmetic Cafe {user.username}")
+    now = timezone.now()
+    for i in range(n):
+        table = Table.objects.create(
+            organizer=user,
+            venue=venue,
+            game_title=f"{prefix} {i+1}",
+            starts_at=now - timedelta(days=i + 1),
+            ends_at=now - timedelta(days=i + 1) + timedelta(hours=2),
+            min_players=2,
+            max_players=4,
+            status=TableStatus.CONFIRMED_PAID,
+            seats_taken=1,
+        )
+        SeatReservation.objects.create(
+            table=table, user=user, is_organizer=True, status=SeatStatus.RESERVED
+        )
+    user._derived_cache = None
+    return venue
+
+
+def test_cosmetics_unlock_after_ten_unique_games_and_survive_roll(db, client):
+    user = mk("cosmo_player")
+    client.force_authenticate(user=user)
+
+    me = client.get("/api/auth/me")
+    assert me.status_code == 200
+    assert me.data["avatar_unlocks"] == []
+    assert me.data["avatar_equipped"]["background"] is None
+
+    _add_unique_games(user, 9)
+    nine = client.get("/api/auth/me")
+    assert nine.data["different_games"] == 9
+    assert nine.data["avatar_unlocks"] == []
+
+    _add_unique_games(user, 1, prefix="Tenth Title")
+    ten = client.get("/api/auth/me")
+    assert ten.data["different_games"] == 10
+    assert ten.data["avatar_unlocks"] == ["bg-lilac"]
+
+    locked = client.patch(
+        "/api/me/avatar/cosmetics",
+        {"slot": "hat", "item_id": "hat-party"},
+        format="json",
+    )
+    assert locked.status_code == 403
+
+    wrong = client.patch(
+        "/api/me/avatar/cosmetics",
+        {"slot": "hat", "item_id": "bg-lilac"},
+        format="json",
+    )
+    assert wrong.status_code == 400
+
+    equipped = client.patch(
+        "/api/me/avatar/cosmetics",
+        {"slot": "background", "item_id": "bg-lilac"},
+        format="json",
+    )
+    assert equipped.status_code == 200
+    assert equipped.data["avatar_equipped"]["background"] == "bg-lilac"
+
+    catalog = client.get("/api/avatar/cosmetics")
+    assert catalog.status_code == 200
+    by_id = {row["id"]: row for row in catalog.data["items"]}
+    assert by_id["bg-lilac"]["unlocked"] is True
+    assert by_id["bg-lilac"]["equipped"] is True
+    assert by_id["hat-party"]["unlocked"] is False
+    assert by_id["hat-party"]["xp_required"] == 20
+
+    seed = equipped.data["avatar_seed"]
+    rolled = client.post("/api/me/avatar/roll")
+    assert rolled.status_code == 200
+    assert rolled.data["avatar_seed"] != seed
+    assert rolled.data["avatar_unlocks"] == ["bg-lilac"]
+    assert rolled.data["avatar_equipped"]["background"] == "bg-lilac"
+
+    public = client.get(f"/api/users/{user.id}")
+    assert public.data["avatar_equipped"]["background"] == "bg-lilac"
+    assert "avatar_unlocks" not in public.data
+
+    from apps.tables.models import SeatReservation, SeatStatus
+
+    SeatReservation.objects.filter(user=user).update(status=SeatStatus.CANCELLED)
+    user._derived_cache = None
+    after = client.get("/api/auth/me")
+    assert after.data["different_games"] == 0
+    assert "bg-lilac" in after.data["avatar_unlocks"]
+    assert after.data["avatar_equipped"]["background"] == "bg-lilac"
+
+    unequip = client.patch(
+        "/api/me/avatar/cosmetics",
+        {"slot": "background", "item_id": None},
+        format="json",
+    )
+    assert unequip.data["avatar_equipped"]["background"] is None
 
 
 

@@ -106,6 +106,7 @@ export function FriendRow({
         <Avatar
           userId={person.id}
           customAvatarUrl={person.avatar_seed ? dicebearUrl(person.avatar_seed) : undefined}
+          cosmetics={person.avatar_equipped}
           size={40}
         />
         <div className="min-w-0">
@@ -177,6 +178,7 @@ export function FriendsList({
             <Avatar
               userId={person.id}
               customAvatarUrl={person.avatar_seed ? dicebearUrl(person.avatar_seed) : undefined}
+              cosmetics={person.avatar_equipped}
               size={40}
             />
             <div className="min-w-0">
