@@ -233,6 +233,8 @@ erDiagram
     int bgg_id
     string title
     string thumbnail_url
+    int min_players
+    int max_players
   }
   tables {
     int id

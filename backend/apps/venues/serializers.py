@@ -101,6 +101,8 @@ class VenueGameSerializer(serializers.ModelSerializer):
             "cover_url",
             "bgg_url",
             "is_active",
+            "min_players",
+            "max_players",
         ]
         read_only_fields = fields
 
@@ -121,10 +123,18 @@ class VenueGameWriteSerializer(serializers.Serializer):
 
     bgg_id = serializers.IntegerField(required=False, min_value=1)
     title = serializers.CharField(required=False, allow_blank=False, max_length=200)
+    min_players = serializers.IntegerField(required=False, min_value=1, max_value=99)
+    max_players = serializers.IntegerField(required=False, min_value=1, max_value=99)
 
     def validate(self, attrs):
         if not attrs.get("bgg_id") and not attrs.get("title"):
             raise serializers.ValidationError("Provide bgg_id (preferred) or title.")
+        min_p = attrs.get("min_players", 2)
+        max_p = attrs.get("max_players", 8)
+        if max_p < min_p:
+            raise serializers.ValidationError("Require 1 <= min_players <= max_players.")
+        attrs["min_players"] = min_p
+        attrs["max_players"] = max_p
         return attrs
 
     def create(self, validated_data):
@@ -171,7 +181,22 @@ class VenueGameWriteSerializer(serializers.Serializer):
             bgg_id=bgg_id,
             thumbnail_url=thumbnail_url or "",
             is_active=True,
+            min_players=validated_data.get("min_players", 2),
+            max_players=validated_data.get("max_players", 8),
         )
+
+
+class VenueGameSeatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VenueGame
+        fields = ["min_players", "max_players"]
+
+    def validate(self, attrs):
+        min_p = attrs.get("min_players", self.instance.min_players)
+        max_p = attrs.get("max_players", self.instance.max_players)
+        if min_p < 1 or max_p < min_p or max_p > 99:
+            raise serializers.ValidationError("Require 1 <= min_players <= max_players <= 99.")
+        return attrs
 
 
 class VenueCreateSerializer(VenueSerializer):

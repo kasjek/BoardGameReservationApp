@@ -66,6 +66,8 @@ function parsePlayTimes(xml) {
     playing_time: num(/<playingtime[^>]*value="(\d+)"/i),
     min_play_time: num(/<minplaytime[^>]*value="(\d+)"/i),
     max_play_time: num(/<maxplaytime[^>]*value="(\d+)"/i),
+    min_players: num(/<minplayers[^>]*value="(\d+)"/i),
+    max_players: num(/<maxplayers[^>]*value="(\d+)"/i),
   };
 }
 
@@ -140,6 +142,8 @@ async function geekdoItem(bggId) {
       playing_time: item.playingtime ? Number(item.playingtime) : null,
       min_play_time: item.minplaytime ? Number(item.minplaytime) : null,
       max_play_time: item.maxplaytime ? Number(item.maxplaytime) : null,
+      min_players: item.minplayers ? Number(item.minplayers) : null,
+      max_players: item.maxplayers ? Number(item.maxplayers) : null,
     };
   } catch {
     return null;
@@ -251,6 +255,8 @@ async function resolveThing(bggId) {
     playing_time: null,
     min_play_time: null,
     max_play_time: null,
+    min_players: null,
+    max_players: null,
   };
 }
 

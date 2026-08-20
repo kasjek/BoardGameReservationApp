@@ -370,6 +370,8 @@ def test_admin_adds_venue_game_from_bgg(db, client, monkeypatch):
     assert resp.status_code == 201, resp.data
     assert resp.data["title"] == "Catan"
     assert resp.data["bgg_id"] == 13
+    assert resp.data["min_players"] == 2
+    assert resp.data["max_players"] == 8
     assert "catan.jpg" in resp.data["cover_url"]
     assert VenueGame.objects.filter(venue=venue, bgg_id=13).count() == 1
 
@@ -383,6 +385,46 @@ def test_admin_adds_venue_game_from_bgg(db, client, monkeypatch):
     client.force_authenticate(user=admin)
     dup = client.post(f"/api/venues/{venue.id}/games", {"bgg_id": 13}, format="json")
     assert dup.status_code == 400
+
+
+def test_admin_adds_venue_game_with_seat_limits(db, client, monkeypatch):
+    from apps.bgg import services as bgg
+    from apps.venues.models import VenueGame
+
+    monkeypatch.setattr(
+        bgg,
+        "fetch_thing",
+        lambda bgg_id: {"bgg_id": bgg_id, "name": "Patchwork", "thumbnail_url": ""},
+    )
+    venue = Venue.objects.create(name="Game Shelf")
+    admin = mk("dan", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        f"/api/venues/{venue.id}/games",
+        {"bgg_id": 163412, "min_players": 2, "max_players": 2},
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    assert resp.data["min_players"] == 2
+    assert resp.data["max_players"] == 2
+    game = VenueGame.objects.get(venue=venue, bgg_id=163412)
+    assert (game.min_players, game.max_players) == (2, 2)
+
+    patched = client.patch(
+        f"/api/venues/{venue.id}/games/{game.id}",
+        {"min_players": 2, "max_players": 3},
+        format="json",
+    )
+    assert patched.status_code == 200, patched.data
+    assert patched.data["max_players"] == 3
+    assert patched.data["title"] == "Patchwork"
+
+    bad = client.patch(
+        f"/api/venues/{venue.id}/games/{game.id}",
+        {"min_players": 5, "max_players": 2},
+        format="json",
+    )
+    assert bad.status_code == 400
 
 
 def test_non_manager_cannot_add_venue_game(db, client):

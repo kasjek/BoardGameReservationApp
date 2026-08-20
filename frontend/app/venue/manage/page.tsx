@@ -221,6 +221,9 @@ export default function ManageVenuePage() {
   const [hours, setHours] = useState<WeeklyHours[]>(defaultHours());
   const [closures, setClosures] = useState<VenueClosure[]>([]);
   const [games, setGames] = useState<VenueGame[]>([]);
+  const [pendingGame, setPendingGame] = useState<BggSearchHit | null>(null);
+  const [pendingMin, setPendingMin] = useState(2);
+  const [pendingMax, setPendingMax] = useState(8);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -449,19 +452,72 @@ export default function ManageVenuePage() {
     }
   }
 
-  async function addGameFromBgg(hit: BggSearchHit) {
-    if (!venueId) return;
+  async function pickGameFromBgg(hit: BggSearchHit) {
+    setPendingGame(hit);
+    const venueMin = selectedVenue?.min_players ?? 2;
+    const venueMax = selectedVenue?.max_players ?? 8;
+    setPendingMin(venueMin);
+    setPendingMax(venueMax);
+    setError(null);
+    setInfo(null);
+    try {
+      const thing = await bggApi.thing(hit.bgg_id);
+      const minSeats = thing.min_players && thing.min_players >= 1 ? thing.min_players : venueMin;
+      const maxSeats = thing.max_players && thing.max_players >= minSeats ? thing.max_players : venueMax;
+      const minClamped = Math.min(99, Math.max(1, minSeats));
+      setPendingMin(minClamped);
+      setPendingMax(Math.min(99, Math.max(minClamped, maxSeats)));
+    } catch {
+      /* keep venue defaults */
+    }
+  }
+
+  async function confirmAddGame() {
+    if (!venueId || !pendingGame) return;
+    if (pendingMin < 1 || pendingMax < pendingMin) {
+      setError(t("venueManage.errSeats"));
+      return;
+    }
     setBusy(true);
     setError(null);
     setInfo(null);
     try {
-      const game = await venueApi.addGame(venueId, { bgg_id: hit.bgg_id, title: hit.name });
+      const game = await venueApi.addGame(venueId, {
+        bgg_id: pendingGame.bgg_id,
+        title: pendingGame.name,
+        min_players: pendingMin,
+        max_players: pendingMax,
+      });
       setGames((rows) =>
         [...rows.filter((g) => g.id !== game.id), game].sort((a, b) =>
           a.title.localeCompare(b.title),
         ),
       );
+      setPendingGame(null);
       setInfo(t("venueManage.gameAdded", { name: game.title }));
+    } catch (err) {
+      setError(errorMessage(err, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveGameSeats(game: VenueGame) {
+    if (!venueId) return;
+    if (game.min_players < 1 || game.max_players < game.min_players) {
+      setError(t("venueManage.errSeats"));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const updated = await venueApi.updateGame(venueId, game.id, {
+        min_players: game.min_players,
+        max_players: game.max_players,
+      });
+      setGames((rows) => rows.map((g) => (g.id === updated.id ? updated : g)));
+      setInfo(t("venueManage.seatsSaved"));
     } catch (err) {
       setError(errorMessage(err, t));
     } finally {
@@ -689,26 +745,132 @@ export default function ManageVenuePage() {
                 <div className="text-sm font-bold">{t("venueManage.boardGames")}</div>
                 <div className="mt-1 text-xs text-slate-500">{t("venueManage.boardGamesHint")}</div>
                 <div className="mt-2">
-                  <BggGamePicker onPick={addGameFromBgg} disabled={busy} t={t} />
+                  <BggGamePicker onPick={pickGameFromBgg} disabled={busy || !!pendingGame} t={t} />
                 </div>
+                {pendingGame ? (
+                  <div className="mt-3 rounded-xl border-2 border-violet-200 bg-violet-50 px-3 py-3">
+                    <div className="text-sm font-bold">
+                      {t("venueManage.pendingGame", { name: pendingGame.name })}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">{t("venueManage.seatsHint")}</div>
+                    <div className="mt-2 flex gap-2">
+                      <div className="flex-1">
+                        <span className="label">{t("venueManage.minSeats")}</span>
+                        <input
+                          className="input"
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={pendingMin}
+                          onChange={(e) => setPendingMin(Number(e.target.value))}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <span className="label">{t("venueManage.maxSeats")}</span>
+                        <input
+                          className="input"
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={pendingMax}
+                          onChange={(e) => setPendingMax(Number(e.target.value))}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={busy}
+                        onClick={confirmAddGame}
+                      >
+                        {busy ? t("common.ellipsis") : t("venueManage.addGame")}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        disabled={busy}
+                        onClick={() => setPendingGame(null)}
+                      >
+                        {t("venueManage.cancelAdd")}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="mt-3 space-y-2">
                   {games.length === 0 ? (
                     <div className="text-sm text-slate-400">{t("venueManage.noGames")}</div>
                   ) : (
                     games.map((g) => (
-                      <div key={g.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                        <Cover name={g.title} imageUrl={g.cover_url} size={40} />
-                        <div className="min-w-0 flex-1 text-sm font-semibold">
-                          <GameLink name={g.title} bggId={g.bgg_id} href={g.bgg_url} />
+                      <div key={g.id} className="rounded-xl bg-slate-50 px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          <Cover name={g.title} imageUrl={g.cover_url} size={40} />
+                          <div className="min-w-0 flex-1 text-sm font-semibold">
+                            <GameLink name={g.title} bggId={g.bgg_id} href={g.bgg_url} />
+                            <div className="text-xs font-normal text-slate-500">
+                              {t("venueManage.seatsLine", {
+                                min: g.min_players,
+                                max: g.max_players,
+                              })}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-red-500"
+                            disabled={busy}
+                            onClick={() => removeGame(g.id)}
+                          >
+                            {t("common.remove")}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-red-500"
-                          disabled={busy}
-                          onClick={() => removeGame(g.id)}
-                        >
-                          {t("common.remove")}
-                        </button>
+                        <div className="mt-2 flex items-end gap-2">
+                          <div className="flex-1">
+                            <span className="label">{t("venueManage.minSeats")}</span>
+                            <input
+                              className="input"
+                              type="number"
+                              min={1}
+                              max={99}
+                              value={g.min_players}
+                              onChange={(e) =>
+                                setGames((rows) =>
+                                  rows.map((row) =>
+                                    row.id === g.id
+                                      ? { ...row, min_players: Number(e.target.value) }
+                                      : row,
+                                  ),
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <span className="label">{t("venueManage.maxSeats")}</span>
+                            <input
+                              className="input"
+                              type="number"
+                              min={1}
+                              max={99}
+                              value={g.max_players}
+                              onChange={(e) =>
+                                setGames((rows) =>
+                                  rows.map((row) =>
+                                    row.id === g.id
+                                      ? { ...row, max_players: Number(e.target.value) }
+                                      : row,
+                                  ),
+                                )
+                              }
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-ghost !w-auto shrink-0 px-3 py-2 text-xs"
+                            disabled={busy}
+                            onClick={() => saveGameSeats(g)}
+                          >
+                            {t("venueManage.saveSeats")}
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}

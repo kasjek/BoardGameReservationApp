@@ -34,8 +34,10 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET/PUT /venues/{id}/hours` — recurring bookable hours per weekday (Mon=0…Sun=6); PUT replaces the full week (VENUE_USER own, ADMIN) *(34)*
 - `GET/POST /venues/{id}/closures` / `DELETE /venues/{id}/closures/{id}` — date-specific closure alerts with comment; closed dates cannot be booked *(34)*
 - `GET /venues/{id}/rules` / `POST|PATCH|DELETE /venues/{id}/rules/{ruleId}` — reservation rules *(45)*
-- `GET /venues/{id}/games` — games available at the venue *(29)*
-- `POST|PATCH|DELETE /venues/{id}/games/{inventoryId}` — manage venue inventory: copies, condition, language (VENUE_USER own, ADMIN any) *(38, 44, 47)*
+- `GET /venues/{id}/games` — games available at the venue, including `min_players` / `max_players` seat limits *(29)*
+- `POST /venues/{id}/games` — add a game (`bgg_id` or `title`, plus `min_players` / `max_players`; default 2–8) (VENUE_USER own, ADMIN any) *(38, 47)*
+- `PATCH /venues/{id}/games/{id}` — update that game's min/max seats (1 ≤ min ≤ max ≤ 99) (VENUE_USER own, ADMIN any) *(38, 47)*
+- `DELETE /venues/{id}/games/{id}` — remove a game from the venue inventory (VENUE_USER own, ADMIN any) *(38, 44, 47)*
 - `GET /venues/{id}/tables` — all events at a venue, single view (VENUE_USER own, ADMIN) *(41)*
 - `GET /venues/{id}/history` — past tables at the venue *(40)*
 

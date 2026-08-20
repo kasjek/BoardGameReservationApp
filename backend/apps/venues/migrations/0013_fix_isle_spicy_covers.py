@@ -20,7 +20,8 @@ CACHE_QUERY_NORMS = {
 def forwards(apps, schema_editor):
     from apps.bgg import services
     from apps.bgg.models import BggResolution
-    from apps.venues.models import VenueGame
+
+    VenueGame = apps.get_model("venues", "VenueGame")
 
     BggResolution.objects.filter(query_norm__in=CACHE_QUERY_NORMS).delete()
     # Drop any non-BGG CDN thumbnails that were stored with a known bgg_id.

@@ -10,6 +10,7 @@ from .serializers import (
     VenueAvailabilitySerializer,
     VenueClosureSerializer,
     VenueCreateSerializer,
+    VenueGameSeatSerializer,
     VenueGameSerializer,
     VenueGameWriteSerializer,
     VenueSerializer,
@@ -159,12 +160,21 @@ class VenueGameListCreateView(generics.ListCreateAPIView):
         return Response(VenueGameSerializer(game).data, status=status.HTTP_201_CREATED)
 
 
-class VenueGameDestroyView(generics.DestroyAPIView):
+class VenueGameDetailView(generics.DestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = VenueGameSerializer
+    http_method_names = ["patch", "delete", "head", "options"]
 
     def get_queryset(self):
         return VenueGame.objects.filter(venue_id=self.kwargs["venue_id"])
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        _require_manager(request.user, instance.venue)
+        ser = VenueGameSeatSerializer(instance, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        instance = ser.save()
+        return Response(VenueGameSerializer(instance).data)
 
     def perform_destroy(self, instance):
         _require_manager(self.request.user, instance.venue)

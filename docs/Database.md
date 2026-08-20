@@ -154,11 +154,13 @@ Games physically available at a venue. *(stories 29, 38, 44)*
 | `condition` | enum(`new`,`like_new`,`good`) | Physical condition |
 | `language` | text | Copy language |
 | `is_active` | bool | Currently offered |
+| `min_players` | int | Minimum seats a table for this game may offer (default 2) |
+| `max_players` | int | Maximum seats a table for this game may offer (default 8) |
 
-| id | venue_id | game_id | copies | condition | language | is_active |
-|---|---|---|---|---|---|---|
-| vgi_1 | v_1 | g_1 | 2 | like_new | en | true |
-| vgi_2 | v_1 | g_2 | 1 | good | de | true |
+| id | venue_id | game_id | copies | condition | language | is_active | min_players | max_players |
+|---|---|---|---|---|---|---|---|---|---|
+| vgi_1 | v_1 | g_1 | 2 | like_new | en | true | 3 | 4 |
+| vgi_2 | v_1 | g_2 | 1 | good | de | true | 2 | 5 |
 
 ### Table (Event)
 

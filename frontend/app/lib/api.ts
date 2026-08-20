@@ -177,6 +177,8 @@ export interface VenueGame {
   cover_url: string | null;
   bgg_url: string | null;
   is_active: boolean;
+  min_players: number;
+  max_players: number;
 }
 
 export interface BggSearchHit {
@@ -192,6 +194,8 @@ export interface BggThing {
   playing_time: number | null;
   min_play_time: number | null;
   max_play_time: number | null;
+  min_players: number | null;
+  max_players: number | null;
 }
 
 export class ApiError extends Error {
@@ -340,9 +344,21 @@ export const venueApi = {
   deleteClosure: (venueId: number, closureId: number) =>
     request<unknown>(`/venues/${venueId}/closures/${closureId}`, { method: "DELETE" }),
   games: (venueId: number) => request<VenueGame[]>(`/venues/${venueId}/games`),
-  addGame: (venueId: number, payload: { bgg_id?: number; title?: string }) =>
+  addGame: (
+    venueId: number,
+    payload: { bgg_id?: number; title?: string; min_players: number; max_players: number },
+  ) =>
     request<VenueGame>(`/venues/${venueId}/games`, {
       method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateGame: (
+    venueId: number,
+    gameId: number,
+    payload: { min_players: number; max_players: number },
+  ) =>
+    request<VenueGame>(`/venues/${venueId}/games/${gameId}`, {
+      method: "PATCH",
       body: JSON.stringify(payload),
     }),
   deleteGame: (venueId: number, gameId: number) =>

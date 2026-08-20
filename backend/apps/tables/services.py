@@ -107,7 +107,12 @@ def create_table(
             f"This venue only allows tables for {venue.min_players}–{venue.max_players} players."
         )
     min_players, max_players = apply_game_player_limits(
-        game_title, min_players, max_players, venue.min_players, venue.max_players
+        game_title,
+        min_players,
+        max_players,
+        venue.min_players,
+        venue.max_players,
+        venue=venue,
     )
     from apps.venues.hours import assert_slot_bookable
 
