@@ -92,12 +92,8 @@ export function HowItWorksFlow() {
   const { t } = useI18n();
   return (
     <div>
-      <p className="mb-4 text-center text-sm text-slate-600">{t("howItWorks.intro")}</p>
       <div className="grid grid-cols-2 gap-x-3">
         <div className="flex flex-col items-stretch">
-          <div className="mb-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
-            {t("howItWorks.pathCreate")}
-          </div>
           <Bubble
             icon="🎲"
             text={t("howItWorks.createTable")}
@@ -108,9 +104,6 @@ export function HowItWorksFlow() {
           <DownArrow label={t("howItWorks.then")} />
         </div>
         <div className="flex flex-col items-stretch">
-          <div className="mb-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">
-            {t("howItWorks.pathJoin")}
-          </div>
           <Bubble
             icon="🙋"
             text={t("howItWorks.joinTable")}

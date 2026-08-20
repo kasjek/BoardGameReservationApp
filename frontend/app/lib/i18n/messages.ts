@@ -400,9 +400,6 @@ export const en: Messages = {
     seatsLine: "{taken}/{max} seats · min {min}",
   },
   howItWorks: {
-    intro: "Two ways in — then everybody follows the same path to game night.",
-    pathCreate: "Path 1",
-    pathJoin: "Path 2",
     createTable: "Create a new table",
     joinTable: "Join an existing table",
     then: "then",
@@ -872,9 +869,6 @@ export const de: Messages = {
     seatsLine: "{taken}/{max} Plätze · min. {min}",
   },
   howItWorks: {
-    intro: "Zwei Einstiege — danach läuft für alle derselbe Weg zum Spieleabend.",
-    pathCreate: "Weg 1",
-    pathJoin: "Weg 2",
     createTable: "Neuen Tisch anlegen",
     joinTable: "Bestehendem Tisch beitreten",
     then: "dann",
