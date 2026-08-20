@@ -19,6 +19,7 @@ import {
 import {
   errorMessage,
   reviewApi,
+  type Review,
   type Seat,
   tableApi,
   type Table,
@@ -57,6 +58,8 @@ export default function TableDetailPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [rating, setRating] = useState(5);
+  const [playerRatings, setPlayerRatings] = useState<Record<number, number>>({});
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [feePrompt, setFeePrompt] = useState<"host" | "guest" | null>(null);
   const paypalReturnHandled = useRef(false);
 
@@ -71,6 +74,7 @@ export default function TableDetailPage() {
       setTable(tbl);
       setVenue(await venueApi.get(tbl.venue));
       setSeats(await tableApi.seats(id));
+      setReviews(await reviewApi.forTable(id).catch(() => []));
       if (user) {
         const mine = await tableApi.list({ attendeeId: String(user.id) });
         setHasSeat(mine.some((m) => m.id === id));
@@ -129,6 +133,15 @@ export default function TableDetailPage() {
   const reservedSeats = seats.filter((s) => s.status === "reserved");
   const waitlistSeats = seats.filter((s) => s.status === "waitlisted");
   const openSeats = Math.max(0, table.max_players - reservedSeats.length);
+  const attended = reservedSeats.some((s) => s.user === user.id) || isOrganizer;
+  const canReview = eventEnded && table.status !== "cancelled" && attended;
+  const otherPlayers = reservedSeats.filter((s) => s.user !== user.id);
+  const myVenueReview = reviews.find(
+    (r) => r.author === user.id && r.target_type === "venue",
+  );
+  const myPlayerReviews = new Set(
+    reviews.filter((r) => r.author === user.id && r.target_type === "user" && r.target_user != null).map((r) => r.target_user),
+  );
 
   async function act(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
@@ -396,7 +409,12 @@ export default function TableDetailPage() {
 
       <div className="card mt-4">
         <div className="label">{t("tableDetail.rateVenue")}</div>
-        {eventEnded && table.status !== "cancelled" && (hasSeat || isOrganizer) ? (
+        {canReview ? (
+          myVenueReview ? (
+            <div className="mt-1 text-sm text-slate-500">
+              {t("tableDetail.alreadyRatedVenue")} · {"★".repeat(myVenueReview.rating)}
+            </div>
+          ) : (
           <div className="mt-1 flex items-center gap-2">
             <select
               className="input w-24"
@@ -428,6 +446,7 @@ export default function TableDetailPage() {
               {t("tableDetail.submitReview")}
             </button>
           </div>
+          )
         ) : (
           <div className="mt-1 text-sm text-slate-500">
             {table.status === "cancelled"
@@ -438,6 +457,76 @@ export default function TableDetailPage() {
           </div>
         )}
       </div>
+      {canReview && otherPlayers.length > 0 ? (
+        <div className="card mt-3">
+          <div className="label">{t("tableDetail.ratePlayers")}</div>
+          <div className="mt-2 space-y-2">
+            {otherPlayers.map((s) => {
+              const existing = reviews.find(
+                (r) => r.author === user.id && r.target_type === "user" && r.target_user === s.user,
+              );
+              const value = playerRatings[s.user] ?? 5;
+              return (
+                <div key={s.id} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    onClick={() => router.push(`/users/${s.user}`)}
+                  >
+                    <Avatar
+                      userId={s.user}
+                      customAvatarUrl={s.avatar_seed ? dicebearUrl(s.avatar_seed) : undefined}
+                      size={32}
+                    />
+                    <span className="truncate text-sm font-semibold">{s.username}</span>
+                  </button>
+                  {existing || myPlayerReviews.has(s.user) ? (
+                    <div className="text-xs text-slate-500">
+                      {t("tableDetail.alreadyRated", { name: s.username })}
+                      {existing ? ` · ${"★".repeat(existing.rating)}` : ""}
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        className="input w-20"
+                        value={value}
+                        onChange={(e) =>
+                          setPlayerRatings((cur) => ({ ...cur, [s.user]: Number(e.target.value) }))
+                        }
+                      >
+                        {[5, 4, 3, 2, 1].map((n) => (
+                          <option key={n} value={n}>
+                            {n} ★
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="btn-ghost !w-auto shrink-0 px-3 py-2 text-xs"
+                        disabled={busy}
+                        onClick={() =>
+                          act(
+                            () =>
+                              reviewApi.create({
+                                table: table.id,
+                                target_type: "user",
+                                target_user: s.user,
+                                rating: value,
+                              }),
+                            t("tableDetail.thanksReview"),
+                          )
+                        }
+                      >
+                        {t("tableDetail.submitReview")}
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       {feePrompt ? (
         <VenueGameFeePrompt
           open

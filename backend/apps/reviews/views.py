@@ -26,3 +26,11 @@ class VenueReviewsView(generics.ListAPIView):
 
     def get_queryset(self):
         return Review.objects.filter(target_venue_id=self.kwargs["venue_id"]).order_by("-created_at")
+
+
+class TableReviewsView(generics.ListAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return Review.objects.filter(table_id=self.kwargs["table_id"]).order_by("-created_at")
