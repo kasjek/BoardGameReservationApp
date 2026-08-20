@@ -34,7 +34,7 @@ export const en: Messages = {
     logOut: "Log out",
     more: "More",
     howItWorks: "How it works",
-    venueMap: "Venue map",
+    venueMap: "Treasure Map",
     aboutUs: "About us",
   },
   lang: {
@@ -377,6 +377,7 @@ export const en: Messages = {
     empty: "No venues to show on the map yet.",
     venuePage: "Venue page",
     openMaps: "Open in Maps",
+    illustrationAlt: "Treasure map of Nürnberg and Fürth",
   },
   aboutUs: {
     meetupAlt: "MeetUp",
@@ -453,7 +454,7 @@ export const de: Messages = {
     logOut: "Abmelden",
     more: "Mehr",
     howItWorks: "So funktioniert's",
-    venueMap: "Location-Karte",
+    venueMap: "Schatzkarte",
     aboutUs: "Über uns",
   },
   lang: {
@@ -800,6 +801,7 @@ export const de: Messages = {
     empty: "Noch keine Locations auf der Karte.",
     venuePage: "Location-Seite",
     openMaps: "In Maps öffnen",
+    illustrationAlt: "Schatzkarte von Nürnberg und Fürth",
   },
   aboutUs: {
     meetupAlt: "MeetUp",
