@@ -128,7 +128,7 @@ export const en: Messages = {
     allTables: "All tables",
     emptyWaiting: "No tables are waiting for players right now. Try 'All tables', or create one!",
     emptyFilter: "No tables match this filter.",
-    seatsLine: "{taken}/{max} seats · {lang}",
+    seatsLine: "{taken}/{max} seats",
     minMaxPlayers: "Min {min} · Max {max} players",
     seatReserved: "✓ Your seat is reserved",
     takeASeat: "Take a Seat",
@@ -597,7 +597,7 @@ export const de: Messages = {
     emptyWaiting:
       "Gerade wartet kein Tisch auf Spieler. Probiere „Alle Tische“ oder erstelle einen!",
     emptyFilter: "Keine Tische passen zu diesem Filter.",
-    seatsLine: "{taken}/{max} Plätze · {lang}",
+    seatsLine: "{taken}/{max} Plätze",
     minMaxPlayers: "Min. {min} · Max. {max} Spieler",
     seatReserved: "✓ Dein Platz ist reserviert",
     takeASeat: "Platz nehmen",
