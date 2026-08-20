@@ -244,17 +244,24 @@ export function FormatWhen({ startsAt, endsAt }: { startsAt: string; endsAt?: st
 
 /**
  * App brand banner: the dice-cube logo with the "Too Many Games" title.
- * Language flags sit top-right. Not used on login/register — those use AuthHero.
+ * Logo, title, and empty banner space go to All Tables. Language flags stay put.
+ * Not used on login/register — those use AuthHero.
  */
 export function BrandBanner() {
   const { t } = useI18n();
   return (
-    <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt={t("brand.logoAlt")} width={44} height={44} className="shrink-0" />
-      <span className="min-w-0 flex-1 text-xl font-black uppercase leading-none tracking-tight text-slate-900">
-        {t("brand.name")}
-      </span>
+    <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+      <Link
+        href="/"
+        className="-ml-1 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-0.5 hover:bg-slate-50"
+        aria-label={t("nav.allTables")}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" width={44} height={44} className="shrink-0" />
+        <span className="min-w-0 flex-1 text-xl font-black uppercase leading-none tracking-tight text-slate-900">
+          {t("brand.name")}
+        </span>
+      </Link>
       <LanguageSwitcher />
     </div>
   );
