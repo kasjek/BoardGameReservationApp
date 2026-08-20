@@ -70,9 +70,19 @@ export default function AboutUsPage() {
           href={EVENTS_URL}
           target="_blank"
           rel="noreferrer noopener"
-          className="mt-4 w-full max-w-sm rounded-[1.6rem] border-[3px] border-brand bg-violet-100 px-4 py-3 text-sm font-black leading-snug text-violet-950 shadow-[3px_3px_0_0_#1e1b4b] transition hover:-translate-y-0.5"
+          className="mt-4 flex w-full max-w-sm flex-col items-center gap-3 rounded-[1.6rem] border-[3px] border-brand bg-violet-100 px-4 py-4 shadow-[3px_3px_0_0_#1e1b4b] transition hover:-translate-y-0.5"
         >
-          {t("aboutUs.privateEvents")}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/click-glove.png"
+            alt={t("aboutUs.clickGloveAlt")}
+            width={96}
+            height={96}
+            className="h-16 w-16 object-contain"
+          />
+          <span className="text-sm font-black leading-snug text-violet-950">
+            {t("aboutUs.privateEvents")}
+          </span>
         </a>
       </div>
     </Shell>
