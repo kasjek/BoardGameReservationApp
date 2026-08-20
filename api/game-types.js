@@ -67,6 +67,11 @@ const KNOWN_GAME_TYPES_BY_TITLE = {
   wyrmspan: ["strategy", "family"],
   wingspan: ["strategy", "family"],
   azul: ["abstract", "family"],
+  dominion: ["strategy"],
+  splendor: ["family"],
+  "7 wonders": ["strategy", "family"],
+  "ticket to ride": ["family"],
+  carcassonne: ["family"],
 };
 
 module.exports = {
