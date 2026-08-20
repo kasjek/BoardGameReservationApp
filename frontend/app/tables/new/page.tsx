@@ -16,6 +16,7 @@ import {
   type VenueGame,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { gamePlayerLimits } from "../../lib/gameLimits";
 import { useI18n } from "../../lib/i18n";
 
 const GAME_LANGUAGE_CODES: { code: "en" | "de"; short: string; labelKey: string }[] = [
@@ -308,6 +309,10 @@ export default function CreateTablePage() {
   const hasVenueGames = venueGames.length > 0;
   const venueMin = selectedVenue?.min_players ?? 1;
   const venueMax = selectedVenue?.max_players ?? 99;
+  const gameLimits = gamePlayerLimits(game, bggId);
+  const playerMin = gameLimits ? Math.max(venueMin, gameLimits.min) : venueMin;
+  const playerMax = gameLimits ? Math.min(venueMax, gameLimits.max) : venueMax;
+  const playersLocked = Boolean(gameLimits) && playerMin === playerMax;
   const minReservationMinutes =
     selectedVenue?.min_reservation_minutes ?? MIN_DURATION_MINUTES;
   const maxReservationMinutes =
@@ -371,9 +376,9 @@ export default function CreateTablePage() {
 
   useEffect(() => {
     if (!selectedVenue) return;
-    setMinPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
-    setMaxPlayers((m) => Math.min(Math.max(m, selectedVenue.min_players), selectedVenue.max_players));
-  }, [selectedVenue]);
+    setMinPlayers((m) => Math.min(Math.max(m, playerMin), playerMax));
+    setMaxPlayers((m) => Math.min(Math.max(m, playerMin), playerMax));
+  }, [selectedVenue, playerMin, playerMax]);
 
   useEffect(() => {
     if (!venue) {
@@ -472,10 +477,10 @@ export default function CreateTablePage() {
     else if (dayAvailability && toSlots.length > 0 && !toSlots.includes(to)) {
       next.to = t("newTable.errTo");
     }
-    if (minPlayers < venueMin || minPlayers > venueMax) {
+    if (minPlayers < playerMin || minPlayers > playerMax) {
       next.minPlayers = t("newTable.errPlayers");
     }
-    if (maxPlayers < venueMin || maxPlayers > venueMax || maxPlayers < minPlayers) {
+    if (maxPlayers < playerMin || maxPlayers > playerMax || maxPlayers < minPlayers) {
       next.maxPlayers = t("newTable.errPlayers");
     }
     if (bringOwn) {
@@ -661,9 +666,10 @@ export default function CreateTablePage() {
             <input
               className="input"
               type="number"
-              min={venueMin}
-              max={venueMax}
+              min={playerMin}
+              max={playerMax}
               value={minPlayers}
+              disabled={playersLocked}
               onChange={(e) => {
                 setMinPlayers(Number(e.target.value));
                 setFieldErrors((f) => ({ ...f, minPlayers: undefined, maxPlayers: undefined }));
@@ -678,9 +684,10 @@ export default function CreateTablePage() {
             <input
               className="input"
               type="number"
-              min={venueMin}
-              max={venueMax}
+              min={playerMin}
+              max={playerMax}
               value={maxPlayers}
+              disabled={playersLocked}
               onChange={(e) => {
                 setMaxPlayers(Number(e.target.value));
                 setFieldErrors((f) => ({ ...f, maxPlayers: undefined }));
@@ -691,7 +698,11 @@ export default function CreateTablePage() {
             ) : null}
           </div>
         </div>
-        {selectedVenue ? (
+        {gameLimits ? (
+          <div className="mt-1 text-xs text-slate-500">
+            {t("newTable.twoPlayerOnly", { game: game.trim() || "Patchwork" })}
+          </div>
+        ) : selectedVenue ? (
           <div className="mt-1 text-xs text-slate-500">
             {t("newTable.venueAllows", {
               min: selectedVenue.min_players,

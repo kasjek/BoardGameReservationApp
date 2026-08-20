@@ -125,6 +125,10 @@ def _seed_demo_tables(venue, specs) -> list[Table]:
             .first()
         )
         if existing:
+            if game.strip().lower() == "patchwork" and existing.max_players != 2:
+                existing.min_players = 2
+                existing.max_players = max(2, existing.seats_taken)
+                existing.save(update_fields=["min_players", "max_players"])
             created.append(existing)
             continue
 
@@ -135,7 +139,7 @@ def _seed_demo_tables(venue, specs) -> list[Table]:
             starts_at=starts_at,
             ends_at=ends_at,
             min_players=2,
-            max_players=4,
+            max_players=2 if game.strip().lower() == "patchwork" else 4,
             bring_own_game=bring_own,
             game_language="en" if bring_own else "de",
         )

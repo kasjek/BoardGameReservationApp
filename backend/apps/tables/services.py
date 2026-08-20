@@ -14,6 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 
+from .game_limits import apply_game_player_limits, effective_max_players
 from .models import LateCancellationMark, SeatReservation, SeatStatus, Table, TableStatus
 
 TURNOVER = timedelta(minutes=15)
@@ -105,6 +106,9 @@ def create_table(
         raise ValidationError(
             f"This venue only allows tables for {venue.min_players}–{venue.max_players} players."
         )
+    min_players, max_players = apply_game_player_limits(
+        game_title, min_players, max_players, venue.min_players, venue.max_players
+    )
     from apps.venues.hours import assert_slot_bookable
 
     assert_slot_bookable(venue, starts_at, ends_at)
@@ -238,7 +242,7 @@ def reserve_seat(*, table: Table, user) -> SeatReservation:
             "You can't be at two overlapping tables."
         )
 
-    if table.seats_taken < table.max_players:
+    if table.seats_taken < effective_max_players(table):
         seat = SeatReservation.objects.create(
             table=table,
             user=user,
@@ -292,7 +296,7 @@ def cancel_seat(*, table: Table, user, now=None) -> SeatReservation:
 
 
 def _promote_from_waitlist(table: Table) -> None:
-    if table.seats_taken >= table.max_players:
+    if table.seats_taken >= effective_max_players(table):
         return
     nxt = (
         table.seats.filter(status=SeatStatus.WAITLISTED)
