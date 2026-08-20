@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { FriendAction } from "../../components/Friends";
+import { FavoriteCategoryChips } from "../../components/FavoriteCategories";
 import {
   Avatar,
   Banner,
@@ -166,6 +167,13 @@ export default function PublicUserPage() {
               </div>
             )}
           </div>
+
+          {profile.favorite_categories?.length ? (
+            <div className="card mb-4 text-center">
+              <div className="text-sm font-bold">{t("publicProfile.favoriteCategories")}</div>
+              <FavoriteCategoryChips categories={profile.favorite_categories} />
+            </div>
+          ) : null}
 
           <div className="mb-4 grid grid-cols-2 gap-2">
             <button

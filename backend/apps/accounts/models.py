@@ -30,6 +30,8 @@ class User(AbstractUser):
     avatar_seed = models.CharField(max_length=64, blank=True, default="")
     # Google account subject (`sub`). Null for password-only users.
     google_sub = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    # Up to 3 BoardGameGeek boardgamecategory ids the user likes most.
+    favorite_categories = models.JSONField(default=list, blank=True)
 
     @property
     def is_admin_role(self) -> bool:

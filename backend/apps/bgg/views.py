@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
+from .categories import list_categories
 
 
 class BggRedirectView(APIView):
@@ -85,3 +86,13 @@ class BggThingView(APIView):
         if not thing:
             return Response({"detail": "Game not found on BoardGameGeek."}, status=404)
         return Response(thing)
+
+
+class BggCategoriesView(APIView):
+    """JSON list of BoardGameGeek board-game categories (browse/boardgamecategory)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_scope = "bgg"
+
+    def get(self, request):
+        return Response({"results": list_categories()})

@@ -164,6 +164,13 @@ export const en: Messages = {
     organized: "Organized",
     joined: "Joined",
     timesPlayed: "{count}×",
+    favoriteCategories: "Games you like most",
+    favoriteHint: "Pick up to 3 BoardGameGeek categories.",
+    favoriteCount: "{n} of {max} selected",
+    favoriteNone: "None selected yet.",
+    favoriteSearch: "Search categories",
+    favoriteNoMatch: "No matching categories.",
+    favoriteSource: "Categories from BoardGameGeek",
   },
   publicProfile: {
     title: "{name}",
@@ -180,6 +187,7 @@ export const en: Messages = {
     noGames: "No games joined yet.",
     sessionsHeading: "Games joined",
     titlesHeading: "Different games",
+    favoriteCategories: "Games they like most",
   },
   friends: {
     title: "Find friends",
@@ -576,6 +584,13 @@ export const de: Messages = {
     organized: "Organisiert",
     joined: "Mitgespielt",
     timesPlayed: "{count}×",
+    favoriteCategories: "Spiele, die du am liebsten magst",
+    favoriteHint: "Wähle bis zu 3 BoardGameGeek-Kategorien.",
+    favoriteCount: "{n} von {max} ausgewählt",
+    favoriteNone: "Noch keine ausgewählt.",
+    favoriteSearch: "Kategorien suchen",
+    favoriteNoMatch: "Keine passenden Kategorien.",
+    favoriteSource: "Kategorien von BoardGameGeek",
   },
   publicProfile: {
     title: "{name}",
@@ -592,6 +607,7 @@ export const de: Messages = {
     noGames: "Noch keine Spiele mitgespielt.",
     sessionsHeading: "Mitgespielte Spiele",
     titlesHeading: "Verschiedene Spiele",
+    favoriteCategories: "Lieblingskategorien",
   },
   friends: {
     title: "Freunde finden",

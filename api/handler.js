@@ -15,6 +15,7 @@ const {
   JOINABLE_STATUSES,
 } = require("./db");
 const { resolveCoverUrl, resolveThing, liveSearch } = require("./bgg");
+const { listCategories, parseCategoryIds } = require("./bgg-categories");
 const {
   friendshipPayload,
   searchUsers,
@@ -141,6 +142,19 @@ async function handleApi(req, res) {
       if (!u) return;
       const seed = `${u.username}-${Date.now()}`;
       db.prepare("UPDATE users SET avatar_seed=? WHERE id=?").run(seed, u.id);
+      return send(res, 200, serializeUser(db.prepare("SELECT * FROM users WHERE id=?").get(u.id)));
+    }
+
+    if (method === "PATCH" && path === "/api/me/favorite-categories") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      const body = await readBody(req);
+      const parsed = parseCategoryIds(body.category_ids);
+      if (parsed.error) return send(res, 400, { detail: parsed.error });
+      db.prepare("UPDATE users SET favorite_categories=? WHERE id=?").run(
+        JSON.stringify(parsed.ids),
+        u.id,
+      );
       return send(res, 200, serializeUser(db.prepare("SELECT * FROM users WHERE id=?").get(u.id)));
     }
 
@@ -694,6 +708,11 @@ async function handleApi(req, res) {
     }
 
     // ---- BGG (BGG_API_TOKEN enables live XML; Geekdo/Wikipedia fallbacks otherwise) ----
+    if (method === "GET" && path === "/api/bgg/categories") {
+      if (!requireUser(req, res)) return;
+      return send(res, 200, { results: listCategories() });
+    }
+
     if (method === "GET" && path === "/api/bgg/directory") {
       if (!requireUser(req, res)) return;
       const rows = db

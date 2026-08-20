@@ -3,6 +3,7 @@ const path = require("path");
 const Database = require("better-sqlite3");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const { hydrateCategories, parseStoredCategoryIds } = require("./bgg-categories");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "data");
 const DB_PATH = process.env.SQLITE_PATH || path.join(DATA_DIR, "app.sqlite3");
@@ -29,7 +30,8 @@ function ensureDb() {
       venue_id INTEGER,
       allow_invites INTEGER NOT NULL DEFAULT 1,
       avatar_seed TEXT NOT NULL DEFAULT '',
-      cancellations_count INTEGER NOT NULL DEFAULT 0
+      cancellations_count INTEGER NOT NULL DEFAULT 0,
+      favorite_categories TEXT NOT NULL DEFAULT '[]'
     );
     CREATE TABLE IF NOT EXISTS tokens (
       key TEXT PRIMARY KEY,
@@ -155,6 +157,10 @@ function migrateSchema(database) {
   const seatCols = database.prepare("PRAGMA table_info(seats)").all().map((c) => c.name);
   if (!seatCols.includes("paid")) {
     database.exec("ALTER TABLE seats ADD COLUMN paid INTEGER NOT NULL DEFAULT 0");
+  }
+  const userCols = database.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+  if (!userCols.includes("favorite_categories")) {
+    database.exec("ALTER TABLE users ADD COLUMN favorite_categories TEXT NOT NULL DEFAULT '[]'");
   }
   database.exec(`
     UPDATE tables SET status='requested' WHERE status='waiting_for_venue_confirmation';
@@ -449,6 +455,7 @@ function serializeUser(row) {
     late_cancel_marks_active: 0,
     games_played: games.games_played,
     different_games: games.different_games,
+    favorite_categories: hydrateCategories(parseStoredCategoryIds(row.favorite_categories)),
   };
 }
 
