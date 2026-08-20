@@ -118,7 +118,7 @@ export function VenueGameFeePrompt({
   );
 }
 
-/** Inline fee hint for the New Table form when “Use a venue game” is selected. */
+/** Inline fee hint for the New Table form (venue games only). */
 export function VenueGameFeeHint({
   fromHm,
   toHm,

@@ -11,7 +11,6 @@ import {
   tableApi,
   venueApi,
   type Availability,
-  type BggSearchHit,
   type Venue,
   type VenueGame,
 } from "../../lib/api";
@@ -19,71 +18,8 @@ import { useAuth } from "../../lib/auth";
 import { gamePlayerLimits } from "../../lib/gameLimits";
 import { useI18n } from "../../lib/i18n";
 
-const GAME_LANGUAGE_CODES: { code: "en" | "de"; short: string; labelKey: string }[] = [
-  { code: "en", short: "EN", labelKey: "lang.en" },
-  { code: "de", short: "DE", labelKey: "lang.de" },
-];
-
-// Languages selectable when "Other" is chosen (English and German have code buttons).
-// API values stay in English; display uses lang.* keys.
-const OTHER_LANGUAGES = [
-  "French",
-  "Spanish",
-  "Italian",
-  "Portuguese",
-  "Dutch",
-  "Polish",
-  "Czech",
-  "Hungarian",
-  "Romanian",
-  "Swedish",
-  "Norwegian",
-  "Danish",
-  "Finnish",
-  "Greek",
-  "Turkish",
-  "Russian",
-  "Ukrainian",
-  "Chinese",
-  "Japanese",
-  "Korean",
-  "Arabic",
-  "Hebrew",
-  "Hindi",
-] as const;
-
-const OTHER_LANGUAGE_KEYS: Record<(typeof OTHER_LANGUAGES)[number], string> = {
-  French: "lang.french",
-  Spanish: "lang.spanish",
-  Italian: "lang.italian",
-  Portuguese: "lang.portuguese",
-  Dutch: "lang.dutch",
-  Polish: "lang.polish",
-  Czech: "lang.czech",
-  Hungarian: "lang.hungarian",
-  Romanian: "lang.romanian",
-  Swedish: "lang.swedish",
-  Norwegian: "lang.norwegian",
-  Danish: "lang.danish",
-  Finnish: "lang.finnish",
-  Greek: "lang.greek",
-  Turkish: "lang.turkish",
-  Russian: "lang.russian",
-  Ukrainian: "lang.ukrainian",
-  Chinese: "lang.chinese",
-  Japanese: "lang.japanese",
-  Korean: "lang.korean",
-  Arabic: "lang.arabic",
-  Hebrew: "lang.hebrew",
-  Hindi: "lang.hindi",
-};
-
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 180;
-/** Sentinel value in the venue-game dropdown for spontaneous choice. */
-const SPONTANEOUS_VALUE = "__spontaneous__";
-/** Stored game_title when the host picks spontaneous venue selection. */
-const SPONTANEOUS_TITLE = "Spontaneous selection";
 
 const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
@@ -116,173 +52,13 @@ function formatPlaytimeMinutes(
   return t("newTable.playtimeMinutes", { minutes: mins });
 }
 
-/**
- * Single BGG game dropdown: open/focus shows the local BGG directory;
- * typing searches BoardGameGeek and lists all matching games in the same dropdown.
- */
-function BggGameDropdown({
-  selectedId,
-  selectedName,
-  onPick,
-  required,
-}: {
-  selectedId: number | null;
-  selectedName: string;
-  onPick: (hit: BggSearchHit | null) => void;
-  required?: boolean;
-}) {
-  const { t } = useI18n();
-  const [query, setQuery] = useState(selectedName);
-  const [hits, setHits] = useState<BggSearchHit[]>([]);
-  const [directory, setDirectory] = useState<BggSearchHit[]>([]);
-  const [open, setOpen] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [loadedDirectory, setLoadedDirectory] = useState(false);
-
-  useEffect(() => {
-    setQuery(selectedName);
-  }, [selectedName, selectedName]);
-
-  useEffect(() => {
-    let cancelled = false;
-    bggApi
-      .directory()
-      .then((res) => {
-        if (!cancelled) {
-          setDirectory(res.results);
-          setLoadedDirectory(true);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoadedDirectory(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    const q = query.trim();
-    // Selected game name alone should not re-trigger search.
-    if (selectedId && q === selectedName.trim()) {
-      setHits(directory);
-      setSearchError(null);
-      return;
-    }
-    if (q.length < 2) {
-      setHits(directory);
-      setSearchError(null);
-      setSearching(false);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setSearching(true);
-      setSearchError(null);
-      bggApi
-        .search(q, 500)
-        .then((res) => {
-          if (cancelled) return;
-          setHits(res.results);
-        })
-        .catch((e) => {
-          if (!cancelled) {
-            setHits([]);
-            setSearchError(errorMessage(e, t));
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 300);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [query, open, directory, selectedId, selectedName, t]);
-
-  const options =
-    selectedId && selectedName && !hits.some((h) => h.bgg_id === selectedId)
-      ? [{ bgg_id: selectedId, name: selectedName, year: null as number | null }, ...hits]
-      : hits;
-
-  return (
-    <div className="relative">
-      <input
-        className="input"
-        value={query}
-        required={required && !selectedId}
-        placeholder={t("newTable.bggTypePlaceholder")}
-        autoComplete="off"
-        aria-label={t("newTable.game")}
-        aria-expanded={open}
-        aria-controls="bgg-game-directory"
-        role="combobox"
-        onFocus={() => setOpen(true)}
-        onChange={(e) => {
-          const next = e.target.value;
-          setQuery(next);
-          setOpen(true);
-          if (selectedId && next.trim() !== selectedName.trim()) {
-            onPick(null);
-          }
-        }}
-        onBlur={() => {
-          // Allow option click to register before closing.
-          window.setTimeout(() => setOpen(false), 150);
-        }}
-      />
-      {open ? (
-        <ul
-          id="bgg-game-directory"
-          role="listbox"
-          className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-        >
-          {searching || !loadedDirectory ? (
-            <li className="px-3 py-2 text-xs text-slate-400">{t("bgg.searching")}</li>
-          ) : searchError ? (
-            <li className="px-3 py-2 text-xs text-red-500">{searchError}</li>
-          ) : options.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-slate-400">{t("bgg.noMatches")}</li>
-          ) : (
-            options.map((h) => {
-              const active = selectedId === h.bgg_id;
-              return (
-                <li key={h.bgg_id} role="option" aria-selected={active}>
-                  <button
-                    type="button"
-                    className={`block w-full px-3 py-2 text-left text-sm hover:bg-brand/10 ${
-                      active ? "bg-brand/10 font-semibold text-brand" : "text-slate-800"
-                    }`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onPick(h);
-                      setQuery(h.name);
-                      setOpen(false);
-                    }}
-                  >
-                    {h.name}
-                    {h.year ? ` (${h.year})` : ""}
-                  </button>
-                </li>
-              );
-            })
-          )}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
 type FieldErrors = Partial<
-  Record<"venue" | "date" | "from" | "to" | "minPlayers" | "maxPlayers" | "game" | "language", string>
+  Record<"venue" | "date" | "from" | "to" | "minPlayers" | "maxPlayers" | "game", string>
 >;
 
 export default function CreateTablePage() {
   const { user, loading } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
@@ -298,10 +74,6 @@ export default function CreateTablePage() {
   const [minPlayers, setMinPlayers] = useState(2);
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [game, setGame] = useState("");
-  const [bggId, setBggId] = useState<number | null>(null);
-  const [bringOwn, setBringOwn] = useState(true);
-  const [language, setLanguage] = useState<"en" | "de" | "other">("en");
-  const [languageOther, setLanguageOther] = useState<string>(OTHER_LANGUAGES[0]);
   const [playtimeLabel, setPlaytimeLabel] = useState<string | null>(null);
   const [playtimeLoading, setPlaytimeLoading] = useState(false);
 
@@ -309,6 +81,8 @@ export default function CreateTablePage() {
   const hasVenueGames = venueGames.length > 0;
   const venueMin = selectedVenue?.min_players ?? 1;
   const venueMax = selectedVenue?.max_players ?? 99;
+  const selectedGame = venueGames.find((g) => g.title === game);
+  const bggId = selectedGame?.bgg_id ?? null;
   const gameLimits = gamePlayerLimits(venueGames, game, bggId);
   const playerMin = gameLimits ? Math.max(venueMin, gameLimits.min) : venueMin;
   const playerMax = gameLimits ? Math.min(venueMax, gameLimits.max) : venueMax;
@@ -317,8 +91,6 @@ export default function CreateTablePage() {
     selectedVenue?.min_reservation_minutes ?? MIN_DURATION_MINUTES;
   const maxReservationMinutes =
     selectedVenue?.max_reservation_minutes ?? MAX_DURATION_MINUTES;
-  const isSpontaneous = !bringOwn && game === SPONTANEOUS_TITLE;
-
   const dayAvailability = useMemo(() => {
     if (!date) return null;
     return availability.find((a) => a.date === date) ?? null;
@@ -392,14 +164,11 @@ export default function CreateTablePage() {
   }, [venue, t]);
 
   useEffect(() => {
-    if (bringOwn) return;
     setGame((current) => {
-      if (current === SPONTANEOUS_TITLE) return current;
       if (venueGames.some((g) => g.title === current)) return current;
       return venueGames[0]?.title ?? "";
     });
-    setBggId(null);
-  }, [bringOwn, venueGames]);
+  }, [venueGames]);
 
   useEffect(() => {
     if (!dayAvailability) return;
@@ -433,26 +202,17 @@ export default function CreateTablePage() {
     }
 
     setPlaytimeLabel(null);
-    if (bringOwn && bggId) {
+    if (bggId) {
       loadPlaytime(bggId);
       return () => {
         cancelled = true;
       };
     }
-    if (!bringOwn && !isSpontaneous && game) {
-      const vg = venueGames.find((g) => g.title === game);
-      if (vg?.bgg_id) {
-        loadPlaytime(vg.bgg_id);
-        return () => {
-          cancelled = true;
-        };
-      }
-    }
     setPlaytimeLoading(false);
     return () => {
       cancelled = true;
     };
-  }, [bringOwn, bggId, game, isSpontaneous, venueGames, t]);
+  }, [bggId, t]);
 
   if (loading) return <LoadingScreen />;
   if (!user) return null;
@@ -483,14 +243,9 @@ export default function CreateTablePage() {
     if (maxPlayers < playerMin || maxPlayers > playerMax || maxPlayers < minPlayers) {
       next.maxPlayers = t("newTable.errPlayers");
     }
-    if (bringOwn) {
-      if (!bggId || !game.trim()) next.game = t("newTable.errGameRequired");
-      if (language === "other" && !languageOther.trim()) {
-        next.language = t("newTable.errLanguage");
-      }
-    } else if (!hasVenueGames) {
+    if (!hasVenueGames) {
       next.game = t("newTable.errNoVenueGames");
-    } else if (!game.trim()) {
+    } else if (!venueGames.some((g) => g.title === game)) {
       next.game = t("newTable.errGameRequired");
     }
     if (date && from && to) {
@@ -520,9 +275,9 @@ export default function CreateTablePage() {
         venue: Number(venue),
         game_title: game.trim(),
         bgg_id: bggId,
-        bring_own_game: bringOwn,
-        game_language: language,
-        game_language_other: language === "other" ? languageOther.trim() : "",
+        bring_own_game: false,
+        game_language: locale === "de" ? "de" : "en",
+        game_language_other: "",
         starts_at,
         ends_at,
         min_players: minPlayers,
@@ -543,11 +298,7 @@ export default function CreateTablePage() {
       ? t("newTable.closedHint")
       : t("newTable.pickDateHint");
 
-  const venueSelectValue = isSpontaneous
-    ? SPONTANEOUS_VALUE
-    : venueGames.some((g) => g.title === game)
-      ? game
-      : "";
+  const venueSelectValue = venueGames.some((g) => g.title === game) ? game : "";
 
   // Keep Request table inactive until every required field is valid (e.g. date chosen).
   const formReady = Object.keys(validate()).length === 0;
@@ -661,6 +412,55 @@ export default function CreateTablePage() {
           </div>
         ) : null}
 
+        <span className="label">{t("newTable.selectGame")}</span>
+        {hasVenueGames ? (
+          <>
+            <select
+              className="input"
+              value={venueSelectValue}
+              onChange={(e) => {
+                setGame(e.target.value);
+                setFieldErrors((f) => ({ ...f, game: undefined }));
+              }}
+              aria-label={t("newTable.selectGame")}
+            >
+              <option value="" disabled>
+                {t("newTable.selectVenueGame")}
+              </option>
+              {venueGames.map((g) => (
+                <option key={g.id} value={g.title}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
+            {selectedVenue ? (
+              <div className="mt-1 text-xs text-slate-500">
+                {t("newTable.gamesAtVenue", { name: selectedVenue.name })}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <select className="input" value="" disabled>
+              <option value="">{t("newTable.noVenueGames")}</option>
+            </select>
+            <div className="mt-1 text-xs text-slate-500">{t("newTable.noVenueGamesHint")}</div>
+          </>
+        )}
+        {fieldErrors.game ? <div className="mt-1 text-xs text-red-500">{fieldErrors.game}</div> : null}
+        <VenueGameFeeHint date={date} fromHm={from} toHm={to} />
+
+        {playtimeLoading ? (
+          <div className="mt-3 text-xs text-slate-400">{t("newTable.playtimeLoading")}</div>
+        ) : playtimeLabel ? (
+          <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {t("newTable.recommendedPlaytime")}
+            </div>
+            <div className="mt-0.5 font-semibold">{playtimeLabel}</div>
+          </div>
+        ) : null}
+
         <div className="flex gap-2">
           <div className="flex-1">
             <span className="label">{t("newTable.minPlayers")}</span>
@@ -715,179 +515,6 @@ export default function CreateTablePage() {
               min: selectedVenue.min_players,
               max: selectedVenue.max_players,
             })}
-          </div>
-        ) : null}
-
-        <span className="label">{t("newTable.whoBrings")}</span>
-        <div className="mt-1 space-y-1 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={bringOwn}
-              onChange={() => {
-                setBringOwn(true);
-                setGame("");
-                setBggId(null);
-                setFieldErrors((f) => ({ ...f, game: undefined }));
-              }}
-            />{" "}
-            {t("newTable.iBringIt")}
-          </label>
-          {bringOwn ? (
-            <div className="mt-2 pl-6">
-              <span className="label">{t("newTable.language")}</span>
-              <div
-                className="mt-1 flex flex-wrap items-center gap-2"
-                role="group"
-                aria-label={t("newTable.language")}
-              >
-                {GAME_LANGUAGE_CODES.map(({ code, short, labelKey }) => {
-                  const active = language === code;
-                  return (
-                    <button
-                      key={code}
-                      type="button"
-                      title={t(labelKey)}
-                      aria-label={t(labelKey)}
-                      aria-pressed={active}
-                      onClick={() => {
-                        setLanguage(code);
-                        setFieldErrors((f) => ({ ...f, language: undefined }));
-                      }}
-                      className={`flex h-10 min-w-10 items-center justify-center rounded-lg px-2 text-xs font-bold tracking-wide transition ${
-                        active
-                          ? "bg-brand/10 text-brand ring-2 ring-brand"
-                          : "bg-slate-50 text-slate-600 opacity-80 hover:bg-slate-100 hover:opacity-100"
-                      }`}
-                    >
-                      <span aria-hidden>{short}</span>
-                    </button>
-                  );
-                })}
-                <button
-                  type="button"
-                  aria-pressed={language === "other"}
-                  onClick={() => {
-                    setLanguage("other");
-                    setFieldErrors((f) => ({ ...f, language: undefined }));
-                  }}
-                  className={`h-10 rounded-lg px-3 text-sm font-semibold transition ${
-                    language === "other"
-                      ? "bg-brand/10 text-brand ring-2 ring-brand"
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  {t("lang.other")}
-                </button>
-              </div>
-              {language === "other" ? (
-                <select
-                  className="input mt-2"
-                  value={languageOther}
-                  onChange={(e) => {
-                    setLanguageOther(e.target.value);
-                    setFieldErrors((f) => ({ ...f, language: undefined }));
-                  }}
-                  aria-label={t("lang.other")}
-                >
-                  {OTHER_LANGUAGES.map((lang) => (
-                    <option key={lang} value={lang}>
-                      {t(OTHER_LANGUAGE_KEYS[lang])}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-              {fieldErrors.language ? (
-                <div className="mt-1 text-xs text-red-500">{fieldErrors.language}</div>
-              ) : null}
-            </div>
-          ) : null}
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={!bringOwn}
-              onChange={() => {
-                setBringOwn(false);
-                setBggId(null);
-                setGame(venueGames[0]?.title ?? "");
-                setFieldErrors((f) => ({ ...f, game: undefined }));
-              }}
-            />{" "}
-            {t("newTable.useVenueGame")}
-          </label>
-          {!bringOwn ? <VenueGameFeeHint date={date} fromHm={from} toHm={to} /> : null}
-        </div>
-
-        <span className="label">{t("newTable.game")}</span>
-        {bringOwn ? (
-          <>
-            <BggGameDropdown
-              selectedId={bggId}
-              selectedName={game}
-              required
-              onPick={(hit) => {
-                if (!hit) {
-                  setBggId(null);
-                  setGame("");
-                } else {
-                  setBggId(hit.bgg_id);
-                  setGame(hit.name);
-                }
-                setFieldErrors((f) => ({ ...f, game: undefined }));
-              }}
-            />
-          </>
-        ) : hasVenueGames ? (
-          <>
-            <select
-              className="input"
-              value={venueSelectValue}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === SPONTANEOUS_VALUE) {
-                  setGame(SPONTANEOUS_TITLE);
-                  setBggId(null);
-                } else {
-                  setGame(v);
-                  setBggId(venueGames.find((g) => g.title === v)?.bgg_id ?? null);
-                }
-                setFieldErrors((f) => ({ ...f, game: undefined }));
-              }}
-            >
-              <option value="" disabled>
-                {t("newTable.selectVenueGame")}
-              </option>
-              {venueGames.map((g) => (
-                <option key={g.id} value={g.title}>
-                  {g.title}
-                </option>
-              ))}
-              <option value={SPONTANEOUS_VALUE}>{t("newTable.spontaneous")}</option>
-            </select>
-            {selectedVenue ? (
-              <div className="mt-1 text-xs text-slate-500">
-                {t("newTable.gamesAtVenue", { name: selectedVenue.name })}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <select className="input" value="" disabled>
-              <option value="">{t("newTable.noVenueGames")}</option>
-            </select>
-            <div className="mt-1 text-xs text-slate-500">{t("newTable.noVenueGamesHint")}</div>
-          </>
-        )}
-        {fieldErrors.game ? <div className="mt-1 text-xs text-red-500">{fieldErrors.game}</div> : null}
-
-        {playtimeLoading ? (
-          <div className="mt-3 text-xs text-slate-400">{t("newTable.playtimeLoading")}</div>
-        ) : playtimeLabel ? (
-          <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {t("newTable.recommendedPlaytime")}
-            </div>
-            <div className="mt-0.5 font-semibold">{playtimeLabel}</div>
           </div>
         ) : null}
 
