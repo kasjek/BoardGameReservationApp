@@ -519,6 +519,7 @@ export default function CreateTablePage() {
       const created = await tableApi.create({
         venue: Number(venue),
         game_title: game.trim(),
+        bgg_id: bggId,
         bring_own_game: bringOwn,
         game_language: language,
         game_language_other: language === "other" ? languageOther.trim() : "",

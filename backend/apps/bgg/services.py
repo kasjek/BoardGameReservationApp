@@ -27,6 +27,19 @@ _LEADING_THE = re.compile(r"^the\s+", re.IGNORECASE)
 # official "Powered by BGG" logo (see frontend Shell footer).
 BGG_SEARCH_API = "https://boardgamegeek.com/xmlapi2/search"
 BGG_THING_API = "https://boardgamegeek.com/xmlapi2/thing"
+
+# BGG game "Type" on the thing page = ranked family (Strategy, Family, Party, ...).
+BGG_FAMILY_TYPES = {
+    "strategygames": "strategy",
+    "familygames": "family",
+    "partygames": "party",
+    "thematic": "thematic",
+    "abstracts": "abstract",
+    "wargames": "war",
+    "cgs": "customizable",
+    "childrensgames": "childrens",
+}
+GAME_TYPE_IDS = list(dict.fromkeys(BGG_FAMILY_TYPES.values()))
 BGG_GAME_URL = "https://boardgamegeek.com/boardgame/{id}"
 # Public Geekdo JSON (no Bearer token) — used as a cover/thing fallback when the
 # XML API returns 401 without BGG_API_TOKEN.
@@ -394,9 +407,43 @@ def _geekdo_item(bgg_id: int) -> dict | None:
     }
 
 
+def parse_thing_types(item: ET.Element) -> list[str]:
+    """BGG Type = ranked family ranks (Strategy, Family, Party, Thematic, ...)."""
+    out: list[str] = []
+    for rank in item.iter("rank"):
+        if rank.get("type") != "family":
+            continue
+        value = rank.get("value") or ""
+        if not value or value == "Not Ranked":
+            continue
+        slug = BGG_FAMILY_TYPES.get(rank.get("name") or "")
+        if slug and slug not in out:
+            out.append(slug)
+    return out
+
+
+def resolve_game_types(title: str, bgg_id: int | None = None, *, live: bool = True) -> list[str]:
+    """Return BGG type slugs for a hosted game title.
+
+    ``live=False`` skips HTTP (used when creating a table without a BGG id so
+    tests and bulk inserts stay offline). Table detail uses ``live=True``.
+    """
+    if not live:
+        return []
+    ident = _positive_bgg_id(bgg_id) if bgg_id else None
+    if not ident:
+        ident = _positive_bgg_id(_venue_game_bgg_id(title))
+    if not ident:
+        ident = resolve_bgg_id(title)
+    if not ident:
+        return []
+    thing = fetch_thing(int(ident))
+    return list((thing or {}).get("types") or [])
+
+
 def fetch_thing(bgg_id: int) -> dict | None:
-    """Load name, thumbnail, and playtime for a BGG thing id."""
-    body = _http_get(f"{BGG_THING_API}?id={bgg_id}", _auth_headers())
+    """Load name, thumbnail, playtime, and BGG type(s) for a BGG thing id."""
+    body = _http_get(f"{BGG_THING_API}?id={bgg_id}&stats=1", _auth_headers())
     if body is not None:
         try:
             root = ET.fromstring(body)
@@ -433,8 +480,13 @@ def fetch_thing(bgg_id: int) -> dict | None:
                         "playing_time": _int_attr("playingtime"),
                         "min_play_time": _int_attr("minplaytime"),
                         "max_play_time": _int_attr("maxplaytime"),
+                        "types": parse_thing_types(item),
                     }
-    return _geekdo_item(bgg_id)
+    geek = _geekdo_item(bgg_id)
+    if geek is not None:
+        geek.setdefault("types", [])
+        return geek
+    return None
 
 
 def _bgg_search(name: str) -> int | None:

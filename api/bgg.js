@@ -3,6 +3,12 @@
  * Uses BGG_API_TOKEN (Bearer) when set; falls back to Geekdo JSON + Wikipedia.
  */
 const { ensureDb } = require("./db");
+const {
+  BGG_FAMILY_TYPES,
+  GAME_TYPE_IDS,
+  KNOWN_GAME_TYPES,
+  KNOWN_GAME_TYPES_BY_TITLE,
+} = require("./game-types");
 
 const BGG_THING = "https://boardgamegeek.com/xmlapi2/thing";
 const BGG_SEARCH = "https://boardgamegeek.com/xmlapi2/search";
@@ -69,6 +75,24 @@ function parsePlayTimes(xml) {
     min_players: num(/<minplayers[^>]*value="(\d+)"/i),
     max_players: num(/<maxplayers[^>]*value="(\d+)"/i),
   };
+}
+
+/** BGG "Type" on a game page = ranked family (Strategy, Family, Party, ...). */
+function parseThingTypes(xml) {
+  const s = String(xml);
+  const out = [];
+  const re = /<rank\b([^>]*)\/?>/gi;
+  let m;
+  while ((m = re.exec(s))) {
+    const attrs = m[1];
+    const type = /(?:^|\s)type="([^"]+)"/i.exec(attrs)?.[1];
+    const name = /(?:^|\s)name="([^"]+)"/i.exec(attrs)?.[1];
+    const value = /(?:^|\s)value="([^"]+)"/i.exec(attrs)?.[1];
+    if (type !== "family" || !name || !value || value === "Not Ranked") continue;
+    const id = BGG_FAMILY_TYPES[name];
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
 }
 
 function decodeXmlEntities(s) {
@@ -230,23 +254,26 @@ async function resolveCoverUrl(name) {
 async function resolveThing(bggId) {
   const db = ensureDb();
   const local = db.prepare(`SELECT * FROM venue_games WHERE bgg_id=? LIMIT 1`).get(bggId);
-  const xml = await httpGet(`${BGG_THING}?id=${bggId}`);
+  const xml = await httpGet(`${BGG_THING}?id=${bggId}&stats=1`);
   if (xml) {
     const s = xml.toString("utf8");
     const thumb = parseThingThumbnail(s) || local?.thumbnail_url || "";
     const times = parsePlayTimes(s);
+    const types = parseThingTypes(s);
+    cacheGameTypes(db, bggId, parseThingName(s) || local?.title || "", types);
     if (thumb && local?.id) cacheThumb(local.id, thumb);
     return {
       bgg_id: bggId,
       name: parseThingName(s) || local?.title || `Game ${bggId}`,
       thumbnail_url: thumb,
+      types,
       ...times,
     };
   }
   const geek = await geekdoItem(bggId);
   if (geek) {
     if (geek.thumbnail_url && local?.id) cacheThumb(local.id, geek.thumbnail_url);
-    return geek;
+    return { ...geek, types: geek.types || typesFromCache(db, geek.name, bggId) || [] };
   }
   return {
     bgg_id: bggId,
@@ -257,7 +284,87 @@ async function resolveThing(bggId) {
     max_play_time: null,
     min_players: null,
     max_players: null,
+    types: typesFromCache(db, local?.title, bggId) || [],
   };
+}
+
+function cacheGameTypes(database, bggId, title, types) {
+  if (!bggId || !database) return;
+  const now = new Date().toISOString();
+  database
+    .prepare(
+      `INSERT INTO bgg_games (bgg_id, title, types, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(bgg_id) DO UPDATE SET title=excluded.title, types=excluded.types, updated_at=excluded.updated_at`,
+    )
+    .run(bggId, title || "", JSON.stringify(types || []), now);
+}
+
+function parseCachedTypes(raw) {
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function typesFromCache(database, title, bggId) {
+  if (bggId) {
+    const row = database.prepare("SELECT types FROM bgg_games WHERE bgg_id=?").get(bggId);
+    const cached = parseCachedTypes(row?.types);
+    if (cached.length) return cached;
+    const known = KNOWN_GAME_TYPES[Number(bggId)];
+    if (known?.length) return known;
+  }
+  if (title) {
+    const row = database
+      .prepare("SELECT types FROM bgg_games WHERE lower(title)=lower(?) LIMIT 1")
+      .get(stripYear(title));
+    const cached = parseCachedTypes(row?.types);
+    if (cached.length) return cached;
+    const known = KNOWN_GAME_TYPES_BY_TITLE[normalize(title)];
+    if (known?.length) return known;
+  }
+  return null;
+}
+
+async function resolveGameTypes(title, bggId = null, { live = true } = {}) {
+  const db = ensureDb();
+  const cached = typesFromCache(db, title, bggId);
+  if (cached && cached.length) return cached;
+
+  let id = bggId || null;
+  if (!id && title) {
+    const vg = db
+      .prepare(
+        `SELECT bgg_id FROM venue_games
+         WHERE is_active=1 AND bgg_id IS NOT NULL AND lower(title)=lower(?) LIMIT 1`,
+      )
+      .get(title);
+    id = vg?.bgg_id || null;
+  }
+  if (!id && live && title) {
+    const hits = await liveSearch(title, 8);
+    const want = normalize(title);
+    const exact = hits.find((h) => normalize(h.name) === want);
+    id = (exact || hits[0])?.bgg_id || null;
+  }
+  if (!id) return [];
+
+  const still = typesFromCache(db, title, id);
+  if (still && still.length) {
+    cacheGameTypes(db, id, title || "", still);
+    return still;
+  }
+  if (!live) return [];
+
+  const xml = await httpGet(`${BGG_THING}?id=${id}&stats=1`);
+  const types = xml ? parseThingTypes(xml.toString("utf8")) : [];
+  const name = xml ? parseThingName(xml.toString("utf8")) : title;
+  cacheGameTypes(db, id, name || title || "", types);
+  return types;
 }
 
 async function liveSearch(q, limit = 500) {
@@ -293,4 +400,8 @@ module.exports = {
   resolveCoverUrl,
   resolveThing,
   liveSearch,
+  parseThingTypes,
+  resolveGameTypes,
+  cacheGameTypes,
+  GAME_TYPE_IDS,
 };
