@@ -37,8 +37,14 @@ export default function AboutUsPage() {
           {t("brand.name")}
         </div>
 
-        <p className="mt-5 max-w-sm text-center text-sm font-semibold leading-snug text-slate-700">
-          <span aria-hidden>💜</span> {t("aboutUs.tagline")} <span aria-hidden>💜</span>
+        <p className="mt-5 flex max-w-sm items-start justify-center gap-2 text-center text-sm font-semibold leading-snug text-slate-700">
+          <span aria-hidden className="shrink-0">
+            💜
+          </span>
+          <span>{t("aboutUs.tagline")}</span>
+          <span aria-hidden className="shrink-0">
+            💜
+          </span>
         </p>
 
         <a
