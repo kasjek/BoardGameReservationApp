@@ -106,6 +106,41 @@ function serializeVenueGame(g) {
   };
 }
 
+function serializeReview(r) {
+  return {
+    id: r.id,
+    author: r.author_id,
+    author_name: r.author_name,
+    table: r.table_id,
+    target_type: r.target_type,
+    target_user: r.target_user_id,
+    target_venue: r.target_venue_id,
+    rating: r.rating,
+    body: r.body || "",
+    created_at: r.created_at,
+  };
+}
+
+function listReviews(database, whereSql, params) {
+  return database
+    .prepare(
+      `SELECT r.*, u.username AS author_name FROM reviews r
+       JOIN users u ON u.id = r.author_id
+       WHERE ${whereSql}
+       ORDER BY r.created_at DESC`,
+    )
+    .all(...params)
+    .map(serializeReview);
+}
+
+function participated(database, table, userId) {
+  if (!table || !userId) return false;
+  if (table.organizer_id === userId) return true;
+  return !!database
+    .prepare(`SELECT id FROM seats WHERE table_id=? AND user_id=? AND status='reserved'`)
+    .get(table.id, userId);
+}
+
 async function handleApi(req, res) {
   ensureDb();
   const db = ensureDb();
@@ -440,27 +475,7 @@ async function handleApi(req, res) {
     }
 
     if ((m = path.match(/^\/api\/venues\/(\d+)\/reviews$/)) && method === "GET") {
-      const id = Number(m[1]);
-      const rows = db
-        .prepare(
-          `SELECT r.*, u.username AS author_name FROM reviews r
-           JOIN users u ON u.id = r.author_id
-           WHERE r.target_type='venue' AND r.target_venue_id=?
-           ORDER BY r.created_at DESC`,
-        )
-        .all(id)
-        .map((r) => ({
-          id: r.id,
-          author: r.author_id,
-          author_name: r.author_name,
-          target_type: r.target_type,
-          target_user: r.target_user_id,
-          target_venue: r.target_venue_id,
-          rating: r.rating,
-          body: r.body,
-          created_at: r.created_at,
-        }));
-      return send(res, 200, rows);
+      return send(res, 200, listReviews(db, "r.target_type='venue' AND r.target_venue_id=?", [Number(m[1])]));
     }
 
     // ---- Tables ----
@@ -560,6 +575,13 @@ async function handleApi(req, res) {
       const row = db.prepare("SELECT * FROM tables WHERE id=?").get(Number(m[1]));
       if (!row) return send(res, 404, { detail: "Not found." });
       return send(res, 200, serializeTable(row));
+    }
+
+    if ((m = path.match(/^\/api\/tables\/(\d+)\/reviews$/)) && method === "GET") {
+      const tableId = Number(m[1]);
+      const table = db.prepare("SELECT id FROM tables WHERE id=?").get(tableId);
+      if (!table) return send(res, 404, { detail: "Not found." });
+      return send(res, 200, listReviews(db, "r.table_id=?", [tableId]));
     }
 
     if ((m = path.match(/^\/api\/tables\/(\d+)\/confirm$/)) && method === "POST") {
@@ -722,6 +744,54 @@ async function handleApi(req, res) {
       const u = requireUser(req, res);
       if (!u) return;
       const body = await readBody(req);
+      const table = db.prepare("SELECT * FROM tables WHERE id=?").get(Number(body.table));
+      if (!table) return send(res, 400, { detail: "table is required for a review." });
+      if (canonicalTableStatus(table.status) === "cancelled") {
+        return send(res, 400, { detail: "You cannot review a cancelled event." });
+      }
+      if (new Date(table.ends_at).getTime() > Date.now()) {
+        return send(res, 400, { detail: "You can only post a review after the event has ended." });
+      }
+      if (!participated(db, table, u.id)) {
+        return send(res, 400, { detail: "You can only review events you took part in." });
+      }
+      const rating = Number(body.rating);
+      if (!Number.isFinite(rating) || rating < 1 || rating > 5 || Math.floor(rating) !== rating) {
+        return send(res, 400, { detail: "rating must be between 1 and 5." });
+      }
+      const targetType = body.target_type;
+      if (targetType !== "user" && targetType !== "venue") {
+        return send(res, 400, { detail: "target_type must be user or venue." });
+      }
+      let targetUser = null;
+      let targetVenue = null;
+      if (targetType === "user") {
+        targetUser = Number(body.target_user);
+        if (!targetUser) {
+          return send(res, 400, { detail: "target_user is required for a user review." });
+        }
+        if (targetUser === u.id) {
+          return send(res, 400, { detail: "You cannot review yourself." });
+        }
+        if (!participated(db, table, targetUser)) {
+          return send(res, 400, { detail: "You can only review players who were at that table." });
+        }
+      } else {
+        targetVenue = table.venue_id;
+      }
+      const dup =
+        targetType === "user"
+          ? db
+              .prepare(
+                `SELECT id FROM reviews WHERE author_id=? AND table_id=? AND target_type='user' AND target_user_id=?`,
+              )
+              .get(u.id, table.id, targetUser)
+          : db
+              .prepare(
+                `SELECT id FROM reviews WHERE author_id=? AND table_id=? AND target_type='venue' AND target_venue_id=?`,
+              )
+              .get(u.id, table.id, targetVenue);
+      if (dup) return send(res, 400, { detail: "You have already reviewed this." });
       const info = db
         .prepare(
           `INSERT INTO reviews (author_id, table_id, target_type, target_user_id, target_venue_id, rating, body, created_at)
@@ -729,26 +799,21 @@ async function handleApi(req, res) {
         )
         .run(
           u.id,
-          body.table,
-          body.target_type,
-          body.target_user || null,
-          body.target_venue || null,
-          body.rating,
+          table.id,
+          targetType,
+          targetUser,
+          targetVenue,
+          rating,
           body.body || "",
           new Date().toISOString(),
         );
-      const r = db.prepare("SELECT * FROM reviews WHERE id=?").get(info.lastInsertRowid);
-      return send(res, 201, {
-        id: r.id,
-        author: r.author_id,
-        author_name: u.username,
-        target_type: r.target_type,
-        target_user: r.target_user_id,
-        target_venue: r.target_venue_id,
-        rating: r.rating,
-        body: r.body,
-        created_at: r.created_at,
-      });
+      const r = db
+        .prepare(
+          `SELECT r.*, u.username AS author_name FROM reviews r
+           JOIN users u ON u.id = r.author_id WHERE r.id=?`,
+        )
+        .get(info.lastInsertRowid);
+      return send(res, 201, serializeReview(r));
     }
 
     // ---- BGG (BGG_API_TOKEN enables live XML; Geekdo/Wikipedia fallbacks otherwise) ----
@@ -861,6 +926,13 @@ async function handleApi(req, res) {
       if (!u) return;
       const payload = await readBody(req);
       return send(res, 201, sendMessage(db, u.id, m[1], payload.body));
+    }
+
+    if ((m = path.match(/^\/api\/users\/(\d+)\/reviews$/)) && method === "GET") {
+      const userId = Number(m[1]);
+      const row = db.prepare("SELECT id FROM users WHERE id=?").get(userId);
+      if (!row) return send(res, 404, { detail: "Not found." });
+      return send(res, 200, listReviews(db, "r.target_type='user' AND r.target_user_id=?", [userId]));
     }
 
     if ((m = path.match(/^\/api\/users\/(\d+)\/games$/)) && method === "GET") {

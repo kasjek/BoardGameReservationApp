@@ -21,6 +21,8 @@ import {
   friendApi,
   type PublicUser,
   type PublicUserGames,
+  type Review,
+  reviewApi,
   userApi,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -37,6 +39,7 @@ export default function PublicUserPage() {
 
   const [profile, setProfile] = useState<PublicUser | null>(null);
   const [games, setGames] = useState<PublicUserGames | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<GameList>(null);
   const [friendBusy, setFriendBusy] = useState(false);
@@ -49,9 +52,14 @@ export default function PublicUserPage() {
     if (!Number.isFinite(id) || id < 1) return;
     setError(null);
     try {
-      const [p, g] = await Promise.all([userApi.public(id), userApi.games(id)]);
+      const [p, g, r] = await Promise.all([
+        userApi.public(id),
+        userApi.games(id),
+        reviewApi.forUser(id).catch(() => []),
+      ]);
       setProfile(p);
       setGames(g);
+      setReviews(r);
     } catch (e) {
       setError(errorMessage(e, t));
     }
@@ -260,6 +268,26 @@ export default function PublicUserPage() {
               )}
             </div>
           ) : null}
+
+          <div className="mt-4">
+            <div className="text-sm font-bold">{t("publicProfile.reviews")}</div>
+            {reviews.length === 0 ? (
+              <div className="mt-2 text-sm text-slate-400">{t("publicProfile.noReviews")}</div>
+            ) : (
+              <div className="mt-2 space-y-2">
+                {reviews.map((rev) => (
+                  <div key={rev.id} className="rounded-xl border border-slate-100 px-3 py-2 text-sm">
+                    <div className="font-semibold text-yellow-600">
+                      {"★".repeat(rev.rating)}
+                      <span className="ml-1 text-xs font-normal text-slate-400">{rev.rating}/5</span>
+                    </div>
+                    {rev.body ? <div className="mt-1 text-slate-600">{rev.body}</div> : null}
+                    <div className="mt-1 text-xs text-slate-400">{rev.author_name}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
     </Shell>

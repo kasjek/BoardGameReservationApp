@@ -93,6 +93,7 @@ export interface Review {
   id: number;
   author: number;
   author_name: string;
+  table: number | null;
   target_type: "user" | "venue";
   target_user: number | null;
   target_venue: number | null;
@@ -388,6 +389,7 @@ export const reviewApi = {
   }) => request<Review>("/reviews", { method: "POST", body: JSON.stringify(payload) }),
   forVenue: (venueId: number) => request<Review[]>(`/venues/${venueId}/reviews`),
   forUser: (userId: number) => request<Review[]>(`/users/${userId}/reviews`),
+  forTable: (tableId: number) => request<Review[]>(`/tables/${tableId}/reviews`),
 };
 
 export const userApi = {

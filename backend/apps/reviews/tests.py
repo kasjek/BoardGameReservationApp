@@ -85,6 +85,15 @@ def test_create_user_review(db, client):
     assert resp.status_code == 201
     assert average_rating_for_user(bob.id) == 4.0
 
+    listed = client.get(f"/api/users/{bob.id}/reviews")
+    assert listed.status_code == 200
+    assert listed.data[0]["rating"] == 4
+    assert listed.data[0]["author_name"] == "alice"
+
+    table_reviews = client.get(f"/api/tables/{t.id}/reviews")
+    assert table_reviews.status_code == 200
+    assert len(table_reviews.data) == 1
+
 
 def test_review_requires_participation(db, client):
     venue = Venue.objects.create(name="Board & Brew")

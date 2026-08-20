@@ -93,8 +93,8 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 ## Reviews & ratings
 
-- `GET /users/{id}/reviews` / `GET /venues/{id}/reviews` *(20)*
-- `POST /reviews` — review a user or venue *(5, 39)*
+- `GET /users/{id}/reviews` / `GET /venues/{id}/reviews` / `GET /tables/{id}/reviews` *(20)*
+- `POST /reviews` — review a user or venue after that table has ended; author and (for user reviews) target must have attended; one review per author/table/target *(5, 39)*
 - `POST /reviews/{id}/response` — venue admin responds to a review *(37)*
 
 ## Payments
