@@ -427,7 +427,8 @@ export const en: Messages = {
     tagline: "We are an organized group of board game geeks passionate about spreading the hobby",
     meetupAlt: "MeetUp",
     meetupEvents: "Check out our gaming events on MeetUp",
-    privateEvents: "& get in touch for company & private events",
+    privateEvents: "Order a custom company or private event",
+    clickGloveAlt: "Selecting glove",
   },
   venueManage: {
     title: "Manage venue",
@@ -908,7 +909,8 @@ export const de: Messages = {
       "Wir sind eine organisierte Gruppe von Brettspiel-Geeks, die das Hobby mit Leidenschaft verbreiten",
     meetupAlt: "MeetUp",
     meetupEvents: "Schau dir unsere Spiele-Events auf MeetUp an",
-    privateEvents: "& kontaktiere uns für Firmen- & Privatevents",
+    privateEvents: "Bestelle ein individuelles Firmen- oder Privatevent",
+    clickGloveAlt: "Auswahlhandschuh",
   },
   venueManage: {
     title: "Location verwalten",
