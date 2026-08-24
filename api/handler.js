@@ -954,6 +954,10 @@ async function handleApi(req, res) {
               )
               .get(u.id, table.id, targetVenue);
       if (dup) return send(res, 400, { detail: "You have already reviewed this." });
+      const comment = String(body.body || "").trim();
+      if (comment.length > 50) {
+        return send(res, 400, { detail: "Review comment must be at most 50 characters." });
+      }
       const info = db
         .prepare(
           `INSERT INTO reviews (author_id, table_id, target_type, target_user_id, target_venue_id, rating, body, created_at)
@@ -966,7 +970,7 @@ async function handleApi(req, res) {
           targetUser,
           targetVenue,
           rating,
-          body.body || "",
+          comment,
           new Date().toISOString(),
         );
       const r = db

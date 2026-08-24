@@ -67,7 +67,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 
 ### F. Reviews & ratings
 
-- **FR-F1 (Should)** Users can write short reviews of players they have played with and of venues they have used. *(5)*
+- **FR-F1 (Should)** Users can write short reviews of players they have played with and of venues they have used: 1–5 stars plus an optional comment of at most 50 characters. *(5)*
 - **FR-F2 (Should)** Reviews contribute to aggregate ratings shown on user and venue profiles. *(20)*
 
 ### G. Trust, safety & moderation

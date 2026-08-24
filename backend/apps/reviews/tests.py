@@ -199,3 +199,52 @@ def test_invalid_rating_rejected(db, client):
         format="json",
     )
     assert resp.status_code == 400
+
+
+def test_review_comment_max_50_ok(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    a = mk("alice")
+    t = make_table(a, venue)
+    client.force_authenticate(user=a)
+    comment = "x" * 50
+    resp = client.post(
+        "/api/reviews",
+        {"target_type": "venue", "table": t.id, "rating": 5, "body": comment},
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert resp.data["body"] == comment
+
+
+def test_review_comment_over_50_rejected(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    a = mk("alice")
+    t = make_table(a, venue)
+    client.force_authenticate(user=a)
+    resp = client.post(
+        "/api/reviews",
+        {"target_type": "venue", "table": t.id, "rating": 5, "body": "x" * 51},
+        format="json",
+    )
+    assert resp.status_code == 400
+
+
+def test_review_comment_is_stripped(db, client):
+    venue = Venue.objects.create(name="Board & Brew")
+    a, b = mk("alice"), mk("bob")
+    t = make_table(a, venue)
+    seat(t, b)
+    client.force_authenticate(user=a)
+    resp = client.post(
+        "/api/reviews",
+        {
+            "target_type": "user",
+            "target_user": b.id,
+            "table": t.id,
+            "rating": 4,
+            "body": "  Great player!  ",
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert resp.data["body"] == "Great player!"

@@ -31,7 +31,7 @@ class Review(models.Model):
         "venues.Venue", on_delete=models.CASCADE, null=True, blank=True, related_name="reviews"
     )
     rating = models.PositiveSmallIntegerField()
-    body = models.TextField(blank=True)
+    body = models.CharField(max_length=50, blank=True)
     response_body = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

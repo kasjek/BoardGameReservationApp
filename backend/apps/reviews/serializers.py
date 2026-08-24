@@ -29,6 +29,10 @@ class ReviewSerializer(serializers.ModelSerializer):
 
         if not (1 <= data["rating"] <= 5):
             raise serializers.ValidationError("rating must be between 1 and 5.")
+        body = (data.get("body") or "").strip()
+        if len(body) > 50:
+            raise serializers.ValidationError("Review comment must be at most 50 characters.")
+        data["body"] = body
 
         # A review is always about a specific event (table). It can only be posted
         # once that event's time has passed, and only if it was not cancelled.

@@ -362,7 +362,7 @@ Reviews of users and venues (and venue responses). *(stories 5, 20, 37, 39)*
 | `target_user_id` | uuid (FK→User, null) | Reviewed user |
 | `target_venue_id` | uuid (FK→Venue, null) | Reviewed venue |
 | `rating` | int (1–5) | Star rating |
-| `body` | text | Review text |
+| `body` | text | Optional short comment, max 50 characters |
 | `response_body` | text (null) | Venue admin response |
 | `created_at` | timestamptz | Posted time |
 
