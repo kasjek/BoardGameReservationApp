@@ -10,7 +10,7 @@ import { useI18n } from "../lib/i18n";
 const MEETUP_URL = "https://www.meetup.com/too-many-games/";
 const EVENTS_URL = "https://toomanygames.de/";
 
-/** Flat calendar mark for custom events — no background tile. */
+/** Flat calendar for custom events — no colored background tile. */
 function CustomEventIcon() {
   return (
     <svg
@@ -19,19 +19,27 @@ function CustomEventIcon() {
       aria-hidden
       focusable="false"
     >
-      <rect x="8" y="12" width="48" height="44" rx="10" fill="#7c3aed" />
-      <rect x="8" y="12" width="48" height="16" rx="10" fill="#6d28d9" />
-      <rect x="8" y="20" width="48" height="8" fill="#6d28d9" />
-      <rect x="18" y="7" width="6" height="12" rx="3" fill="#f5f3ff" />
-      <rect x="40" y="7" width="6" height="12" rx="3" fill="#f5f3ff" />
-      <circle cx="22" cy="36" r="3.2" fill="#fde68a" />
-      <circle cx="32" cy="36" r="3.2" fill="#f5f3ff" />
-      <circle cx="42" cy="36" r="3.2" fill="#f5f3ff" />
-      <circle cx="22" cy="47" r="3.2" fill="#f5f3ff" />
-      <circle cx="32" cy="47" r="3.2" fill="#fde68a" />
+      <rect
+        x="10"
+        y="14"
+        width="40"
+        height="38"
+        rx="8"
+        fill="#fff"
+        stroke="#7c3aed"
+        strokeWidth="3"
+      />
+      <path d="M10 22h40" stroke="#7c3aed" strokeWidth="3" />
+      <rect x="18" y="8" width="5" height="12" rx="2.5" fill="#7c3aed" />
+      <rect x="37" y="8" width="5" height="12" rx="2.5" fill="#7c3aed" />
+      <circle cx="22" cy="34" r="2.6" fill="#7c3aed" />
+      <circle cx="30" cy="34" r="2.6" fill="#7c3aed" />
+      <circle cx="38" cy="34" r="2.6" fill="#7c3aed" />
+      <circle cx="22" cy="43" r="2.6" fill="#7c3aed" />
+      <circle cx="30" cy="43" r="2.6" fill="#f59e0b" />
       <path
-        d="M50.5 40.5l1.4 3.3 3.5.2-2.7 2.2.9 3.4-3.1-1.8-3.1 1.8.9-3.4-2.7-2.2 3.5-.2z"
-        fill="#fbbf24"
+        d="M48 40.2l1.5 3.2 3.5.3-2.7 2.3 1 3.4-3.3-1.8-3.3 1.8 1-3.4-2.7-2.3 3.5-.3z"
+        fill="#f59e0b"
       />
     </svg>
   );
