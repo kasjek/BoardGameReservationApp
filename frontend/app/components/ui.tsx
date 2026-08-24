@@ -120,7 +120,7 @@ export function Avatar({
     setFailed(false);
   }, [src]);
 
-  const layers = extra ? <CosmeticLayers equipped={cosmetics} /> : null;
+  const layers = extra ? <CosmeticLayers equipped={cosmetics} size={size} /> : null;
   const imgClass = cosmetics?.background
     ? "relative z-[2] shrink-0 rounded-full bg-transparent object-cover"
     : "relative z-[2] shrink-0 rounded-full bg-slate-100 object-cover";
