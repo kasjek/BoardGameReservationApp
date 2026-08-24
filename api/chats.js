@@ -1,5 +1,6 @@
 /** Private 1:1 chats (story 12 — private messages). */
 const { publicPreview } = require("./friends");
+const { censorText } = require("./profanity");
 
 const MAX_BODY = 2000;
 
@@ -18,7 +19,7 @@ function serializeMessage(row, meId) {
     id: row.id,
     sender_id: row.sender_id,
     recipient_id: row.recipient_id,
-    body: row.body,
+    body: censorText(row.body),
     created_at: row.created_at,
     mine: row.sender_id === meId,
   };
@@ -77,7 +78,7 @@ function getThread(db, meId, rawId) {
 
 function sendMessage(db, meId, rawId, body) {
   const other = requireOther(db, meId, rawId);
-  const text = String(body || "").trim();
+  const text = censorText(String(body || "").trim());
   if (!text) throw httpError(400, "Message cannot be empty.");
   if (text.length > MAX_BODY) throw httpError(400, "Message is too long.");
   const info = db
