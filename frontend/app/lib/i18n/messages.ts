@@ -444,7 +444,6 @@ export const en: Messages = {
     meetupAlt: "MeetUp",
     meetupEvents: "Check out our gaming events on MeetUp",
     privateEvents: "Order a custom company or private event",
-    clickGloveAlt: "Selecting glove",
   },
   venueManage: {
     title: "Manage venue",
@@ -951,7 +950,6 @@ export const de: Messages = {
     meetupAlt: "MeetUp",
     meetupEvents: "Schau dir unsere Spiele-Events auf MeetUp an",
     privateEvents: "Bestelle ein individuelles Firmen- oder Privatevent",
-    clickGloveAlt: "Auswahlhandschuh",
   },
   venueManage: {
     title: "Location verwalten",

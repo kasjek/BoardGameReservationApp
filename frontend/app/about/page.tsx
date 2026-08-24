@@ -10,6 +10,33 @@ import { useI18n } from "../lib/i18n";
 const MEETUP_URL = "https://www.meetup.com/too-many-games/";
 const EVENTS_URL = "https://toomanygames.de/";
 
+/** Flat calendar mark for custom events — no background tile. */
+function CustomEventIcon() {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      className="h-16 w-16"
+      aria-hidden
+      focusable="false"
+    >
+      <rect x="8" y="12" width="48" height="44" rx="10" fill="#7c3aed" />
+      <rect x="8" y="12" width="48" height="16" rx="10" fill="#6d28d9" />
+      <rect x="8" y="20" width="48" height="8" fill="#6d28d9" />
+      <rect x="18" y="7" width="6" height="12" rx="3" fill="#f5f3ff" />
+      <rect x="40" y="7" width="6" height="12" rx="3" fill="#f5f3ff" />
+      <circle cx="22" cy="36" r="3.2" fill="#fde68a" />
+      <circle cx="32" cy="36" r="3.2" fill="#f5f3ff" />
+      <circle cx="42" cy="36" r="3.2" fill="#f5f3ff" />
+      <circle cx="22" cy="47" r="3.2" fill="#f5f3ff" />
+      <circle cx="32" cy="47" r="3.2" fill="#fde68a" />
+      <path
+        d="M50.5 40.5l1.4 3.3 3.5.2-2.7 2.2.9 3.4-3.1-1.8-3.1 1.8.9-3.4-2.7-2.2 3.5-.2z"
+        fill="#fbbf24"
+      />
+    </svg>
+  );
+}
+
 export default function AboutUsPage() {
   const { user, loading } = useAuth();
   const { t } = useI18n();
@@ -72,14 +99,7 @@ export default function AboutUsPage() {
           rel="noreferrer noopener"
           className="mt-4 flex w-full max-w-sm flex-col items-center gap-3 rounded-[1.6rem] border-[3px] border-brand bg-violet-100 px-4 py-4 shadow-[3px_3px_0_0_#1e1b4b] transition hover:-translate-y-0.5"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/click-glove.png"
-            alt={t("aboutUs.clickGloveAlt")}
-            width={96}
-            height={96}
-            className="h-16 w-16 object-contain"
-          />
+          <CustomEventIcon />
           <span className="text-sm font-black leading-snug text-violet-950">
             {t("aboutUs.privateEvents")}
           </span>
