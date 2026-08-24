@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { ReportAbuseButton } from "../../components/ReportAbuseButton";
 import {
   Avatar,
   Banner,
@@ -86,19 +87,26 @@ export default function ChatThreadPage() {
       </button>
       {error ? <Banner kind="error">{error}</Banner> : null}
       {other ? (
-        <button
-          type="button"
-          className="mb-3 flex items-center gap-2"
-          onClick={() => router.push(`/users/${other.id}`)}
-        >
-          <Avatar
-            userId={other.id}
-            customAvatarUrl={other.avatar_seed ? dicebearUrl(other.avatar_seed) : undefined}
-            cosmetics={other.avatar_equipped}
-            size={32}
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            className="flex min-w-0 items-center gap-2"
+            onClick={() => router.push(`/users/${other.id}`)}
+          >
+            <Avatar
+              userId={other.id}
+              customAvatarUrl={other.avatar_seed ? dicebearUrl(other.avatar_seed) : undefined}
+              cosmetics={other.avatar_equipped}
+              size={32}
+            />
+            <span className="truncate text-sm font-semibold">{other.username}</span>
+          </button>
+          <ReportAbuseButton
+            subjectUserId={other.id}
+            subjectUsername={other.username}
+            context="private chat"
           />
-          <span className="text-sm font-semibold">{other.username}</span>
-        </button>
+        </div>
       ) : null}
       <div className="mb-3 space-y-2">
         {messages.map((msg) => (

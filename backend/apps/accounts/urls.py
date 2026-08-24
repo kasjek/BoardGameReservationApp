@@ -18,6 +18,7 @@ from .views import (
     PublicUserGamesView,
     PublicUserView,
     RegisterView,
+    ReportCreateView,
     RollAvatarView,
     UserSearchView,
 )
@@ -42,4 +43,5 @@ urlpatterns = [
     path("friends", FriendListView.as_view(), name="friends"),
     path("chats/<int:pk>", ChatThreadView.as_view(), name="chat-thread"),
     path("chats", ChatListView.as_view(), name="chats"),
+    path("reports", ReportCreateView.as_view(), name="reports"),
 ]

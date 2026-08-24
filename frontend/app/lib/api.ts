@@ -488,6 +488,16 @@ export const chatApi = {
     }),
 };
 
+export const reportApi = {
+  create: (payload: {
+    type: "abuse";
+    subject_type: "user";
+    subject_id: number;
+    message: string;
+    context?: string;
+  }) => request<{ id: number; status: string }>("/reports", { method: "POST", body: JSON.stringify(payload) }),
+};
+
 // --- Tables ---
 export const tableApi = {
   list: (params: Record<string, string> = {}) => {

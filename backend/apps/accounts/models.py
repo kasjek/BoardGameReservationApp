@@ -107,3 +107,38 @@ class DirectMessage(models.Model):
         ]
 
 
+class Report(models.Model):
+    """Abuse, bug, and feedback reports (stories 11, 18, 19)."""
+
+    TYPE_ABUSE = "abuse"
+    TYPE_BUG = "bug"
+    TYPE_FEEDBACK = "feedback"
+    TYPE_CHOICES = (
+        (TYPE_ABUSE, "Abuse"),
+        (TYPE_BUG, "Bug"),
+        (TYPE_FEEDBACK, "Feedback"),
+    )
+    STATUS_OPEN = "open"
+    STATUS_REVIEWING = "reviewing"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CHOICES = (
+        (STATUS_OPEN, "Open"),
+        (STATUS_REVIEWING, "Reviewing"),
+        (STATUS_RESOLVED, "Resolved"),
+    )
+
+    reporter = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="reports_filed"
+    )
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    subject_type = models.CharField(max_length=20, blank=True, default="user")
+    subject_id = models.IntegerField(null=True, blank=True)
+    message = models.TextField()
+    screenshot_url = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]
+
+
