@@ -14,7 +14,7 @@ import re
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from urllib.parse import quote, quote_plus
+from urllib.parse import quote, quote_plus, unquote
 
 # Trailing / embedded publishing years BGG shows next to titles, e.g. "Calico (2020)".
 _YEAR_IN_BRACKETS = re.compile(r"\s*\(\d{4}\)")
@@ -49,7 +49,7 @@ WIKI_SUMMARY_API = "https://en.wikipedia.org/api/rest_v1/page/summary/"
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 _UA = {"User-Agent": "BoardGameReservationApp/0.1"}
 _TIMEOUT = 6
-_BGG_URL_ID = re.compile(r"boardgame(?:expansion)?/(\d+)", re.IGNORECASE)
+_BGG_URL_ID = re.compile(r"boardgame(?:expansion)?/(\d+)(?:/([^/?#]+))?", re.IGNORECASE)
 
 
 def _auth_headers() -> dict[str, str]:
@@ -261,16 +261,25 @@ def list_directory_boardgames() -> list[dict]:
     return sorted(by_id.values(), key=lambda h: normalize(h["name"]))
 
 
-def parse_bgg_ref(query: str) -> int | None:
-    """BGG thing id from a numeric string or boardgamegeek.com URL."""
+def _title_from_bgg_slug(slug: str | None) -> str | None:
+    if not slug:
+        return None
+    cleaned = " ".join(unquote(slug).replace("_", " ").replace("-", " ").split())
+    if not cleaned:
+        return None
+    return " ".join(word[:1].upper() + word[1:].lower() for word in cleaned.split(" "))
+
+
+def parse_bgg_ref(query: str) -> tuple[int, str | None] | None:
+    """BGG thing id (and optional URL slug title) from a numeric string or BGG URL."""
     text = (query or "").strip()
     if not text:
         return None
     match = _BGG_URL_ID.search(text)
     if match:
-        return int(match.group(1))
+        return int(match.group(1)), _title_from_bgg_slug(match.group(2))
     if re.fullmatch(r"\d{1,8}", text):
-        return int(text)
+        return int(text), None
     return None
 
 
@@ -380,8 +389,11 @@ def search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
 
     ref = parse_bgg_ref(q)
     if ref:
-        hit = _direct_bgg_hit(ref)
+        bgg_id, slug_name = ref
+        hit = _direct_bgg_hit(bgg_id)
         if hit:
+            if slug_name:
+                hit["name"] = slug_name
             return [hit]
 
     url = f"{BGG_SEARCH_API}?query={quote_plus(q)}&type=boardgame"

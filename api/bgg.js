@@ -175,12 +175,24 @@ async function geekdoItem(bggId) {
   }
 }
 
+function titleFromBggSlug(slug) {
+  if (!slug) return null;
+  try {
+    slug = decodeURIComponent(slug);
+  } catch {
+    /* keep raw */
+  }
+  const cleaned = slug.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  return cleaned.replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+}
+
 function parseBggRef(q) {
   const text = String(q || "").trim();
   if (!text) return null;
-  const url = text.match(/boardgame(?:expansion)?\/(\d+)/i);
-  if (url) return Number(url[1]);
-  if (/^\d{1,8}$/.test(text)) return Number(text);
+  const url = text.match(/boardgame(?:expansion)?\/(\d+)(?:\/([^/?#]+))?/i);
+  if (url) return { id: Number(url[1]), name: titleFromBggSlug(url[2]) };
+  if (/^\d{1,8}$/.test(text)) return { id: Number(text), name: null };
   return null;
 }
 
@@ -456,10 +468,13 @@ async function liveSearch(q, limit = 500) {
   if (!query) return [];
   const max = !limit || limit < 1 ? 1000 : Math.min(limit, 1000);
 
-  const directId = parseBggRef(query);
-  if (directId) {
-    const hit = await lookupBoardgame(directId);
-    if (hit) return [hit];
+  const direct = parseBggRef(query);
+  if (direct) {
+    const hit = await lookupBoardgame(direct.id);
+    if (hit) {
+      if (direct.name) hit.name = direct.name;
+      return [hit];
+    }
   }
 
   // Always try BGG's catalog (token optional). Search XML can be large.

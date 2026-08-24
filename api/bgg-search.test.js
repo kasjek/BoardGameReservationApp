@@ -117,12 +117,23 @@ async function run() {
     if (u.includes("api.geekdo.com") && u.includes("266192")) {
       return jsonResponse({ item: { name: "Wingspan", primaryname: "Wingspan" } });
     }
+    if (u.includes("api.geekdo.com") && u.includes("230784")) {
+      return jsonResponse({ item: { name: "Das Petersen-Spiel", primaryname: "Das Petersen-Spiel" } });
+    }
     return notFound();
   }, async () => {
     const fromId = await liveSearch("266192", 500);
     assert(fromId.length === 1 && fromId[0].bgg_id === 266192, "numeric BGG id resolves a single selectable game");
     const fromUrl = await liveSearch("https://boardgamegeek.com/boardgame/266192/wingspan", 500);
     assert(fromUrl[0].name === "Wingspan", "BGG URL resolves the catalog game");
+    const fromSlug = await liveSearch(
+      "https://boardgamegeek.com/boardgame/230784/architects-of-the-west-kingdom",
+      500,
+    );
+    assert(
+      fromSlug[0].bgg_id === 230784 && /architects of the west kingdom/i.test(fromSlug[0].name),
+      `BGG URL slug is used as the selectable title (got ${fromSlug[0] && fromSlug[0].name})`,
+    );
   });
 
   await withFetch(async (url) => {

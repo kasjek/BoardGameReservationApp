@@ -213,6 +213,20 @@ def test_search_boardgames_resolves_bgg_url(monkeypatch):
     assert hits == [{"bgg_id": 266192, "name": "Wingspan", "year": None}]
 
 
+def test_search_boardgames_uses_bgg_url_slug_as_title(monkeypatch):
+    monkeypatch.setattr(
+        services,
+        "_geekdo_item",
+        lambda bgg_id: {"name": "Das Petersen-Spiel"} if bgg_id == 230784 else None,
+    )
+    hits = services.search_boardgames(
+        "https://boardgamegeek.com/boardgame/230784/architects-of-the-west-kingdom",
+        limit=10,
+    )
+    assert hits[0]["bgg_id"] == 230784
+    assert hits[0]["name"] == "Architects Of The West Kingdom"
+
+
 def test_search_boardgames_does_not_cap_at_fifty(monkeypatch):
     items = "".join(
         f'<item type="boardgame" id="{i}">'
