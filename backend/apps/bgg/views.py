@@ -51,9 +51,9 @@ class BggSearchView(APIView):
         if len(q) < 2:
             raise ValidationError("q must be at least 2 characters.")
         try:
-            limit = int(request.query_params.get("limit", "20"))
+            limit = int(request.query_params.get("limit", "500"))
         except (TypeError, ValueError):
-            limit = 20
+            limit = 500
         results = services.search_boardgames(q, limit=limit)
         return Response({"results": results})
 

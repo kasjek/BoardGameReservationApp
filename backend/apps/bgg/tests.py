@@ -1,3 +1,4 @@
+import json
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -167,6 +168,63 @@ def test_search_boardgames_falls_back_to_venue_inventory(db, monkeypatch):
     hits = services.search_boardgames("pat", limit=10)
     assert hits[0]["name"] == "Patchwork"
     assert hits[0]["bgg_id"] == 163412
+
+
+def test_search_boardgames_falls_back_to_wikidata(db, monkeypatch):
+    search_json = json.dumps({"search": [{"id": "Q17508"}]}).encode()
+    get_json = json.dumps(
+        {
+            "entities": {
+                "Q17508": {
+                    "labels": {"en": {"value": "Terraforming Mars"}},
+                    "claims": {
+                        "P2339": [{"mainsnak": {"datavalue": {"value": "167791"}}}]
+                    },
+                }
+            }
+        }
+    ).encode()
+
+    def fake_get(url, headers=None):
+        if "xmlapi2/search" in url:
+            return b'<items total="0"></items>'
+        if "wbsearchentities" in url:
+            return search_json
+        if "wbgetentities" in url:
+            return get_json
+        return None
+
+    monkeypatch.setattr(services, "_http_get", fake_get)
+    hits = services.search_boardgames("Terraforming Mars", limit=10)
+    assert hits[0]["bgg_id"] == 167791
+    assert hits[0]["name"] == "Terraforming Mars"
+
+
+def test_search_boardgames_resolves_bgg_url(monkeypatch):
+    monkeypatch.setattr(
+        services,
+        "_geekdo_item",
+        lambda bgg_id: {"name": "Wingspan"} if bgg_id == 266192 else None,
+    )
+    hits = services.search_boardgames(
+        "https://boardgamegeek.com/boardgame/266192/wingspan",
+        limit=10,
+    )
+    assert hits == [{"bgg_id": 266192, "name": "Wingspan", "year": None}]
+
+
+def test_search_boardgames_does_not_cap_at_fifty(monkeypatch):
+    items = "".join(
+        f'<item type="boardgame" id="{i}">'
+        f'<name type="primary" value="Game {i}"/>'
+        f"</item>"
+        for i in range(1, 81)
+    )
+    xml = f'<items total="80">{items}</items>'.encode()
+    monkeypatch.setattr(services, "_http_get", lambda url, headers=None: xml)
+    hits = services.search_boardgames("game", limit=500)
+    assert len(hits) == 80
+    assert hits[0]["bgg_id"] == 1
 
 
 def test_bgg_search_api_requires_auth(db, client, monkeypatch):

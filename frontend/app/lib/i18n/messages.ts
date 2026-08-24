@@ -100,7 +100,9 @@ export const en: Messages = {
     viewOnBgg: 'View "{name}" on BoardGameGeek',
     searching: "Searching BGG…",
     noMatches: "No BGG matches.",
-    searchPlaceholder: "Search board games…",
+    searchPlaceholder: "Search any BoardGameGeek title…",
+    searchHint: "Type a title, BGG number, or BGG page URL.",
+    resultCount: "{count} games from BoardGameGeek",
     addFromBgg: "Add game from BoardGameGeek",
   },
   auth: {
@@ -601,7 +603,9 @@ export const de: Messages = {
     viewOnBgg: '„{name}“ auf BoardGameGeek ansehen',
     searching: "BGG wird durchsucht…",
     noMatches: "Keine BGG-Treffer.",
-    searchPlaceholder: "Brettspiele suchen…",
+    searchPlaceholder: "Beliebigen BoardGameGeek-Titel suchen…",
+    searchHint: "Titel, BGG-Nummer oder BGG-Seiten-URL eingeben.",
+    resultCount: "{count} Spiele von BoardGameGeek",
     addFromBgg: "Spiel von BoardGameGeek hinzufügen",
   },
   auth: {
