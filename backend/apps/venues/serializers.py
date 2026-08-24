@@ -1,12 +1,26 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .hours import default_weekly_hours_payload, set_weekly_hours, sync_availability_from_hours
-from .models import Venue, VenueAvailability, VenueClosure, VenueGame, VenueWeeklyHours
+from .models import Venue, VenueAvailability, VenueClosure, VenueGame, VenuePhoto, VenueWeeklyHours
+from .photos import save_photo_data_url
+
+
+def _apply_photo(venue, photo):
+    if not photo:
+        return
+    try:
+        save_photo_data_url(venue, photo)
+    except DjangoValidationError as exc:
+        detail = getattr(exc, "message_dict", None) or getattr(exc, "messages", str(exc))
+        raise serializers.ValidationError(detail) from exc
 
 
 class VenueSerializer(serializers.ModelSerializer):
     rating_avg = serializers.SerializerMethodField()
     maps_url = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
+    photo = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Venue
@@ -21,9 +35,11 @@ class VenueSerializer(serializers.ModelSerializer):
             "max_reservation_minutes",
             "rating_avg",
             "maps_url",
+            "photo_url",
+            "photo",
             "created_at",
         ]
-        read_only_fields = ["id", "rating_avg", "maps_url", "created_at"]
+        read_only_fields = ["id", "rating_avg", "maps_url", "photo_url", "created_at"]
 
     def validate(self, attrs):
         min_m = attrs.get(
@@ -59,6 +75,29 @@ class VenueSerializer(serializers.ModelSerializer):
         from .seed import google_maps_url
 
         return google_maps_url(obj.location or "", name=obj.name or "")
+
+    def get_photo_url(self, obj):
+        try:
+            photo = obj.profile_photo
+        except VenuePhoto.DoesNotExist:
+            return None
+        if not photo.image:
+            return None
+        request = self.context.get("request")
+        url = photo.image.url
+        return request.build_absolute_uri(url) if request else url
+
+    def create(self, validated_data):
+        photo = validated_data.pop("photo", None)
+        venue = super().create(validated_data)
+        _apply_photo(venue, photo)
+        return venue
+
+    def update(self, instance, validated_data):
+        photo = validated_data.pop("photo", None)
+        venue = super().update(instance, validated_data)
+        _apply_photo(venue, photo)
+        return venue
 
 
 class VenueAvailabilitySerializer(serializers.ModelSerializer):
@@ -200,17 +239,20 @@ class VenueGameSeatSerializer(serializers.ModelSerializer):
 
 
 class VenueCreateSerializer(VenueSerializer):
-    """Admin create: name, address, weekly bookable hours, optional closure alerts."""
+    """Admin create: name, address, weekly bookable hours, optional games/photo/closures."""
 
     weekly_hours = VenueWeeklyHoursSerializer(many=True, required=False)
     closures = VenueClosureWriteSerializer(many=True, required=False)
+    games = VenueGameWriteSerializer(many=True, required=False)
 
     class Meta(VenueSerializer.Meta):
-        fields = VenueSerializer.Meta.fields + ["weekly_hours", "closures"]
+        fields = VenueSerializer.Meta.fields + ["weekly_hours", "closures", "games"]
 
     def create(self, validated_data):
         hours = validated_data.pop("weekly_hours", None)
         closures = validated_data.pop("closures", [])
+        games = validated_data.pop("games", [])
+        photo = validated_data.pop("photo", None)
         venue = Venue.objects.create(**validated_data)
 
         if hours is None:
@@ -245,6 +287,10 @@ class VenueCreateSerializer(VenueSerializer):
             )
         if closures:
             sync_availability_from_hours(venue)
+        for g in games:
+            VenueGameWriteSerializer(context={"venue": venue}).create(g)
+        if photo:
+            _apply_photo(venue, photo)
         return venue
 
     def to_representation(self, instance):

@@ -19,6 +19,17 @@ class Venue(models.Model):
         return self.name
 
 
+class VenuePhoto(models.Model):
+    """Single profile picture for a venue (story 36)."""
+
+    venue = models.OneToOneField(Venue, on_delete=models.CASCADE, related_name="profile_photo")
+    image = models.FileField(upload_to="venue_photos/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"photo for {self.venue}"
+
+
 class VenueAvailability(models.Model):
     """When and how many tables a venue offers on a calendar date (docs/Database.md)."""
 

@@ -58,6 +58,7 @@ A cafe/restaurant that hosts tables. *(stories 3, 36, 53, 54)*
 | `id` | uuid (PK) | Unique venue id |
 | `name` | text | Venue name |
 | `description` | text | Public description |
+| `photo` | file (null) | Optional profile picture shown on the venue page *(36)* |
 | `location` | text | Address / city |
 | `min_players` | int | Minimum party size for tables at this venue |
 | `max_players` | int | Maximum party size for tables at this venue |

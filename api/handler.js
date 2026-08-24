@@ -29,6 +29,7 @@ const {
   rejectRequest,
 } = require("./friends");
 const { listChats, getThread, sendMessage } = require("./chats");
+const { parseDataUrl, savePhotoFile, deletePhotoFile, readPhotoFile } = require("./venue-photo");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -54,6 +55,14 @@ function send(res, status, data, headers = {}) {
     ...headers,
   });
   res.end(body);
+}
+
+function sendBinary(res, status, buf, contentType) {
+  res.writeHead(status, {
+    "Content-Type": contentType,
+    "Cache-Control": "public, max-age=3600",
+  });
+  res.end(buf);
 }
 
 function redirect(res, location) {
@@ -91,6 +100,45 @@ function managesVenue(u, venueId) {
   if (!u) return false;
   if (u.role === "ADMIN") return true;
   return u.role === "VENUE_USER" && u.venue_id === venueId;
+}
+
+function applyVenuePhoto(db, venueId, dataUrl) {
+  const parsed = parseDataUrl(dataUrl);
+  if (parsed.error) return parsed;
+  const prev = db.prepare("SELECT photo_path FROM venues WHERE id=?").get(venueId);
+  const filename = savePhotoFile(venueId, parsed);
+  db.prepare("UPDATE venues SET photo_path=? WHERE id=?").run(filename, venueId);
+  if (prev?.photo_path && prev.photo_path !== filename) {
+    deletePhotoFile(prev.photo_path);
+  }
+  return { filename };
+}
+
+function replaceWeeklyHours(db, venueId, rows) {
+  db.prepare("DELETE FROM venue_hours WHERE venue_id=?").run(venueId);
+  const ins = db.prepare(
+    `INSERT INTO venue_hours (venue_id, weekday, is_closed, start_time, end_time) VALUES (?, ?, ?, ?, ?)`,
+  );
+  for (const r of rows) {
+    ins.run(venueId, r.weekday, r.is_closed ? 1 : 0, r.start_time, r.end_time);
+  }
+}
+
+function insertVenueGame(db, venueId, payload, venue) {
+  const title = (payload.title || `Game ${payload.bgg_id || ""}`).trim();
+  const seats = normalizeSeatLimits(
+    payload.min_players,
+    payload.max_players,
+    venue?.min_players ?? 2,
+    venue?.max_players ?? 8,
+  );
+  if (seats.error) return { error: seats.error };
+  const info = db
+    .prepare(
+      `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url, min_players, max_players) VALUES (?, ?, ?, '', ?, ?)`,
+    )
+    .run(venueId, title, payload.bgg_id || null, seats.min_players, seats.max_players);
+  return { game: db.prepare("SELECT * FROM venue_games WHERE id=?").get(info.lastInsertRowid) };
 }
 
 async function hydrateTableTypes(db, row, { live = false } = {}) {
@@ -287,21 +335,65 @@ async function handleApi(req, res) {
       if (!u) return;
       if (u.role !== "ADMIN") return send(res, 403, { detail: "Admin only." });
       const body = await readBody(req);
-      const info = db
-        .prepare(
-          `INSERT INTO venues (name, description, location, min_players, max_players, min_reservation_minutes, max_reservation_minutes)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          body.name,
-          body.description || "",
-          body.location || "",
-          body.min_players ?? 2,
-          body.max_players ?? 8,
-          body.min_reservation_minutes ?? 60,
-          body.max_reservation_minutes ?? 180,
-        );
-      return send(res, 201, serializeVenue(db.prepare("SELECT * FROM venues WHERE id=?").get(info.lastInsertRowid)));
+      const name = String(body.name || "").trim();
+      if (!name) return send(res, 400, { name: ["This field is required."] });
+      let parsedPhoto = null;
+      if (body.photo) {
+        parsedPhoto = parseDataUrl(body.photo);
+        if (parsedPhoto.error) return send(res, 400, { photo: [parsedPhoto.error] });
+      }
+      const games = Array.isArray(body.games) ? body.games : [];
+      let venueId;
+      try {
+        venueId = db.transaction(() => {
+          const info = db
+            .prepare(
+              `INSERT INTO venues (name, description, location, min_players, max_players, min_reservation_minutes, max_reservation_minutes)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .run(
+              name,
+              body.description || "",
+              body.location || "",
+              body.min_players ?? 2,
+              body.max_players ?? 8,
+              body.min_reservation_minutes ?? 60,
+              body.max_reservation_minutes ?? 180,
+            );
+          const id = Number(info.lastInsertRowid);
+          const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(id);
+          if (Array.isArray(body.weekly_hours) && body.weekly_hours.length) {
+            replaceWeeklyHours(db, id, body.weekly_hours);
+          }
+          if (Array.isArray(body.closures)) {
+            const now = new Date().toISOString();
+            const insClosure = db.prepare(
+              `INSERT INTO venue_closures (venue_id, date, comment, created_at) VALUES (?, ?, ?, ?)`,
+            );
+            for (const c of body.closures) {
+              if (!c?.date || !String(c.comment || "").trim()) continue;
+              insClosure.run(id, c.date, String(c.comment).trim(), now);
+            }
+          }
+          for (const g of games) {
+            const added = insertVenueGame(db, id, g, venue);
+            if (added.error) {
+              const err = new Error(added.error);
+              err.status = 400;
+              throw err;
+            }
+          }
+          return id;
+        })();
+      } catch (err) {
+        if (err.status === 400) return send(res, 400, { games: [err.message] });
+        throw err;
+      }
+      if (parsedPhoto) {
+        const filename = savePhotoFile(venueId, parsedPhoto);
+        db.prepare("UPDATE venues SET photo_path=? WHERE id=?").run(filename, venueId);
+      }
+      return send(res, 201, serializeVenue(db.prepare("SELECT * FROM venues WHERE id=?").get(venueId)));
     }
 
     let m;
@@ -315,6 +407,10 @@ async function handleApi(req, res) {
         if (!u) return;
         if (!managesVenue(u, id)) return send(res, 403, { detail: "Forbidden." });
         const body = await readBody(req);
+        if (body.photo) {
+          const saved = applyVenuePhoto(db, id, body.photo);
+          if (saved.error) return send(res, 400, { photo: [saved.error] });
+        }
         db.prepare(
           `UPDATE venues SET
             name=COALESCE(?, name),
@@ -337,6 +433,15 @@ async function handleApi(req, res) {
         );
         return send(res, 200, serializeVenue(db.prepare("SELECT * FROM venues WHERE id=?").get(id)));
       }
+    }
+
+    if ((m = path.match(/^\/api\/venues\/(\d+)\/photo$/)) && method === "GET") {
+      const id = Number(m[1]);
+      const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(id);
+      if (!venue) return send(res, 404, { detail: "Not found." });
+      const file = readPhotoFile(venue.photo_path);
+      if (!file) return send(res, 404, { detail: "Not found." });
+      return sendBinary(res, 200, file.buf, file.contentType);
     }
 
     if ((m = path.match(/^\/api\/venues\/(\d+)\/availability$/)) && method === "GET") {
@@ -458,22 +563,10 @@ async function handleApi(req, res) {
         if (!u) return;
         if (!managesVenue(u, id)) return send(res, 403, { detail: "Forbidden." });
         const body = await readBody(req);
-        const title = body.title || `Game ${body.bgg_id || ""}`;
         const venue = db.prepare("SELECT * FROM venues WHERE id=?").get(id);
-        const seats = normalizeSeatLimits(
-          body.min_players,
-          body.max_players,
-          venue?.min_players ?? 2,
-          venue?.max_players ?? 8,
-        );
-        if (seats.error) return send(res, 400, { detail: seats.error });
-        const info = db
-          .prepare(
-            `INSERT INTO venue_games (venue_id, title, bgg_id, thumbnail_url, min_players, max_players) VALUES (?, ?, ?, '', ?, ?)`,
-          )
-          .run(id, title, body.bgg_id || null, seats.min_players, seats.max_players);
-        const g = db.prepare("SELECT * FROM venue_games WHERE id=?").get(info.lastInsertRowid);
-        return send(res, 201, serializeVenueGame(g));
+        const added = insertVenueGame(db, id, body, venue);
+        if (added.error) return send(res, 400, { detail: added.error });
+        return send(res, 201, serializeVenueGame(added.game));
       }
     }
 
