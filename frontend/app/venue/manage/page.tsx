@@ -134,7 +134,9 @@ function BggGamePicker({
           className="mt-2 max-h-72 overflow-y-auto rounded-xl border border-slate-100 bg-white"
         >
           <div className="sticky top-0 border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
-            {t("bgg.resultCount", { count: hits.length })}
+            {hits.length === 1
+              ? t("bgg.resultCountOne")
+              : t("bgg.resultCount", { count: hits.length })}
           </div>
           {hits.map((h) => (
             <button
