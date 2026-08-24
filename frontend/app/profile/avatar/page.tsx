@@ -176,24 +176,37 @@ export default function AvatarCustomizePage() {
                 </button>
               ) : null}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div
+              className={`grid gap-2 ${
+                slot === "background" || slot === "hat" ? "grid-cols-5" : "grid-cols-2"
+              }`}
+            >
               {items.map((item) => {
                 const selected = item.equipped;
+                const compact = slot === "background" || slot === "hat";
                 return (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => toggle(item)}
                     disabled={!item.unlocked || busy != null}
-                    className={`relative overflow-hidden rounded-xl border p-3 text-left ${
-                      selected ? "border-brand ring-2 ring-brand" : "border-slate-200"
-                    } ${item.unlocked ? "" : "opacity-70"}`}
+                    className={`relative overflow-hidden rounded-xl border text-left ${
+                      compact ? "p-1.5" : "p-3"
+                    } ${selected ? "border-brand ring-2 ring-brand" : "border-slate-200"} ${
+                      item.unlocked ? "" : "opacity-70"
+                    }`}
                   >
-                    <div className="mx-auto h-16 w-16">
+                    <div className={`mx-auto ${compact ? "h-11 w-11" : "h-16 w-16"}`}>
                       <CosmeticAsset id={item.id} />
                     </div>
-                    <div className="mt-2 text-xs font-semibold">{t(`avatar.item.${item.id}`)}</div>
-                    {item.unlocked ? (
+                    <div className={`mt-1 font-semibold ${compact ? "text-[10px] leading-tight" : "mt-2 text-xs"}`}>
+                      {t(`avatar.item.${item.id}`)}
+                    </div>
+                    {compact ? (
+                      item.unlocked ? null : (
+                        <div className="text-[9px] font-semibold text-slate-500">🔒 {item.xp_required}</div>
+                      )
+                    ) : item.unlocked ? (
                       <div className="text-[10px] text-slate-500">
                         {selected ? t("avatar.equipped") : t("avatar.tapToEquip")}
                       </div>
