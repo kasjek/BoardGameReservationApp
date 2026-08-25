@@ -44,7 +44,24 @@ function fromTimeInput(value: string): string {
   return value.length === 5 ? `${value}:00` : value;
 }
 
-type AdminTab = "create" | "manage";
+const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
+type DraftGame = {
+  bgg_id: number;
+  title: string;
+  min_players: number;
+  max_players: number;
+};
+
+function readPhotoAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("read"));
+    reader.readAsDataURL(file);
+  });
+}
 
 function BggGamePicker({
   onPick,
@@ -74,7 +91,7 @@ function BggGamePicker({
       bggApi
         .search(q)
         .then((res) => {
-          if (!cancelled) setHits(res.results);
+          if (!cancelled) setHits(res.results.slice(0, 30));
         })
         .catch((e) => {
           if (!cancelled) {
@@ -102,35 +119,38 @@ function BggGamePicker({
         onChange={(e) => setQuery(e.target.value)}
         disabled={disabled}
         autoComplete="off"
+        role="combobox"
+        aria-expanded={hits.length > 0}
+        aria-controls="bgg-game-results"
+        aria-autocomplete="list"
       />
       {searching ? <div className="mt-1 text-xs text-slate-400">{t("bgg.searching")}</div> : null}
       {searchError ? <div className="mt-1 text-xs text-red-500">{searchError}</div> : null}
       {hits.length > 0 ? (
-        <select
-          className="input mt-2"
-          defaultValue=""
-          disabled={disabled}
-          onChange={(e) => {
-            const hitId = Number(e.target.value);
-            const hit = hits.find((h) => h.bgg_id === hitId);
-            if (hit) {
-              onPick(hit);
-              setQuery("");
-              setHits([]);
-              e.target.value = "";
-            }
-          }}
+        <div
+          id="bgg-game-results"
+          role="listbox"
+          className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-100 bg-white"
         >
-          <option value="" disabled>
-            {t("bgg.selectGame")}
-          </option>
           {hits.map((h) => (
-            <option key={h.bgg_id} value={h.bgg_id}>
+            <button
+              key={h.bgg_id}
+              type="button"
+              role="option"
+              disabled={disabled}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onPick(h);
+                setQuery("");
+                setHits([]);
+              }}
+              className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-700 hover:bg-violet-50"
+            >
               {h.name}
               {h.year ? ` (${h.year})` : ""}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
       ) : null}
       {!searching && query.trim().length >= 2 && hits.length === 0 && !searchError ? (
         <div className="mt-1 text-xs text-slate-400">{t("bgg.noMatches")}</div>
@@ -138,6 +158,8 @@ function BggGamePicker({
     </div>
   );
 }
+
+type AdminTab = "create" | "manage";
 
 function HoursEditor({
   hours,
@@ -231,6 +253,10 @@ export default function ManageVenuePage() {
   // Create form
   const [newName, setNewName] = useState("");
   const [newLocation, setNewLocation] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [createPhoto, setCreatePhoto] = useState<string | null>(null);
+  const [createPhotoPreview, setCreatePhotoPreview] = useState<string | null>(null);
+  const [createGames, setCreateGames] = useState<DraftGame[]>([]);
   const [createMinMinutes, setCreateMinMinutes] = useState(60);
   const [createMaxMinutes, setCreateMaxMinutes] = useState(180);
   const [createHours, setCreateHours] = useState<WeeklyHours[]>(defaultHours());
@@ -241,6 +267,9 @@ export default function ManageVenuePage() {
   // Manage form
   const [manageMinMinutes, setManageMinMinutes] = useState(60);
   const [manageMaxMinutes, setManageMaxMinutes] = useState(180);
+  const [manageDescription, setManageDescription] = useState("");
+  const [managePhoto, setManagePhoto] = useState<string | null>(null);
+  const [managePhotoPreview, setManagePhotoPreview] = useState<string | null>(null);
   const [manageClosureDate, setManageClosureDate] = useState("");
   const [manageClosureComment, setManageClosureComment] = useState("");
 
@@ -315,6 +344,9 @@ export default function ManageVenuePage() {
     if (!selectedVenue) return;
     setManageMinMinutes(selectedVenue.min_reservation_minutes ?? 60);
     setManageMaxMinutes(selectedVenue.max_reservation_minutes ?? 180);
+    setManageDescription(selectedVenue.description || "");
+    setManagePhoto(null);
+    setManagePhotoPreview(selectedVenue.photo_url);
   }, [selectedVenue]);
 
   if (loading) return <LoadingScreen />;
@@ -350,14 +382,22 @@ export default function ManageVenuePage() {
       const v = await venueApi.create({
         name: newName,
         location: newLocation,
+        description: newDescription.trim(),
+        photo: createPhoto || undefined,
         min_reservation_minutes: createMinMinutes,
         max_reservation_minutes: createMaxMinutes,
         weekly_hours: createHours,
         closures: createClosures,
+        games: createGames,
       });
       setInfo(t("venueManage.createdOk", { name: v.name }));
       setNewName("");
       setNewLocation("");
+      setNewDescription("");
+      setCreatePhoto(null);
+      setCreatePhotoPreview(null);
+      setCreateGames([]);
+      setPendingGame(null);
       setCreateMinMinutes(60);
       setCreateMaxMinutes(180);
       setCreateHours(defaultHours());
@@ -454,8 +494,8 @@ export default function ManageVenuePage() {
 
   async function pickGameFromBgg(hit: BggSearchHit) {
     setPendingGame(hit);
-    const venueMin = selectedVenue?.min_players ?? 2;
-    const venueMax = selectedVenue?.max_players ?? 8;
+    const venueMin = tab === "create" ? 2 : (selectedVenue?.min_players ?? 2);
+    const venueMax = tab === "create" ? 8 : (selectedVenue?.max_players ?? 8);
     setPendingMin(venueMin);
     setPendingMax(venueMax);
     setError(null);
@@ -473,11 +513,28 @@ export default function ManageVenuePage() {
   }
 
   async function confirmAddGame() {
-    if (!venueId || !pendingGame) return;
+    if (!pendingGame) return;
     if (pendingMin < 1 || pendingMax < pendingMin) {
       setError(t("venueManage.errSeats"));
       return;
     }
+    if (tab === "create") {
+      setCreateGames((rows) => {
+        const next: DraftGame = {
+          bgg_id: pendingGame.bgg_id,
+          title: pendingGame.name,
+          min_players: pendingMin,
+          max_players: pendingMax,
+        };
+        return [...rows.filter((g) => g.bgg_id !== next.bgg_id), next].sort((a, b) =>
+          a.title.localeCompare(b.title),
+        );
+      });
+      setPendingGame(null);
+      setInfo(t("venueManage.gameAdded", { name: pendingGame.name }));
+      return;
+    }
+    if (!venueId) return;
     setBusy(true);
     setError(null);
     setInfo(null);
@@ -499,6 +556,56 @@ export default function ManageVenuePage() {
       setError(errorMessage(err, t));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function saveVenueProfile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!venueId) return;
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const updated = await venueApi.update(venueId, {
+        description: manageDescription,
+        ...(managePhoto ? { photo: managePhoto } : {}),
+      });
+      setVenues((vs) => vs.map((v) => (v.id === updated.id ? updated : v)));
+      setManagePhoto(null);
+      setManagePhotoPreview(updated.photo_url);
+      setInfo(t("venueManage.profileSaved"));
+    } catch (err) {
+      setError(errorMessage(err, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onPhotoChosen(
+    file: File | undefined,
+    target: "create" | "manage",
+  ) {
+    if (!file) return;
+    if (!PHOTO_TYPES.has(file.type)) {
+      setError(t("venueManage.errPhotoType"));
+      return;
+    }
+    if (file.size > PHOTO_MAX_BYTES) {
+      setError(t("venueManage.errPhotoSize"));
+      return;
+    }
+    try {
+      const dataUrl = await readPhotoAsDataUrl(file);
+      setError(null);
+      if (target === "create") {
+        setCreatePhoto(dataUrl);
+        setCreatePhotoPreview(dataUrl);
+      } else {
+        setManagePhoto(dataUrl);
+        setManagePhotoPreview(dataUrl);
+      }
+    } catch {
+      setError(t("venueManage.errPhotoType"));
     }
   }
 
@@ -553,7 +660,10 @@ export default function ManageVenuePage() {
             className={`flex-1 rounded-full py-2 text-sm font-bold ${
               tab === "create" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
             }`}
-            onClick={() => setTab("create")}
+            onClick={() => {
+              setPendingGame(null);
+              setTab("create");
+            }}
           >
             {t("venueManage.createTab")}
           </button>
@@ -562,7 +672,10 @@ export default function ManageVenuePage() {
             className={`flex-1 rounded-full py-2 text-sm font-bold ${
               tab === "manage" ? "bg-brand text-white" : "bg-slate-100 text-slate-600"
             }`}
-            onClick={() => setTab("manage")}
+            onClick={() => {
+              setPendingGame(null);
+              setTab("manage");
+            }}
           >
             {t("venueManage.manageTab")}
           </button>
@@ -590,6 +703,123 @@ export default function ManageVenuePage() {
               onChange={(e) => setNewLocation(e.target.value)}
               required
             />
+          </div>
+          <div>
+            <span className="label">{t("venueManage.description")}</span>
+            <div className="mb-1 text-xs text-slate-500">{t("venueManage.descriptionHint")}</div>
+            <textarea
+              className="input min-h-24"
+              placeholder={t("venueManage.descriptionPlaceholder")}
+              value={newDescription}
+              maxLength={2000}
+              onChange={(e) => setNewDescription(e.target.value)}
+            />
+          </div>
+          <div>
+            <span className="label">{t("venueManage.photo")}</span>
+            <div className="mb-2 text-xs text-slate-500">{t("venueManage.photoHint")}</div>
+            {createPhotoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={createPhotoPreview}
+                alt=""
+                className="mb-2 h-40 w-full rounded-xl object-cover"
+              />
+            ) : null}
+            <input
+              className="block w-full text-sm"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                void onPhotoChosen(file, "create");
+              }}
+            />
+          </div>
+
+          <div className="card">
+            <div className="text-sm font-bold">{t("venueManage.boardGames")}</div>
+            <div className="mt-1 text-xs text-slate-500">{t("venueManage.boardGamesHint")}</div>
+            <div className="mt-2">
+              <BggGamePicker onPick={pickGameFromBgg} disabled={busy || !!pendingGame} t={t} />
+            </div>
+            {pendingGame ? (
+              <div className="mt-3 rounded-xl border-2 border-violet-200 bg-violet-50 px-3 py-3">
+                <div className="text-sm font-bold">
+                  {t("venueManage.pendingGame", { name: pendingGame.name })}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">{t("venueManage.seatsHint")}</div>
+                <div className="mt-2 flex gap-2">
+                  <div className="flex-1">
+                    <span className="label">{t("venueManage.minSeats")}</span>
+                    <input
+                      className="input"
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={pendingMin}
+                      onChange={(e) => setPendingMin(Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <span className="label">{t("venueManage.maxSeats")}</span>
+                    <input
+                      className="input"
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={pendingMax}
+                      onChange={(e) => setPendingMax(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" className="btn" disabled={busy} onClick={confirmAddGame}>
+                    {busy ? t("common.ellipsis") : t("venueManage.addGame")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    disabled={busy}
+                    onClick={() => setPendingGame(null)}
+                  >
+                    {t("venueManage.cancelAdd")}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <div className="mt-3 space-y-2">
+              {createGames.length === 0 ? (
+                <div className="text-sm text-slate-400">{t("venueManage.noGames")}</div>
+              ) : (
+                createGames.map((g) => (
+                  <div key={g.bgg_id} className="rounded-xl bg-slate-50 px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      <Cover name={g.title} size={40} />
+                      <div className="min-w-0 flex-1 text-sm font-semibold">
+                        <GameLink name={g.title} bggId={g.bgg_id} />
+                        <div className="text-xs font-normal text-slate-500">
+                          {t("venueManage.seatsLine", {
+                            min: g.min_players,
+                            max: g.max_players,
+                          })}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-red-500"
+                        onClick={() =>
+                          setCreateGames((rows) => rows.filter((row) => row.bgg_id !== g.bgg_id))
+                        }
+                      >
+                        {t("common.remove")}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           <div>
@@ -707,6 +937,43 @@ export default function ManageVenuePage() {
 
           {venueId ? (
             <>
+              <form onSubmit={saveVenueProfile} className="card">
+                <div className="text-sm font-bold">{t("venueManage.description")}</div>
+                <div className="mt-1 text-xs text-slate-500">{t("venueManage.descriptionHint")}</div>
+                <textarea
+                  className="input mt-2 min-h-24"
+                  placeholder={t("venueManage.descriptionPlaceholder")}
+                  value={manageDescription}
+                  maxLength={2000}
+                  onChange={(e) => setManageDescription(e.target.value)}
+                />
+                <div className="mt-3">
+                  <span className="label">{t("venueManage.photo")}</span>
+                  <div className="mb-2 text-xs text-slate-500">{t("venueManage.photoHint")}</div>
+                  {managePhotoPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={managePhotoPreview}
+                      alt={selectedVenue?.name || ""}
+                      className="mb-2 h-40 w-full rounded-xl object-cover"
+                    />
+                  ) : null}
+                  <input
+                    className="block w-full text-sm"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      void onPhotoChosen(file, "manage");
+                    }}
+                  />
+                </div>
+                <button className="btn mt-3" disabled={busy}>
+                  {busy ? t("common.ellipsis") : t("venueManage.saveProfile")}
+                </button>
+              </form>
+
               <form onSubmit={saveReservationLimits} className="card">
                 <div className="text-sm font-bold">{t("venueManage.reservationDuration")}</div>
                 <div className="mt-1 text-xs text-slate-500">{t("venueManage.reservationHintManage")}</div>

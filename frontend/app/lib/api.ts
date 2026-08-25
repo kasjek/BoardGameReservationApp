@@ -179,6 +179,7 @@ export interface Venue {
   max_reservation_minutes: number;
   rating_avg: number | null;
   maps_url: string | null;
+  photo_url: string | null;
 }
 
 export interface Availability {
@@ -344,12 +345,14 @@ export const venueApi = {
     name: string;
     description?: string;
     location?: string;
+    photo?: string;
     min_players?: number;
     max_players?: number;
     min_reservation_minutes?: number;
     max_reservation_minutes?: number;
     weekly_hours?: WeeklyHours[];
     closures?: { date: string; comment: string }[];
+    games?: { bgg_id?: number; title?: string; min_players: number; max_players: number }[];
   }) => request<Venue>("/venues", { method: "POST", body: JSON.stringify(payload) }),
   update: (
     id: number,
@@ -357,6 +360,7 @@ export const venueApi = {
       name: string;
       description: string;
       location: string;
+      photo: string;
       min_players: number;
       max_players: number;
       min_reservation_minutes: number;

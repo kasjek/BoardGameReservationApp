@@ -52,6 +52,59 @@ def test_admin_can_create_venue(db, client):
     resp = client.post("/api/venues", {"name": "New Place", "location": "Berlin"}, format="json")
     assert resp.status_code == 201
     assert Venue.objects.filter(name="New Place").exists()
+    assert resp.data["description"] == ""
+    assert resp.data["photo_url"] is None
+
+
+def test_admin_creates_venue_with_description_photo_and_games(db, client, monkeypatch, tmp_path, settings):
+    from apps.bgg import services as bgg
+    from apps.venues.models import VenueGame
+
+    settings.MEDIA_ROOT = tmp_path
+    monkeypatch.setattr(
+        bgg,
+        "fetch_thing",
+        lambda bgg_id: {
+            "bgg_id": bgg_id,
+            "name": "Catan",
+            "thumbnail_url": "https://cf.geekdo-images.com/catan.jpg",
+        },
+    )
+    png = (
+        "data:image/png;base64,"
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    )
+    admin = mk("dan", role=Role.ADMIN)
+    client.force_authenticate(user=admin)
+    resp = client.post(
+        "/api/venues",
+        {
+            "name": "Photo Cafe",
+            "location": "Berlin",
+            "description": "A short blurb about the cafe.",
+            "photo": png,
+            "games": [{"bgg_id": 13, "min_players": 3, "max_players": 4}],
+        },
+        format="json",
+    )
+    assert resp.status_code == 201, resp.data
+    assert resp.data["description"] == "A short blurb about the cafe."
+    assert resp.data["photo_url"]
+    venue = Venue.objects.get(name="Photo Cafe")
+    assert venue.profile_photo.image
+    assert VenueGame.objects.filter(venue=venue, bgg_id=13, min_players=3, max_players=4).count() == 1
+
+    listed = client.get(f"/api/venues/{venue.id}/games")
+    assert listed.status_code == 200
+    assert listed.data[0]["title"] == "Catan"
+
+    patched = client.patch(
+        f"/api/venues/{venue.id}",
+        {"description": "Updated blurb."},
+        format="json",
+    )
+    assert patched.status_code == 200, patched.data
+    assert patched.data["description"] == "Updated blurb."
 
 
 def test_regular_user_cannot_create_venue(db, client):

@@ -149,6 +149,15 @@ export default function VenueDetailPage() {
 
       {error ? <Banner kind="error">{error}</Banner> : null}
 
+      {venue.photo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={venue.photo_url}
+          alt={t("venueDetail.photoAlt", { name: venue.name })}
+          className="mb-4 h-48 w-full rounded-2xl object-cover"
+        />
+      ) : null}
+
       <h2 className="text-xl font-bold">{venue.name}</h2>
 
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">

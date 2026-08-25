@@ -67,7 +67,8 @@ function ensureDb() {
       min_players INTEGER NOT NULL DEFAULT 2,
       max_players INTEGER NOT NULL DEFAULT 8,
       min_reservation_minutes INTEGER NOT NULL DEFAULT 60,
-      max_reservation_minutes INTEGER NOT NULL DEFAULT 180
+      max_reservation_minutes INTEGER NOT NULL DEFAULT 180,
+      photo_path TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE IF NOT EXISTS venue_availability (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -231,6 +232,10 @@ function migrateSchema(database) {
     );
   `);
   backfillGameTypes(database);
+  const venueCols = database.prepare("PRAGMA table_info(venues)").all().map((c) => c.name);
+  if (!venueCols.includes("photo_path")) {
+    database.exec("ALTER TABLE venues ADD COLUMN photo_path TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 function expandStatusFilter(status) {
@@ -514,6 +519,7 @@ function serializeUser(row) {
 }
 
 function serializeVenue(row) {
+  const { publicPhotoUrl } = require("./venue-photo");
   const rating = db
     .prepare(
       `SELECT AVG(rating) AS avg FROM reviews WHERE target_type='venue' AND target_venue_id=?`,
@@ -530,6 +536,7 @@ function serializeVenue(row) {
     max_reservation_minutes: row.max_reservation_minutes,
     rating_avg: rating?.avg != null ? Number(rating.avg) : null,
     maps_url: mapsUrl(row.name, row.location),
+    photo_url: publicPhotoUrl(row),
   };
 }
 
