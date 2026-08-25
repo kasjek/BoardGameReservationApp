@@ -129,6 +129,20 @@ function tokenFor(username) {
   assert(inbox.body[0].user.username === "demo", "conversation with demo");
   assert(inbox.body[0].last_message.body.includes("Katzentempel"), "last message is reply");
 
+  const rude = await api("POST", `/api/chats/${alice.user.id}`, {
+    token: demo.token,
+    body: { body: "You are an asshole and that is shit." },
+  });
+  assert(rude.statusCode === 201, "rude message still sends");
+  assert(!rude.body.body.includes("asshole"), "asshole is censored");
+  assert(!rude.body.body.includes("shit"), "shit is censored");
+  assert(rude.body.body.includes("****"), "masked with asterisks");
+  assert(rude.body.body.includes("You are an"), "polite words kept");
+
+  const threadAfter = await api("GET", `/api/chats/${demo.user.id}`, { token: alice.token });
+  const last = threadAfter.body.messages[threadAfter.body.messages.length - 1];
+  assert(!last.body.includes("asshole"), "recipient also sees censored text");
+
   if (failed) {
     console.error(`\n${failed} failed`);
     process.exit(1);

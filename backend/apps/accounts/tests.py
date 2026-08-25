@@ -473,6 +473,73 @@ def test_private_chat_round_trip(db, client):
     assert inbox.data[0]["last_message"]["body"] == "Hi A"
 
 
+def test_private_chat_censors_rude_words(db, client):
+    a = mk("censor_a")
+    b = mk("censor_b")
+    client.force_authenticate(user=a)
+    sent = client.post(
+        f"/api/chats/{b.id}",
+        {"body": "You are an asshole and that is shit."},
+        format="json",
+    )
+    assert sent.status_code == 201
+    assert "asshole" not in sent.data["body"]
+    assert "shit" not in sent.data["body"]
+    assert "You are an" in sent.data["body"]
+
+
+@pytest.mark.django_db
+def test_abuse_report_emails_admin(db, client, settings):
+    from django.core import mail
+
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    settings.ABUSE_REPORT_TO = "info@toomanygames.de"
+    reporter = mk("report_from")
+    accused = mk("report_at")
+    client.force_authenticate(user=reporter)
+    resp = client.post(
+        "/api/reports",
+        {
+            "type": "abuse",
+            "subject_type": "user",
+            "subject_id": accused.id,
+            "message": "Harassing messages in private chat",
+            "context": "private chat",
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert resp.data["status"] == "open"
+    assert len(mail.outbox) == 1
+    sent = mail.outbox[0]
+    assert sent.to == ["info@toomanygames.de"]
+    assert "report_from" in sent.body
+    assert "report_at" in sent.body
+    assert "Harassing messages" in sent.body
+
+
+def test_abuse_report_rejects_self_and_empty(db, client):
+    me = mk("report_self")
+    client.force_authenticate(user=me)
+    assert (
+        client.post(
+            "/api/reports",
+            {"type": "abuse", "subject_id": me.id, "message": "nope"},
+            format="json",
+        ).status_code
+        == 400
+    )
+    other = mk("report_other")
+    assert (
+        client.post(
+            "/api/reports",
+            {"type": "abuse", "subject_id": other.id, "message": "  "},
+            format="json",
+        ).status_code
+        == 400
+    )
+
+
 def test_private_chat_rejects_self_and_empty(db, client):
     me = mk("chat_self")
     client.force_authenticate(user=me)

@@ -4,6 +4,7 @@ from django.db.models import Q
 from rest_framework.exceptions import NotFound, ValidationError
 
 from .models import DirectMessage, User
+from .profanity import censor_text
 
 MAX_BODY = 2000
 
@@ -33,7 +34,7 @@ def serialize_message(row, me):
         "id": row.id,
         "sender_id": row.sender_id,
         "recipient_id": row.recipient_id,
-        "body": row.body,
+        "body": censor_text(row.body),
         "created_at": created,
         "mine": row.sender_id == me.id,
     }
@@ -64,7 +65,7 @@ def thread_messages(me, other):
 
 def send_message(me, raw_id, body):
     other = require_other(me, raw_id)
-    text = (body or "").strip()
+    text = censor_text((body or "").strip())
     if not text:
         raise ValidationError({"body": ["Message cannot be empty."]})
     if len(text) > MAX_BODY:

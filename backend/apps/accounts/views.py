@@ -33,6 +33,7 @@ from .google import (
     verify_google_id_token,
 )
 from .profile_stats import game_stats
+from .reports import create_abuse_report, serialize_report
 from .serializers import (
     ChangePasswordSerializer,
     FriendUserSerializer,
@@ -304,3 +305,11 @@ class ChatThreadView(APIView):
     def post(self, request, pk):
         row = send_message(request.user, pk, request.data.get("body"))
         return Response(serialize_message(row, request.user), status=201)
+
+
+class ReportCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        row = create_abuse_report(request.user, request.data)
+        return Response(serialize_report(row), status=201)

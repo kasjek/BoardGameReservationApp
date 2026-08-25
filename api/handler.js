@@ -29,6 +29,7 @@ const {
   rejectRequest,
 } = require("./friends");
 const { listChats, getThread, sendMessage } = require("./chats");
+const { createReport } = require("./reports");
 const { parseDataUrl, savePhotoFile, deletePhotoFile, readPhotoFile } = require("./venue-photo");
 
 function readBody(req) {
@@ -1095,6 +1096,13 @@ async function handleApi(req, res) {
       if (!u) return;
       const payload = await readBody(req);
       return send(res, 201, sendMessage(db, u.id, m[1], payload.body));
+    }
+
+    if (method === "POST" && path === "/api/reports") {
+      const u = requireUser(req, res);
+      if (!u) return;
+      const payload = await readBody(req);
+      return send(res, 201, await createReport(db, u, payload));
     }
 
     if ((m = path.match(/^\/api\/users\/(\d+)\/reviews$/)) && method === "GET") {

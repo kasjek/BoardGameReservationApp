@@ -59,6 +59,17 @@ function ensureDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_direct_messages_pair
       ON direct_messages (sender_id, recipient_id, id);
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reporter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      subject_type TEXT,
+      subject_id INTEGER,
+      message TEXT NOT NULL,
+      screenshot_url TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS venues (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
@@ -236,6 +247,19 @@ function migrateSchema(database) {
   if (!venueCols.includes("photo_path")) {
     database.exec("ALTER TABLE venues ADD COLUMN photo_path TEXT NOT NULL DEFAULT ''");
   }
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reporter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      subject_type TEXT,
+      subject_id INTEGER,
+      message TEXT NOT NULL,
+      screenshot_url TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open',
+      created_at TEXT NOT NULL
+    );
+  `);
 }
 
 function expandStatusFilter(status) {
