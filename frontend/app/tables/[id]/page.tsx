@@ -4,6 +4,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { VenueGameFeePrompt } from "../../components/VenueGameFeePrompt";
+import { REVIEW_COMMENT_MAX, StarRating } from "../../components/StarRating";
 import {
   Avatar,
   Banner,
@@ -59,7 +60,9 @@ export default function TableDetailPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [rating, setRating] = useState(5);
+  const [venueComment, setVenueComment] = useState("");
   const [playerRatings, setPlayerRatings] = useState<Record<number, number>>({});
+  const [playerComments, setPlayerComments] = useState<Record<number, string>>({});
   const [reviews, setReviews] = useState<Review[]>([]);
   const [feePrompt, setFeePrompt] = useState<"host" | "guest" | null>(null);
   const paypalReturnHandled = useRef(false);
@@ -420,39 +423,55 @@ export default function TableDetailPage() {
           myVenueReview ? (
             <div className="mt-1 text-sm text-slate-500">
               {t("tableDetail.alreadyRatedVenue")} · {"★".repeat(myVenueReview.rating)}
+              {myVenueReview.body ? (
+                <div className="mt-1 text-slate-700">“{myVenueReview.body}”</div>
+              ) : null}
             </div>
           ) : (
-          <div className="mt-1 flex items-center gap-2">
-            <select
-              className="input w-24"
-              value={rating}
-              onChange={(e) => setRating(Number(e.target.value))}
-            >
-              {[5, 4, 3, 2, 1].map((n) => (
-                <option key={n} value={n}>
-                  {n} ★
-                </option>
-              ))}
-            </select>
-            <button
-              className="btn"
-              disabled={busy}
-              onClick={() =>
-                act(
-                  () =>
-                    reviewApi.create({
-                      table: table.id,
-                      target_type: "venue",
-                      target_venue: table.venue,
-                      rating,
-                    }),
-                  t("tableDetail.thanksReview"),
-                )
-              }
-            >
-              {t("tableDetail.submitReview")}
-            </button>
-          </div>
+            <div className="mt-2 space-y-2">
+              <StarRating
+                value={rating}
+                onChange={setRating}
+                disabled={busy}
+                label={t("tableDetail.rateVenue")}
+              />
+              <label className="block">
+                <span className="sr-only">{t("tableDetail.reviewCommentPlaceholder")}</span>
+                <input
+                  className="input py-2"
+                  value={venueComment}
+                  maxLength={REVIEW_COMMENT_MAX}
+                  placeholder={t("tableDetail.reviewCommentPlaceholder")}
+                  onChange={(e) => setVenueComment(e.target.value.slice(0, REVIEW_COMMENT_MAX))}
+                  disabled={busy}
+                />
+                <span className="mt-1 block text-xs text-slate-400">
+                  {t("tableDetail.reviewCommentCounter", {
+                    used: venueComment.length,
+                    max: REVIEW_COMMENT_MAX,
+                  })}
+                </span>
+              </label>
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() =>
+                  act(
+                    () =>
+                      reviewApi.create({
+                        table: table.id,
+                        target_type: "venue",
+                        target_venue: table.venue,
+                        rating,
+                        body: venueComment.trim(),
+                      }),
+                    t("tableDetail.thanksReview"),
+                  )
+                }
+              >
+                {t("tableDetail.submitReview")}
+              </button>
+            </div>
           )
         ) : (
           <div className="mt-1 text-sm text-slate-500">
@@ -467,17 +486,18 @@ export default function TableDetailPage() {
       {canReview && otherPlayers.length > 0 ? (
         <div className="card mt-3">
           <div className="label">{t("tableDetail.ratePlayers")}</div>
-          <div className="mt-2 space-y-2">
+          <div className="mt-2 space-y-3">
             {otherPlayers.map((s) => {
               const existing = reviews.find(
                 (r) => r.author === user.id && r.target_type === "user" && r.target_user === s.user,
               );
               const value = playerRatings[s.user] ?? 5;
+              const comment = playerComments[s.user] ?? "";
               return (
-                <div key={s.id} className="flex items-center gap-2">
+                <div key={s.id} className="rounded-xl border border-slate-100 p-3">
                   <button
                     type="button"
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    className="flex min-w-0 items-center gap-2 text-left"
                     onClick={() => router.push(`/users/${s.user}`)}
                   >
                     <Avatar
@@ -489,28 +509,43 @@ export default function TableDetailPage() {
                     <span className="truncate text-sm font-semibold">{s.username}</span>
                   </button>
                   {existing || myPlayerReviews.has(s.user) ? (
-                    <div className="text-xs text-slate-500">
+                    <div className="mt-2 text-xs text-slate-500">
                       {t("tableDetail.alreadyRated", { name: s.username })}
                       {existing ? ` · ${"★".repeat(existing.rating)}` : ""}
+                      {existing?.body ? (
+                        <div className="mt-1 text-sm text-slate-700">“{existing.body}”</div>
+                      ) : null}
                     </div>
                   ) : (
-                    <>
-                      <select
-                        className="input w-20"
+                    <div className="mt-2 space-y-2">
+                      <StarRating
                         value={value}
+                        onChange={(n) => setPlayerRatings((cur) => ({ ...cur, [s.user]: n }))}
+                        disabled={busy}
+                        label={`${t("tableDetail.ratePlayers")}: ${s.username}`}
+                      />
+                      <input
+                        className="input py-2"
+                        value={comment}
+                        maxLength={REVIEW_COMMENT_MAX}
+                        placeholder={t("tableDetail.reviewCommentPlaceholder")}
                         onChange={(e) =>
-                          setPlayerRatings((cur) => ({ ...cur, [s.user]: Number(e.target.value) }))
+                          setPlayerComments((cur) => ({
+                            ...cur,
+                            [s.user]: e.target.value.slice(0, REVIEW_COMMENT_MAX),
+                          }))
                         }
-                      >
-                        {[5, 4, 3, 2, 1].map((n) => (
-                          <option key={n} value={n}>
-                            {n} ★
-                          </option>
-                        ))}
-                      </select>
+                        disabled={busy}
+                      />
+                      <span className="block text-xs text-slate-400">
+                        {t("tableDetail.reviewCommentCounter", {
+                          used: comment.length,
+                          max: REVIEW_COMMENT_MAX,
+                        })}
+                      </span>
                       <button
                         type="button"
-                        className="btn-ghost !w-auto shrink-0 px-3 py-2 text-xs"
+                        className="btn-ghost !w-auto px-4 py-2 text-xs"
                         disabled={busy}
                         onClick={() =>
                           act(
@@ -520,6 +555,7 @@ export default function TableDetailPage() {
                                 target_type: "user",
                                 target_user: s.user,
                                 rating: value,
+                                body: comment.trim(),
                               }),
                             t("tableDetail.thanksReview"),
                           )
@@ -527,7 +563,7 @@ export default function TableDetailPage() {
                       >
                         {t("tableDetail.submitReview")}
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               );

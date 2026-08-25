@@ -126,6 +126,7 @@ function insertTable({ organizerId, venueId, guestId, endsAt, status = "availabl
   });
   assert(venueReview.statusCode === 201, `venue review 201 (got ${venueReview.statusCode})`);
   assert(venueReview.body.rating === 5, "venue review stores rating");
+  assert(venueReview.body.body === "Nice cafe", "venue review stores the short comment");
   assert(venueReview.body.target_venue === venue.id, "venue review targets the table's venue");
 
   const userReview = await api("POST", "/api/reviews", {
@@ -203,6 +204,51 @@ function insertTable({ organizerId, venueId, guestId, endsAt, status = "availabl
     body: { table: pastId, target_type: "venue", rating: 5 },
   });
   assert(unauth.statusCode === 401 || unauth.statusCode === 403, "review requires auth");
+
+  const commentTableId = insertTable({
+    organizerId: demo.user.id,
+    venueId: venue.id,
+    guestId: alice.user.id,
+    endsAt: new Date(Date.now() - 60 * 60 * 1000),
+  });
+  const fifty = "x".repeat(50);
+  const okComment = await api("POST", "/api/reviews", {
+    token: demo.token,
+    body: { table: commentTableId, target_type: "venue", rating: 5, body: fifty },
+  });
+  assert(okComment.statusCode === 201, `50-char comment 201 (got ${okComment.statusCode})`);
+  assert(okComment.body.body === fifty, "50-char comment is stored");
+
+  const playerComment = await api("POST", "/api/reviews", {
+    token: demo.token,
+    body: {
+      table: commentTableId,
+      target_type: "user",
+      target_user: alice.user.id,
+      rating: 4,
+      body: "Great player, would play again!",
+    },
+  });
+  assert(playerComment.statusCode === 201, `player comment 201 (got ${playerComment.statusCode})`);
+  assert(playerComment.body.body === "Great player, would play again!", "player comment is stored");
+
+  const listedAlice = await api("GET", `/api/users/${alice.user.id}/reviews`);
+  assert(
+    listedAlice.body.some((row) => row.body === "Great player, would play again!"),
+    "player profile lists the comment",
+  );
+
+  const tooLongId = insertTable({
+    organizerId: demo.user.id,
+    venueId: venue.id,
+    guestId: alice.user.id,
+    endsAt: new Date(Date.now() - 60 * 60 * 1000),
+  });
+  const tooLong = await api("POST", "/api/reviews", {
+    token: demo.token,
+    body: { table: tooLongId, target_type: "venue", rating: 5, body: "x".repeat(51) },
+  });
+  assert(tooLong.statusCode === 400, `51-char comment is 400 (got ${tooLong.statusCode})`);
 
   if (failed) {
     console.error(`${failed} failed`);

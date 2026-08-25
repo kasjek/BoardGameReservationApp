@@ -97,7 +97,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 ## Reviews & ratings
 
 - `GET /users/{id}/reviews` / `GET /venues/{id}/reviews` / `GET /tables/{id}/reviews` *(20)*
-- `POST /reviews` — review a user or venue after that table has ended; author and (for user reviews) target must have attended; one review per author/table/target *(5, 39)*
+- `POST /reviews` — review a user or venue after that table has ended; author and (for user reviews) target must have attended; one review per author/table/target; `rating` is 1–5 stars; optional `body` is at most 50 characters *(5, 39)*
 - `POST /reviews/{id}/response` — venue admin responds to a review *(37)*
 
 ## Payments
