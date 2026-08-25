@@ -14,7 +14,7 @@ import re
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from urllib.parse import quote, quote_plus
+from urllib.parse import quote, quote_plus, unquote
 
 # Trailing / embedded publishing years BGG shows next to titles, e.g. "Calico (2020)".
 _YEAR_IN_BRACKETS = re.compile(r"\s*\(\d{4}\)")
@@ -46,8 +46,10 @@ BGG_GAME_URL = "https://boardgamegeek.com/boardgame/{id}"
 GEEKDO_ITEM_API = "https://api.geekdo.com/api/geekitems"
 WIKI_SEARCH_API = "https://en.wikipedia.org/w/api.php"
 WIKI_SUMMARY_API = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 _UA = {"User-Agent": "BoardGameReservationApp/0.1"}
 _TIMEOUT = 6
+_BGG_URL_ID = re.compile(r"boardgame(?:expansion)?/(\d+)(?:/([^/?#]+))?", re.IGNORECASE)
 
 
 def _auth_headers() -> dict[str, str]:
@@ -259,19 +261,149 @@ def list_directory_boardgames() -> list[dict]:
     return sorted(by_id.values(), key=lambda h: normalize(h["name"]))
 
 
+def _title_from_bgg_slug(slug: str | None) -> str | None:
+    if not slug:
+        return None
+    cleaned = " ".join(unquote(slug).replace("_", " ").replace("-", " ").split())
+    if not cleaned:
+        return None
+    return " ".join(word[:1].upper() + word[1:].lower() for word in cleaned.split(" "))
+
+
+def parse_bgg_ref(query: str) -> tuple[int, str | None] | None:
+    """BGG thing id (and optional URL slug title) from a numeric string or BGG URL."""
+    text = (query or "").strip()
+    if not text:
+        return None
+    match = _BGG_URL_ID.search(text)
+    if match:
+        return int(match.group(1)), _title_from_bgg_slug(match.group(2))
+    if re.fullmatch(r"\d{1,8}", text):
+        return int(text), None
+    return None
+
+
+def _rank_search_hits(hits: list[dict], query: str) -> list[dict]:
+    want = normalize_for_match(query)
+
+    def score(name: str) -> int:
+        n = normalize_for_match(name)
+        if n == want:
+            return 0
+        if n.startswith(want):
+            return 1
+        if want in n:
+            return 2
+        return 3
+
+    return [hit for _, hit in sorted(enumerate(hits), key=lambda pair: (score(pair[1].get("name") or ""), pair[0]))]
+
+
+def _merge_search_hits(*groups: list[dict]) -> list[dict]:
+    by_id: dict[int, dict] = {}
+    extras: list[dict] = []
+    for group in groups:
+        for hit in group:
+            try:
+                bgg_id = int(hit.get("bgg_id"))
+            except (TypeError, ValueError):
+                continue
+            if bgg_id <= 0:
+                extras.append(hit)
+                continue
+            prev = by_id.get(bgg_id)
+            if prev is None:
+                by_id[bgg_id] = {**hit, "bgg_id": bgg_id}
+            elif not prev.get("year") and hit.get("year"):
+                prev["year"] = hit["year"]
+    return [*by_id.values(), *extras]
+
+
+def _wikidata_boardgame_hits(query: str, *, limit: int) -> list[dict]:
+    """Resolve titles to BGG ids via Wikidata claim P2339 when XML search is down."""
+    text = (query or "").strip()
+    if len(text) < 2:
+        return []
+    cap = max(1, min(limit, 50))
+    search_url = (
+        f"{WIKIDATA_API}?action=wbsearchentities&search={quote_plus(text)}"
+        f"&language=en&uselang=en&type=item&limit={cap}&format=json"
+    )
+    search_body = _http_get(search_url, _UA)
+    if not search_body:
+        return []
+    try:
+        payload = json.loads(search_body)
+    except ValueError:
+        return []
+    ids = [row.get("id") for row in (payload.get("search") or []) if row.get("id")]
+    if not ids:
+        return []
+    get_url = (
+        f"{WIKIDATA_API}?action=wbgetentities&ids={'|'.join(ids)}"
+        "&props=labels|claims&languages=en&format=json"
+    )
+    get_body = _http_get(get_url, _UA)
+    if not get_body:
+        return []
+    try:
+        entities = json.loads(get_body).get("entities") or {}
+    except ValueError:
+        return []
+    hits: list[dict] = []
+    for entity in entities.values():
+        if not isinstance(entity, dict):
+            continue
+        claims = entity.get("claims") or {}
+        snaks = claims.get("P2339") or []
+        raw = None
+        if snaks:
+            raw = ((snaks[0].get("mainsnak") or {}).get("datavalue") or {}).get("value")
+        try:
+            bgg_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if bgg_id <= 0:
+            continue
+        labels = entity.get("labels") or {}
+        name = ((labels.get("en") or {}).get("value") or text).strip()
+        hits.append({"bgg_id": bgg_id, "name": name or text, "year": None})
+        if len(hits) >= cap:
+            break
+    return hits
+
+
+def _direct_bgg_hit(bgg_id: int) -> dict | None:
+    geek = _geekdo_item(bgg_id)
+    if geek and geek.get("name"):
+        return {"bgg_id": bgg_id, "name": geek["name"], "year": None}
+    return None
+
+
 def search_boardgames(query: str, *, limit: int = 20) -> list[dict]:
     """Return BGG search hits for a typed query (venue pickers + New Table typeahead)."""
     q = strip_year_brackets(query)
     if not q:
         return []
-    cap = max(1, min(limit, 50))
+    cap = max(1, min(int(limit), 1000))
+
+    ref = parse_bgg_ref(q)
+    if ref:
+        bgg_id, slug_name = ref
+        hit = _direct_bgg_hit(bgg_id)
+        if hit:
+            if slug_name:
+                hit["name"] = slug_name
+            return [hit]
+
     url = f"{BGG_SEARCH_API}?query={quote_plus(q)}&type=boardgame"
     body = _http_get(url, _auth_headers())
-    if body is not None:
-        hits = parse_search_results(body)[:cap]
-        if hits:
-            return hits
-    return _local_search_boardgames(q, limit=cap)[:cap]
+    xml_hits: list[dict] = parse_search_results(body) if body is not None else []
+    if xml_hits:
+        return _rank_search_hits(xml_hits, q)[:cap]
+    wiki_hits = _wikidata_boardgame_hits(q, limit=min(cap, 50))
+    local = _local_search_boardgames(q, limit=cap)
+    return _rank_search_hits(_merge_search_hits(wiki_hits, local), q)[:cap]
 
 
 def _positive_bgg_id(value) -> int | None:

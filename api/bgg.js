@@ -15,6 +15,7 @@ const BGG_SEARCH = "https://boardgamegeek.com/xmlapi2/search";
 const GEEKDO_ITEM = "https://api.geekdo.com/api/geekitems";
 const WIKI_SEARCH = "https://en.wikipedia.org/w/api.php";
 const WIKI_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/";
+const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 const UA = "TooManyGames/1.0 (GoDaddy Node; contact: local)";
 
 function authHeaders() {
@@ -172,6 +173,101 @@ async function geekdoItem(bggId) {
   } catch {
     return null;
   }
+}
+
+function titleFromBggSlug(slug) {
+  if (!slug) return null;
+  try {
+    slug = decodeURIComponent(slug);
+  } catch {
+    /* keep raw */
+  }
+  const cleaned = slug.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  return cleaned.replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+}
+
+function parseBggRef(q) {
+  const text = String(q || "").trim();
+  if (!text) return null;
+  const url = text.match(/boardgame(?:expansion)?\/(\d+)(?:\/([^/?#]+))?/i);
+  if (url) return { id: Number(url[1]), name: titleFromBggSlug(url[2]) };
+  if (/^\d{1,8}$/.test(text)) return { id: Number(text), name: null };
+  return null;
+}
+
+function mergeHits(...groups) {
+  const byId = new Map();
+  for (const hit of groups.flat()) {
+    const id = Number(hit?.bgg_id);
+    if (!id) continue;
+    const prev = byId.get(id);
+    if (!prev) {
+      byId.set(id, { bgg_id: id, name: hit.name, year: hit.year ?? null });
+      continue;
+    }
+    if (!prev.year && hit.year) prev.year = hit.year;
+    if (!prev.name && hit.name) prev.name = hit.name;
+  }
+  return [...byId.values()];
+}
+
+async function searchWikidataBoardgames(q, limit) {
+  const text = String(q || "").trim();
+  if (text.length < 2) return [];
+  const cap = Math.min(Math.max(Number(limit) || 20, 1), 50);
+  const searchUrl =
+    `${WIKIDATA_API}?action=wbsearchentities&search=${encodeURIComponent(text)}` +
+    `&language=en&uselang=en&type=item&limit=${cap}&format=json`;
+  const searchBody = await httpGet(searchUrl, { "User-Agent": UA, Accept: "application/json" });
+  if (!searchBody) return [];
+  let ids = [];
+  try {
+    ids = (JSON.parse(searchBody.toString("utf8")).search || [])
+      .map((row) => row.id)
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+  if (!ids.length) return [];
+  const getUrl =
+    `${WIKIDATA_API}?action=wbgetentities&ids=${ids.join("|")}` +
+    `&props=labels|claims&languages=en&format=json`;
+  const getBody = await httpGet(getUrl, { "User-Agent": UA, Accept: "application/json" });
+  if (!getBody) return [];
+  const hits = [];
+  try {
+    const entities = JSON.parse(getBody.toString("utf8")).entities || {};
+    for (const entity of Object.values(entities)) {
+      const claim = entity.claims?.P2339?.[0]?.mainsnak?.datavalue?.value;
+      const bggId = Number(claim);
+      if (!bggId) continue;
+      hits.push({
+        bgg_id: bggId,
+        name: entity.labels?.en?.value || text,
+        year: null,
+      });
+      if (hits.length >= cap) break;
+    }
+  } catch {
+    return [];
+  }
+  return hits;
+}
+
+async function lookupBoardgame(bggId) {
+  const xml = await httpGet(`${BGG_THING}?id=${bggId}&stats=1`, authHeaders(), 20_000);
+  if (xml) {
+    const s = xml.toString("utf8");
+    const name = parseThingName(s);
+    if (name) {
+      const yearM = s.match(/<yearpublished[^>]*value="(\d+)"/i);
+      return { bgg_id: bggId, name, year: yearM ? Number(yearM[1]) : null };
+    }
+  }
+  const geek = await geekdoItem(bggId);
+  if (geek?.name) return { bgg_id: bggId, name: geek.name, year: null };
+  return null;
 }
 
 async function bggThumbnail(bggId) {
@@ -369,31 +465,45 @@ async function resolveGameTypes(title, bggId = null, { live = true } = {}) {
 
 async function liveSearch(q, limit = 500) {
   const query = stripYear(q);
+  if (!query) return [];
   const max = !limit || limit < 1 ? 1000 : Math.min(limit, 1000);
-  if (process.env.BGG_API_TOKEN) {
-    // Search XML can be large; allow more than the default 8s cover/thing timeout.
-    const xml = await httpGet(
-      `${BGG_SEARCH}?query=${encodeURIComponent(query)}&type=boardgame`,
-      authHeaders(),
-      20_000,
-    );
-    if (xml) {
-      const hits = rankSearchHits(parseSearchResults(xml.toString("utf8")), query);
-      if (hits.length) return hits.slice(0, max);
+
+  const direct = parseBggRef(query);
+  if (direct) {
+    const hit = await lookupBoardgame(direct.id);
+    if (hit) {
+      if (direct.name) hit.name = direct.name;
+      return [hit];
     }
   }
-  const db = ensureDb();
-  return rankSearchHits(
-    db
-      .prepare(
-        `SELECT DISTINCT title AS name, bgg_id FROM venue_games
-         WHERE is_active=1 AND bgg_id IS NOT NULL AND title LIKE ?
-         ORDER BY title LIMIT ?`,
-      )
-      .all(`%${query}%`, max)
-      .map((r) => ({ bgg_id: r.bgg_id, name: r.name, year: null })),
-    query,
+
+  // Always try BGG's catalog (token optional). Search XML can be large.
+  const xml = await httpGet(
+    `${BGG_SEARCH}?query=${encodeURIComponent(query)}&type=boardgame`,
+    authHeaders(),
+    20_000,
   );
+  const xmlHits = xml ? parseSearchResults(xml.toString("utf8")) : [];
+  const wikiHits = xmlHits.length ? [] : await searchWikidataBoardgames(query, Math.min(max, 50));
+
+  const db = ensureDb();
+  const local = db
+    .prepare(
+      `SELECT DISTINCT title AS name, bgg_id FROM venue_games
+       WHERE is_active=1 AND bgg_id IS NOT NULL AND title LIKE ?
+       ORDER BY title LIMIT ?`,
+    )
+    .all(`%${query}%`, max)
+    .map((r) => ({ bgg_id: r.bgg_id, name: r.name, year: null }));
+  const cached = db
+    .prepare(
+      `SELECT bgg_id, title AS name FROM bgg_games
+       WHERE title LIKE ? ORDER BY title LIMIT ?`,
+    )
+    .all(`%${query}%`, max)
+    .map((r) => ({ bgg_id: r.bgg_id, name: r.name, year: null }));
+
+  return rankSearchHits(mergeHits(xmlHits, wikiHits, local, cached), query).slice(0, max);
 }
 
 module.exports = {

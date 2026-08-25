@@ -91,7 +91,7 @@ function BggGamePicker({
       bggApi
         .search(q)
         .then((res) => {
-          if (!cancelled) setHits(res.results.slice(0, 30));
+          if (!cancelled) setHits(res.results);
         })
         .catch((e) => {
           if (!cancelled) {
@@ -124,14 +124,20 @@ function BggGamePicker({
         aria-controls="bgg-game-results"
         aria-autocomplete="list"
       />
+      <div className="mt-1 text-xs text-slate-400">{t("bgg.searchHint")}</div>
       {searching ? <div className="mt-1 text-xs text-slate-400">{t("bgg.searching")}</div> : null}
       {searchError ? <div className="mt-1 text-xs text-red-500">{searchError}</div> : null}
       {hits.length > 0 ? (
         <div
           id="bgg-game-results"
           role="listbox"
-          className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-100 bg-white"
+          className="mt-2 max-h-72 overflow-y-auto rounded-xl border border-slate-100 bg-white"
         >
+          <div className="sticky top-0 border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
+            {hits.length === 1
+              ? t("bgg.resultCountOne")
+              : t("bgg.resultCount", { count: hits.length })}
+          </div>
           {hits.map((h) => (
             <button
               key={h.bgg_id}
