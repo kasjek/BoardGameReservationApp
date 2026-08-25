@@ -102,7 +102,19 @@ assert(earnedUnlockIds(0).length === 0, "0 games → no unlocks");
 assert(earnedUnlockIds(9).length === 0, "9 games → no unlocks");
 assert(earnedUnlockIds(10).join(",") === "bg-lilac", "10 games → first item");
 assert(earnedUnlockIds(20).length === 2, "20 games → two items");
-assert(earnedUnlockIds(100).length === COSMETIC_CATALOG.length, "100 games → full catalog");
+assert(earnedUnlockIds(100).length === 10, "100 games → 10 items");
+assert(
+  earnedUnlockIds(GAMES_PER_UNLOCK * COSMETIC_CATALOG.length).length === COSMETIC_CATALOG.length,
+  "full XP unlocks the whole catalog",
+);
+assert(!COSMETIC_CATALOG.some((item) => item.id === "frame-dice"), "dice frame removed");
+assert(COSMETIC_CATALOG.filter((item) => item.slot === "background").length === 10, "10 backgrounds");
+assert(COSMETIC_CATALOG.filter((item) => item.slot === "hat").length === 10, "10 hats");
+assert(
+  COSMETIC_CATALOG.filter((item) => item.slot === "companion").map((item) => item.id).join(",") ===
+    "companion-meeple,companion-cat,companion-dog",
+  "meeple, cat, and dog companions",
+);
 assert(GAMES_PER_UNLOCK === 10, "unlock every 10 unique games");
 
 (async () => {

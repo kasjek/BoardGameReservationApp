@@ -16,7 +16,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET /auth/me` — current user profile and role (and venue link for `VENUE_USER`), including `favorite_categories`, `avatar_unlocks`, and `avatar_equipped`
 - `POST /me/password` — change own password (`current_password`, `new_password`, `confirm_password`); rotates auth token *(9)*
 - `POST /me/avatar/roll` — re-roll the DiceBear `avatar_seed` only; collected cosmetics stay *(10)*
-- `GET /avatar/cosmetics` — catalog of layered cosmetics with lock state, `xp_required` (unique games played), and currently equipped items
+- `GET /avatar/cosmetics` — catalog of layered cosmetics with lock state, `xp_required` (unique games played), and currently equipped items. Includes 10 backgrounds, 10 hats, glasses, a gold frame, and meeple / cat / dog companions. The old dice frame was removed.
 - `PATCH /me/avatar/cosmetics` — `{ slot, item_id }` equip an unlocked cosmetic or `item_id: null` to unequip. Slots: `background`, `hat`, `glasses`, `frame`, `companion`. XP is unique games played; every 10 unique titles unlocks the next catalog item (never revoked)
 - `PATCH /me/favorite-categories` — set up to 3 BoardGameGeek categories (`category_ids`) the user likes most
 - `PATCH /me/settings` — e.g. toggle `allow_invites` *(17)*

@@ -110,7 +110,7 @@ export function Avatar({
   cosmetics?: AvatarEquipped | null;
 }) {
   const [failed, setFailed] = useState(false);
-  const extra = cosmetics && Object.values(cosmetics).some(Boolean) ? Math.round(size * 0.22) : 0;
+  const extra = cosmetics && Object.values(cosmetics).some(Boolean) ? Math.round(size * 0.28) : 0;
   const outer = size + extra;
   const face = { width: size, height: size };
   const wrap = { width: outer, height: outer, minWidth: outer };
