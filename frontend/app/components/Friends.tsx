@@ -137,19 +137,65 @@ export function FriendRow({
 
 export function IncomingRequests({
   incoming,
+  outgoing = [],
   onChanged,
 }: {
   incoming: FriendRequest[];
+  outgoing?: FriendRequest[];
   onChanged: () => void;
 }) {
   const { t } = useI18n();
-  if (incoming.length === 0) return null;
+  if (incoming.length === 0 && outgoing.length === 0) return null;
   return (
     <div className="mb-4 space-y-2">
       <div className="text-sm font-bold">{t("friends.incomingHeading")}</div>
       {incoming.map((req) => (
-        <FriendRow key={req.id} person={req.user} onChanged={onChanged} />
+        <FriendRow key={`in-${req.id}`} person={req.user} onChanged={onChanged} />
       ))}
+      {outgoing.map((req) => (
+        <FriendRow key={`out-${req.id}`} person={req.user} onChanged={onChanged} />
+      ))}
+    </div>
+  );
+}
+
+export function FriendsOverview({
+  friends,
+  incoming,
+  outgoing,
+  onChanged,
+}: {
+  friends: FriendUser[];
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+  onChanged: () => void;
+}) {
+  const { t } = useI18n();
+  const openCount = incoming.length + outgoing.length;
+  return (
+    <div className="mb-4">
+      <div className="mb-2 text-sm font-bold">{t("friends.myFriends")}</div>
+      <div className="mb-3">
+        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+          {t("friends.openRequests")}
+        </div>
+        {openCount === 0 ? (
+          <div className="text-sm text-slate-400">{t("friends.noOpenRequests")}</div>
+        ) : (
+          <div className="space-y-2">
+            {incoming.map((req) => (
+              <FriendRow key={`in-${req.id}`} person={req.user} onChanged={onChanged} />
+            ))}
+            {outgoing.map((req) => (
+              <FriendRow key={`out-${req.id}`} person={req.user} onChanged={onChanged} />
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+        {t("friends.friends")}
+      </div>
+      <FriendsList friends={friends} />
     </div>
   );
 }
