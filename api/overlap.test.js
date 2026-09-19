@@ -86,9 +86,12 @@ function slotOn(venueId, date, startHm, endHm) {
   const datehouse = tokenFor("datehouse");
   const dateHouse = db.prepare("SELECT * FROM venues WHERE name='Date House Cafe'").get();
   const knorzVenue = db.prepare("SELECT * FROM venues WHERE name='Hotel Knorz'").get();
+  const minDate = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const avail = db
-    .prepare("SELECT * FROM venue_availability WHERE venue_id=? AND start_time<='14:00' AND end_time>='18:00' LIMIT 1")
-    .get(dateHouse.id);
+    .prepare(
+      "SELECT * FROM venue_availability WHERE venue_id=? AND date>=? AND start_time<='14:00' AND end_time>='18:00' LIMIT 1",
+    )
+    .get(dateHouse.id, minDate);
   const date = avail.date;
   const firstSlot = slotOn(dateHouse.id, date, "14:00", "16:00");
   const overlapSlot = slotOn(dateHouse.id, date, "15:00", "17:00");

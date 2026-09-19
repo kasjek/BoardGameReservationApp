@@ -32,6 +32,7 @@ const { listChats, getThread, sendMessage } = require("./chats");
 const { createReport } = require("./reports");
 const { parseDataUrl, savePhotoFile, deletePhotoFile, readPhotoFile } = require("./venue-photo");
 const { overlappingReservation, OVERLAP_DETAIL } = require("./overlap");
+const { startsTooSoon, LEAD_TIME_DETAIL } = require("./lead-time");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -682,6 +683,9 @@ async function handleApi(req, res) {
         const starts = new Date(body.starts_at);
         const ends = new Date(body.ends_at);
         if (!(starts < ends)) return send(res, 400, { detail: "Invalid time range." });
+        if (startsTooSoon(starts)) {
+          return send(res, 400, { detail: LEAD_TIME_DETAIL });
+        }
         if (overlappingReservation(db, u.id, body.starts_at, body.ends_at)) {
           return send(res, 409, { detail: OVERLAP_DETAIL });
         }

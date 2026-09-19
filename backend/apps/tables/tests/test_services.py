@@ -3,7 +3,7 @@ from datetime import time, timedelta
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.accounts.models import Role
 from apps.tables import services
@@ -72,6 +72,13 @@ def make_table(organizer, venue, bring_own_game=True, ensure_availability=True, 
 
 
 # --- Hosting & role rules ---------------------------------------------------
+
+def test_create_table_requires_24h_lead_time(db, venue):
+    host = make_user("tooSoon")
+    soon = timezone.now() + timedelta(hours=2)
+    with pytest.raises(ValidationError):
+        make_table(host, venue, starts_at=soon, ends_at=soon + timedelta(hours=2))
+
 
 def test_host_creates_pending_table_and_is_seated(db, venue):
     host = make_user("alice")
