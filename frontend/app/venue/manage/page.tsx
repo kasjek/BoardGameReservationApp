@@ -85,21 +85,35 @@ function PhotoDropField({
 
   return (
     <div>
-      <button
-        type="button"
-        disabled={disabled}
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled || undefined}
         aria-label={t("venueManage.photoDrop")}
-        onClick={() => inputRef.current?.click()}
+        data-testid="venue-photo-drop"
+        onClick={() => {
+          if (!disabled) inputRef.current?.click();
+        }}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
         onDragEnter={(e) => {
           e.preventDefault();
           if (!disabled) setDragOver(true);
         }}
         onDragOver={(e) => {
           e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
           if (!disabled) setDragOver(true);
         }}
         onDragLeave={(e) => {
           e.preventDefault();
+          const next = e.relatedTarget as Node | null;
+          if (next && e.currentTarget.contains(next)) return;
           setDragOver(false);
         }}
         onDrop={(e) => {
@@ -108,24 +122,28 @@ function PhotoDropField({
           if (disabled) return;
           take(e.dataTransfer.files?.[0]);
         }}
-        className={`relative flex h-28 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-center transition ${
+        className={`relative flex h-28 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-center transition ${
           dragOver
             ? "border-brand bg-violet-50"
             : "border-slate-300 bg-slate-50 hover:border-brand hover:bg-violet-50"
-        } disabled:opacity-50`}
+        } ${disabled ? "pointer-events-none opacity-50" : ""}`}
       >
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt={alt || ""} className="h-full w-full object-cover" />
-        ) : (
-          <span className="px-3 text-xs font-semibold text-slate-500">{t("venueManage.photoDrop")}</span>
-        )}
-        {dragOver ? (
-          <span className="absolute inset-0 flex items-center justify-center bg-violet-100/80 text-xs font-bold text-brand">
-            {t("venueManage.photoDropActive")}
-          </span>
-        ) : null}
-      </button>
+        <div className="pointer-events-none absolute inset-0">
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewUrl} alt={alt || ""} className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full items-center justify-center px-3 text-xs font-semibold text-slate-500">
+              {t("venueManage.photoDrop")}
+            </span>
+          )}
+          {dragOver ? (
+            <span className="absolute inset-0 flex items-center justify-center bg-violet-100/80 text-xs font-bold text-brand">
+              {t("venueManage.photoDropActive")}
+            </span>
+          ) : null}
+        </div>
+      </div>
       <input
         ref={inputRef}
         className="sr-only"
