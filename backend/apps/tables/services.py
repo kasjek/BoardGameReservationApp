@@ -120,6 +120,18 @@ def create_table(
 
     assert_slot_bookable(venue, starts_at, ends_at)
 
+    overlapping = (
+        SeatReservation.objects.filter(user=organizer, status=SeatStatus.RESERVED)
+        .exclude(table__status=TableStatus.CANCELLED)
+        .filter(table__starts_at__lt=ends_at, table__ends_at__gt=starts_at)
+        .exists()
+    )
+    if overlapping:
+        raise Conflict(
+            "You already have a reservation that overlaps this time. "
+            "Cancel it first, or pick another slot."
+        )
+
     table = Table.objects.create(
         organizer=organizer,
         venue=venue,

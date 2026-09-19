@@ -217,6 +217,23 @@ def test_duplicate_reserve_conflicts(db, venue, wide_availability):
         services.reserve_seat(table=table, user=bob)
 
 
+def test_overlapping_table_create_rejected(db, venue):
+    host = make_user("hostOverlap")
+    make_table(host, venue, starts_at=future_dt(hour=18), ends_at=future_dt(hour=20))
+    other_venue = Venue.objects.create(name="Second Room")
+    with pytest.raises(services.Conflict):
+        make_table(host, venue, starts_at=future_dt(hour=19), ends_at=future_dt(hour=21))
+    with pytest.raises(services.Conflict):
+        make_table(
+            host,
+            other_venue,
+            starts_at=future_dt(hour=18),
+            ends_at=future_dt(hour=20),
+        )
+    later = make_table(host, venue, starts_at=future_dt(hour=21), ends_at=future_dt(hour=23))
+    assert later.seats.filter(user=host, status=SeatStatus.RESERVED).exists()
+
+
 def test_overlapping_reservation_rejected(db, venue):
     player = make_user("player")
     a = make_table(make_user("hostA"), venue, starts_at=future_dt(hour=18), ends_at=future_dt(hour=20))
