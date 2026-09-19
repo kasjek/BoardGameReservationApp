@@ -97,6 +97,37 @@ function tokenFor(username) {
   });
   assert(self.statusCode === 400, "cannot report self");
 
+  const stranger = await api("POST", "/api/reports", {
+    token: demo.token,
+    body: {
+      type: "abuse",
+      subject_id: alice.user.id,
+      message: "too soon",
+      context: "private chat",
+    },
+  });
+  assert(stranger.statusCode === 403, "cannot report before friendship is accepted");
+
+  const pending = await api("POST", "/api/friends/requests", {
+    token: demo.token,
+    body: { user_id: alice.user.id },
+  });
+  assert(pending.statusCode === 201 || pending.statusCode === 200, "friend request sent");
+  const stillPending = await api("POST", "/api/reports", {
+    token: demo.token,
+    body: {
+      type: "abuse",
+      subject_id: alice.user.id,
+      message: "still pending",
+      context: "private chat",
+    },
+  });
+  assert(stillPending.statusCode === 403, "cannot report while friend request is pending");
+  const accept = await api("POST", `/api/friends/requests/${pending.body.id}/accept`, {
+    token: alice.token,
+  });
+  assert(accept.statusCode === 200, "alice accepts demo");
+
   const filed = await api("POST", "/api/reports", {
     token: demo.token,
     body: {

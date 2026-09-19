@@ -500,8 +500,13 @@ def test_abuse_report_emails_admin(db, client, settings):
 
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
     settings.ABUSE_REPORT_TO = "info@toomanygames.de"
+    from apps.accounts.models import Friendship
+
     reporter = mk("report_from")
     accused = mk("report_at")
+    Friendship.objects.create(
+        requester=reporter, addressee=accused, status=Friendship.Status.ACCEPTED
+    )
     client.force_authenticate(user=reporter)
     resp = client.post(
         "/api/reports",
@@ -522,6 +527,52 @@ def test_abuse_report_emails_admin(db, client, settings):
     assert "report_from" in sent.body
     assert "report_at" in sent.body
     assert "Harassing messages" in sent.body
+
+
+def test_abuse_report_requires_accepted_friendship(db, client):
+    from apps.accounts.models import Friendship
+
+    reporter = mk("report_wait_a")
+    accused = mk("report_wait_b")
+    client.force_authenticate(user=reporter)
+    blocked = client.post(
+        "/api/reports",
+        {
+            "type": "abuse",
+            "subject_id": accused.id,
+            "message": "too soon",
+            "context": "private chat",
+        },
+        format="json",
+    )
+    assert blocked.status_code == 403
+    pending = Friendship.objects.create(
+        requester=reporter, addressee=accused, status=Friendship.Status.PENDING
+    )
+    still = client.post(
+        "/api/reports",
+        {
+            "type": "abuse",
+            "subject_id": accused.id,
+            "message": "still pending",
+            "context": "private chat",
+        },
+        format="json",
+    )
+    assert still.status_code == 403
+    pending.status = Friendship.Status.ACCEPTED
+    pending.save(update_fields=["status"])
+    ok = client.post(
+        "/api/reports",
+        {
+            "type": "abuse",
+            "subject_id": accused.id,
+            "message": "now friends",
+            "context": "private chat",
+        },
+        format="json",
+    )
+    assert ok.status_code == 201
 
 
 def test_abuse_report_rejects_self_and_empty(db, client):

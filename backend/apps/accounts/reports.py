@@ -2,8 +2,9 @@
 
 from django.conf import settings
 from django.core.mail import send_mail
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
+from .friends import are_friends
 from .models import Report, User
 
 
@@ -45,6 +46,9 @@ def create_abuse_report(reporter, payload: dict) -> Report:
     accused = User.objects.filter(pk=subject_id).first()
     if accused is None:
         raise NotFound("User not found.")
+    context = str((payload or {}).get("context") or "").strip()[:200] or "private chat"
+    if context == "private chat" and not are_friends(reporter, accused):
+        raise PermissionDenied("You can only report an issue after the chat is active.")
 
     row = Report.objects.create(
         reporter=reporter,
@@ -54,7 +58,6 @@ def create_abuse_report(reporter, payload: dict) -> Report:
         message=message,
         status=Report.STATUS_OPEN,
     )
-    context = str((payload or {}).get("context") or "").strip()[:200] or "private chat"
     to_addr = getattr(settings, "ABUSE_REPORT_TO", "info@toomanygames.de")
     from_addr = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@toomanygames.de")
     body = (
