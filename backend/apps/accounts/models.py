@@ -69,6 +69,7 @@ class Friendship(models.Model):
     )
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
+    rejected_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         constraints = [

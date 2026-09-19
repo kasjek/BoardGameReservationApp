@@ -1,9 +1,15 @@
 """Friend search and request helpers (stories 14, 27)."""
 
+from datetime import timedelta
+
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework.exceptions import APIException, NotFound, PermissionDenied, ValidationError
 
 from .models import Friendship, User
+
+REJECT_COOLDOWN = timedelta(days=7)
+REJECT_COOLDOWN_DETAIL = "You can send another friend request in a week."
 
 
 class Conflict(APIException):
@@ -24,14 +30,33 @@ def are_friends(a, b):
     return row is not None and row.status == Friendship.Status.ACCEPTED
 
 
+def _rejected_until(row):
+    if row is None or row.rejected_at is None:
+        return None
+    return row.rejected_at + REJECT_COOLDOWN
+
+
+def _cooldown_active(row):
+    until = _rejected_until(row)
+    return until is not None and timezone.now() < until
+
+
 def friendship_payload(viewer, other):
     if viewer is None or not getattr(viewer, "is_authenticated", False):
         return None
     if viewer.id == other.id:
         return {"status": "self", "request_id": None}
     row = _pair(viewer, other)
-    if row is None or row.status == Friendship.Status.REJECTED:
-        return {"status": "none", "request_id": row.id if row else None}
+    if row is None:
+        return {"status": "none", "request_id": None}
+    if row.status == Friendship.Status.REJECTED:
+        if row.requester_id == viewer.id and _cooldown_active(row):
+            return {
+                "status": "rejected",
+                "request_id": row.id,
+                "retry_at": _rejected_until(row).isoformat(),
+            }
+        return {"status": "none", "request_id": row.id}
     if row.status == Friendship.Status.ACCEPTED:
         return {"status": "friends", "request_id": row.id}
     if row.requester_id == viewer.id:
@@ -94,12 +119,19 @@ def send_request(viewer, username=None, user_id=None):
         raise Conflict("Friend request already sent.")
     if existing.status == Friendship.Status.PENDING and existing.addressee_id == viewer.id:
         existing.status = Friendship.Status.ACCEPTED
-        existing.save(update_fields=["status"])
+        existing.rejected_at = None
+        existing.save(update_fields=["status", "rejected_at"])
         return existing
+    if existing.status == Friendship.Status.REJECTED:
+        viewer_was_requester = existing.requester_id == viewer.id
+        if viewer_was_requester and _cooldown_active(existing):
+            raise Conflict(REJECT_COOLDOWN_DETAIL)
     existing.requester = viewer
     existing.addressee = other
     existing.status = Friendship.Status.PENDING
-    existing.save(update_fields=["requester", "addressee", "status"])
+    existing.rejected_at = None
+    existing.created_at = timezone.now()
+    existing.save(update_fields=["requester", "addressee", "status", "rejected_at", "created_at"])
     return existing
 
 
@@ -112,7 +144,8 @@ def accept_request(viewer, pk):
     if row.status != Friendship.Status.PENDING:
         raise Conflict("This request is no longer pending.")
     row.status = Friendship.Status.ACCEPTED
-    row.save(update_fields=["status"])
+    row.rejected_at = None
+    row.save(update_fields=["status", "rejected_at"])
     return row
 
 
@@ -125,5 +158,6 @@ def reject_request(viewer, pk):
     if row.status != Friendship.Status.PENDING:
         raise Conflict("This request is no longer pending.")
     row.status = Friendship.Status.REJECTED
-    row.save(update_fields=["status"])
+    row.rejected_at = timezone.now()
+    row.save(update_fields=["status", "rejected_at"])
     return row

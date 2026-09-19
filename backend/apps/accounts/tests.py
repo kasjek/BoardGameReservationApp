@@ -454,6 +454,48 @@ def test_reciprocal_add_accepts_incoming(db, client):
     assert resp.data["status"] == "accepted"
 
 
+def test_reject_blocks_sender_for_a_week(db, client):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    sender = mk("reject_sender")
+    recipient = mk("reject_recipient")
+    client.force_authenticate(user=sender)
+    sent = client.post("/api/friends/requests", {"username": "reject_recipient"}, format="json")
+    assert sent.status_code == 201
+    request_id = sent.data["id"]
+
+    client.force_authenticate(user=recipient)
+    rejected = client.post(f"/api/friends/requests/{request_id}/reject")
+    assert rejected.status_code == 200
+    assert rejected.data["status"] == "rejected"
+
+    client.force_authenticate(user=sender)
+    profile = client.get(f"/api/users/{recipient.id}")
+    assert profile.data["friendship"]["status"] == "rejected"
+    assert profile.data["friendship"]["retry_at"]
+    blocked = client.post("/api/friends/requests", {"username": "reject_recipient"}, format="json")
+    assert blocked.status_code == 409
+    assert "week" in str(blocked.data).lower()
+
+    client.force_authenticate(user=recipient)
+    other_way = client.post("/api/friends/requests", {"username": "reject_sender"}, format="json")
+    assert other_way.status_code == 201
+    assert other_way.data["status"] == "pending"
+
+    Friendship.objects.filter(pk=other_way.data["id"]).update(
+        status=Friendship.Status.REJECTED,
+        requester=sender,
+        addressee=recipient,
+        rejected_at=timezone.now() - timedelta(days=8),
+    )
+    client.force_authenticate(user=sender)
+    retried = client.post("/api/friends/requests", {"username": "reject_recipient"}, format="json")
+    assert retried.status_code == 201
+    assert retried.data["status"] == "pending"
+
+
 def test_private_chat_round_trip(db, client):
     a = mk("chat_a")
     b = mk("chat_b")

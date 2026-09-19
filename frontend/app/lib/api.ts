@@ -76,11 +76,12 @@ export interface PublicUser {
   avatar_equipped?: AvatarEquipped;
 }
 
-export type FriendshipStatus = "none" | "self" | "outgoing" | "incoming" | "friends";
+export type FriendshipStatus = "none" | "self" | "outgoing" | "incoming" | "friends" | "rejected";
 
 export interface FriendshipState {
   status: FriendshipStatus;
   request_id: number | null;
+  retry_at?: string | null;
 }
 
 export interface FriendUser {

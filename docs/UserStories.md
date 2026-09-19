@@ -28,7 +28,7 @@
 24. As a user, who organized a table, I want to receive a confirmation from the venue that my requested table is reserved for me so that i am sure i can come on the selected day and at the selected time
 25. As a user, who organized a table, I want to receive a notification and have it sent to all other players at my table in case a reservation of my table is cancelled by a venue admin so that everyone receives an early notice about it 
 26. As a user, I want to be able to see other users rating, profile avatar and profile name but no other info so that privacy rules are maintained
-27. As a user, I want to be able to send accept and reject friends requests from other users of the app so that i can manage who i have on my friends list
+27. As a user, I want to be able to send accept and reject friends requests from other users of the app so that i can manage who i have on my friends list. After I accept, we can chat. After I reject, that person cannot send me another request for a week.
 28. As a user, I want to receive notifications only when tables relevant for me (that i organize or that i reserve a seat at) make a change in time of the event, day, venue or are cancelled or missing players or have reached sufficient number of players to confirm the event 
 29. As a user, I want to be able to to see what games are available at the selected venue so that i can decide if i bring my own games for a table i plan or i want to use a game available at the venue
 30. As a user, I want to be able to pay for my table reservation quick and easily with paypal or revolut

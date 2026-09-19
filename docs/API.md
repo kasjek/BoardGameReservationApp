@@ -84,9 +84,9 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 ## Friends & blocking
 
-- `POST /friends/requests` — send friend request by `username` (login) or `user_id` *(14, 27)*
+- `POST /friends/requests` — send friend request by `username` (login) or `user_id`. If the same sender was rejected within the last 7 days, returns `409` (`You can send another friend request in a week.`). The person who rejected may still send a request the other way. *(14, 27)*
 - `GET /friends/requests` — pending incoming and outgoing requests *(27)*
-- `POST /friends/requests/{id}/accept` / `.../reject` *(27)*
+- `POST /friends/requests/{id}/accept` / `.../reject` — accept enables chat; reject stamps `rejected_at` and starts the sender’s 7-day cooldown. While cooling down, the sender’s friendship payload is `{ status: "rejected", request_id, retry_at }` *(27)*
 - `GET /friends` — list accepted friends *(14)*
 - `GET /chats` — private conversations for the current user *(12)*
 - `GET /chats/{userId}` — message thread with that user *(12)*

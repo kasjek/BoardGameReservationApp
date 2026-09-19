@@ -1,10 +1,29 @@
 /** Friend search + requests (stories 14, 27). */
 const { serializeUser } = require("./db");
 
+const REJECT_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const REJECT_COOLDOWN_DETAIL = "You can send another friend request in a week.";
+
 function httpError(status, detail) {
   const err = new Error(detail);
   err.status = status;
   return err;
+}
+
+function rejectedUntilMs(row) {
+  if (!row || !row.rejected_at) return 0;
+  const t = Date.parse(row.rejected_at);
+  if (Number.isNaN(t)) return 0;
+  return t + REJECT_COOLDOWN_MS;
+}
+
+function isRejectCooldownActive(row) {
+  return rejectedUntilMs(row) > Date.now();
+}
+
+function retryAtIso(row) {
+  const until = rejectedUntilMs(row);
+  return until ? new Date(until).toISOString() : null;
 }
 
 function findPair(db, a, b) {
@@ -26,7 +45,13 @@ function friendshipPayload(db, viewerId, otherId) {
   if (!viewerId) return null;
   if (viewerId === otherId) return { status: "self", request_id: null };
   const row = findPair(db, viewerId, otherId);
-  if (!row || row.status === "rejected") return { status: "none", request_id: row ? row.id : null };
+  if (!row) return { status: "none", request_id: null };
+  if (row.status === "rejected") {
+    if (row.requester_id === viewerId && isRejectCooldownActive(row)) {
+      return { status: "rejected", request_id: row.id, retry_at: retryAtIso(row) };
+    }
+    return { status: "none", request_id: row.id };
+  }
   if (row.status === "accepted") return { status: "friends", request_id: row.id };
   if (row.requester_id === viewerId) return { status: "outgoing", request_id: row.id };
   return { status: "incoming", request_id: row.id };
@@ -137,12 +162,18 @@ function sendRequest(db, viewerId, { username, user_id }) {
     throw httpError(409, "Friend request already sent.");
   }
   if (existing.status === "pending" && existing.addressee_id === viewerId) {
-    db.prepare("UPDATE friendships SET status='accepted' WHERE id=?").run(existing.id);
+    db.prepare("UPDATE friendships SET status='accepted', rejected_at=NULL WHERE id=?").run(existing.id);
     const row = db.prepare("SELECT * FROM friendships WHERE id=?").get(existing.id);
     return serializeRequest(db, row, viewerId);
   }
+  if (existing.status === "rejected") {
+    const viewerWasRequester = existing.requester_id === viewerId;
+    if (viewerWasRequester && isRejectCooldownActive(existing)) {
+      throw httpError(409, REJECT_COOLDOWN_DETAIL);
+    }
+  }
   db.prepare(
-    `UPDATE friendships SET requester_id=?, addressee_id=?, status='pending', created_at=? WHERE id=?`,
+    `UPDATE friendships SET requester_id=?, addressee_id=?, status='pending', created_at=?, rejected_at=NULL WHERE id=?`,
   ).run(viewerId, other.id, new Date().toISOString(), existing.id);
   const row = db.prepare("SELECT * FROM friendships WHERE id=?").get(existing.id);
   return serializeRequest(db, row, viewerId);
@@ -153,7 +184,7 @@ function acceptRequest(db, viewerId, requestId) {
   if (!row) throw httpError(404, "Friend request not found.");
   if (row.addressee_id !== viewerId) throw httpError(403, "Only the recipient can accept.");
   if (row.status !== "pending") throw httpError(409, "This request is no longer pending.");
-  db.prepare("UPDATE friendships SET status='accepted' WHERE id=?").run(row.id);
+  db.prepare("UPDATE friendships SET status='accepted', rejected_at=NULL WHERE id=?").run(row.id);
   return serializeRequest(db, db.prepare("SELECT * FROM friendships WHERE id=?").get(row.id), viewerId);
 }
 
@@ -162,7 +193,10 @@ function rejectRequest(db, viewerId, requestId) {
   if (!row) throw httpError(404, "Friend request not found.");
   if (row.addressee_id !== viewerId) throw httpError(403, "Only the recipient can reject.");
   if (row.status !== "pending") throw httpError(409, "This request is no longer pending.");
-  db.prepare("UPDATE friendships SET status='rejected' WHERE id=?").run(row.id);
+  db.prepare("UPDATE friendships SET status='rejected', rejected_at=? WHERE id=?").run(
+    new Date().toISOString(),
+    row.id,
+  );
   return serializeRequest(db, db.prepare("SELECT * FROM friendships WHERE id=?").get(row.id), viewerId);
 }
 
@@ -176,4 +210,6 @@ module.exports = {
   sendRequest,
   acceptRequest,
   rejectRequest,
+  REJECT_COOLDOWN_MS,
+  REJECT_COOLDOWN_DETAIL,
 };

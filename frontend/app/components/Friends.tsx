@@ -40,6 +40,11 @@ export function FriendAction({
       <span className="text-[11px] font-semibold text-slate-500">{t("friends.requestSent")}</span>
     );
   }
+  if (status === "rejected") {
+    return (
+      <span className="text-[11px] font-semibold text-slate-500">{t("friends.retryAfterReject")}</span>
+    );
+  }
   if (status === "incoming") {
     return (
       <div className="flex gap-1">

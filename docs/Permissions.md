@@ -41,7 +41,7 @@ Aligned with `docs/Vision.md`: people who **create a table**, people who **reser
 | Remove / delete a table | **own tables only** | cancel/reject tables at own venue | **any** |
 | Reserve a seat at an existing table | yes | **no** — needs a separate USER account (not inherited) | yes (as USER) |
 | View public profile of a user at a table | yes | yes | yes |
-| Search users by login and add friends | yes | yes | yes |
+| Search users by login and add friends | yes (7-day cooldown after reject) | yes (7-day cooldown after reject) | yes (7-day cooldown after reject) |
 | Private 1:1 chat with another user | yes, accepted friends only | yes, accepted friends only | yes, accepted friends only |
 | Report an issue in private chat | yes, accepted friends only | yes, accepted friends only | yes, accepted friends only |
 | Manage venue capacity / operations | no | **own venue only** | **all venues** |
