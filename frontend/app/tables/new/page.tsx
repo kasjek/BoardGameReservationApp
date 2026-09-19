@@ -20,6 +20,20 @@ import { useI18n } from "../../lib/i18n";
 
 const MIN_DURATION_MINUTES = 60;
 const MAX_DURATION_MINUTES = 180;
+const MIN_LEAD_MS = 24 * 60 * 60 * 1000;
+
+function localIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function earliestBookableDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return localIsoDate(d);
+}
 
 const TIME_SLOTS = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
@@ -96,15 +110,19 @@ export default function CreateTablePage() {
     return availability.find((a) => a.date === date) ?? null;
   }, [availability, date]);
 
+  const minDate = useMemo(() => earliestBookableDate(), []);
+  const earliestStartMs = useMemo(() => Date.now() + MIN_LEAD_MS, []);
+
   const fromSlots = useMemo(() => {
-    if (!dayAvailability) return [];
+    if (!dayAvailability || !date) return [];
     const open = parseHm(dayAvailability.start_time);
     const close = parseHm(dayAvailability.end_time);
     return TIME_SLOTS.filter((slot) => {
       const mins = parseHm(slot);
-      return mins >= open && mins + minReservationMinutes <= close;
+      if (mins < open || mins + minReservationMinutes > close) return false;
+      return new Date(`${date}T${slot}:00`).getTime() >= earliestStartMs;
     });
-  }, [dayAvailability, minReservationMinutes]);
+  }, [dayAvailability, date, minReservationMinutes, earliestStartMs]);
 
   const toSlots = useMemo(() => {
     if (!dayAvailability) return [];
@@ -228,6 +246,7 @@ export default function CreateTablePage() {
     const next: FieldErrors = {};
     if (!venue) next.venue = t("newTable.errVenue");
     if (!date) next.date = t("newTable.errDate");
+    else if (date < minDate) next.date = t("newTable.errLeadDate");
     else if (!dayAvailability) next.date = t("newTable.errNoHours");
     if (!from) next.from = t("newTable.errFrom");
     else if (dayAvailability && fromSlots.length > 0 && !fromSlots.includes(from)) {
@@ -252,6 +271,9 @@ export default function CreateTablePage() {
       const duration = parseHm(to) - parseHm(from);
       if (duration < MIN_DURATION_MINUTES || duration > MAX_DURATION_MINUTES) {
         next.to = t("newTable.errDuration");
+      }
+      if (new Date(`${date}T${from}:00`).getTime() < Date.now() + MIN_LEAD_MS) {
+        next.from = t("newTable.errLeadTime");
       }
     }
     return next;
@@ -352,6 +374,7 @@ export default function CreateTablePage() {
         <input
           className="input"
           type="date"
+          min={minDate}
           value={date}
           onChange={(e) => {
             setDate(e.target.value);
