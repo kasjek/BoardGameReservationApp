@@ -162,6 +162,8 @@ function ensureDb() {
   `);
   migrateSchema(db);
   seedIfEmpty(db);
+  const { ensurePastPaidTables } = require("./past-paid-seed");
+  ensurePastPaidTables(db);
   backfillGameTypes(db);
   return db;
 }
