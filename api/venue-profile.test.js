@@ -83,6 +83,13 @@ function tokenFor(username) {
 }
 
 (async () => {
+  const knorz = db.prepare("SELECT * FROM venues WHERE name='Hotel Knorz'").get();
+  assert(knorz, "Hotel Knorz is seeded");
+  assert(
+    knorz.location === "Volkhardtstraße 18, 90513 Zirndorf",
+    `Hotel Knorz address is Zirndorf (got ${knorz.location})`,
+  );
+
   const admin = tokenFor("admin");
   const demo = tokenFor("demo");
 
