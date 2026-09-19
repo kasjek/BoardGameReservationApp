@@ -8,6 +8,7 @@ const { KNOWN_GAME_TYPES, KNOWN_GAME_TYPES_BY_TITLE } = require("./game-types");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "data");
 const DB_PATH = process.env.SQLITE_PATH || path.join(DATA_DIR, "app.sqlite3");
+const HOTEL_KNORZ_ADDRESS = "Volkhardtstraße 18, 90513 Zirndorf";
 
 let db;
 
@@ -262,6 +263,9 @@ function migrateSchema(database) {
       created_at TEXT NOT NULL
     );
   `);
+  database
+    .prepare("UPDATE venues SET location=? WHERE name='Hotel Knorz'")
+    .run(HOTEL_KNORZ_ADDRESS);
 }
 
 function expandStatusFilter(status) {
@@ -358,7 +362,7 @@ function seedIfEmpty(database) {
     const knorz = insertVenue.run(
       "Hotel Knorz",
       "Hotel with board-game tables.",
-      "Nürnberg",
+      HOTEL_KNORZ_ADDRESS,
       2,
       8,
       60,
