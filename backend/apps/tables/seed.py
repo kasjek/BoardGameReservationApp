@@ -268,6 +268,10 @@ def ensure_past_paid_tables() -> list[Table]:
 
 def ensure_demo_tables() -> dict[str, list[Table]]:
     """Seed demo tables for all demo venues."""
+    from apps.accounts.cosmetics import unlock_all_cosmetics_for_demo
+
+    _ensure_demo_hosts()
+    unlock_all_cosmetics_for_demo()
     return {
         "Date House Cafe": ensure_date_house_demo_tables(),
         "Katzentempel": ensure_katzentempel_demo_tables(),

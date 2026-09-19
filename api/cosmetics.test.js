@@ -10,7 +10,7 @@ process.env.DATA_DIR = dir;
 process.env.SQLITE_PATH = path.join(dir, "app.sqlite3");
 process.env.NODE_ENV = "development";
 
-const { earnedUnlockIds, GAMES_PER_UNLOCK, COSMETIC_CATALOG } = require("./cosmetics");
+const { earnedUnlockIds, GAMES_PER_UNLOCK, COSMETIC_CATALOG, unlockAllForDemo } = require("./cosmetics");
 const { ensureDb, hashPassword, newToken } = require("./db");
 const { handleApi } = require("./handler");
 
@@ -116,6 +116,15 @@ assert(
   "meeple, cat, and dog companions",
 );
 assert(GAMES_PER_UNLOCK === 10, "unlock every 10 unique games");
+
+const demoUnlocks = JSON.parse(
+  db.prepare("SELECT avatar_unlocks FROM users WHERE username='demo'").get().avatar_unlocks,
+);
+assert(
+  demoUnlocks.length === COSMETIC_CATALOG.length,
+  `demo has every cosmetic unlocked (got ${demoUnlocks.length})`,
+);
+assert(unlockAllForDemo(db) === false, "second demo unlock is a no-op");
 
 (async () => {
   const info = db
