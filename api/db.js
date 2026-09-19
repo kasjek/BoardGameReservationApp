@@ -47,6 +47,7 @@ function ensureDb() {
       addressee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       status TEXT NOT NULL DEFAULT 'pending',
       created_at TEXT NOT NULL,
+      rejected_at TEXT,
       UNIQUE(requester_id, addressee_id),
       CHECK (requester_id != addressee_id)
     );
@@ -251,6 +252,10 @@ function migrateSchema(database) {
   const venueCols = database.prepare("PRAGMA table_info(venues)").all().map((c) => c.name);
   if (!venueCols.includes("photo_path")) {
     database.exec("ALTER TABLE venues ADD COLUMN photo_path TEXT NOT NULL DEFAULT ''");
+  }
+  const friendshipCols = database.prepare("PRAGMA table_info(friendships)").all().map((c) => c.name);
+  if (!friendshipCols.includes("rejected_at")) {
+    database.exec("ALTER TABLE friendships ADD COLUMN rejected_at TEXT");
   }
   database.exec(`
     CREATE TABLE IF NOT EXISTS reports (

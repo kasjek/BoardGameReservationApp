@@ -199,7 +199,9 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 ```
 
 - Search is **by login (username)** only — never email.
-- **Add friend** sends a request; the other person **Accepts** on their profile or the Find friends page. Adding someone who already requested you accepts it.
+- **Add friend** sends a request; the other person **Accepts** or **Declines** on their profile, Find friends, or profile Friends overview. Adding someone who already requested you accepts it.
+- After **Accept**, either person can open **Message** / private chat.
+- After **Decline**, the sender cannot send another request to that person for **one week**. The person who declined can still add them.
 - Own `/profile` lists **your** friends (avatars + logins). Tapping a friend opens their public profile.
 - **API:** `GET /api/users?q=`, `POST /api/friends/requests`, `GET /api/friends`, `POST …/accept|reject`.
 

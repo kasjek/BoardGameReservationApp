@@ -281,6 +281,7 @@ Friend request / relationship. *(stories 14, 27)*
 | `addressee_id` | uuid (FK→User) | Recipient |
 | `status` | enum(`pending`,`accepted`,`rejected`) | State |
 | `created_at` | timestamptz | Requested time |
+| `rejected_at` | timestamptz (nullable) | When the addressee last rejected; sender cannot re-request for 7 days |
 
 | id | requester_id | addressee_id | status |
 |---|---|---|---|

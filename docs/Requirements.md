@@ -59,7 +59,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 
 ### E. Social: friends, invites & chat
 
-- **FR-E1 (Should)** Users can search for other users, send/accept/reject friend requests, and manage their friend list. *(14, 27)*
+- **FR-E1 (Should)** Users can search for other users, send/accept/reject friend requests, and manage their friend list. After a request is rejected, the original sender cannot send another request to that person for one week. *(14, 27)*
 - **FR-E2 (Should)** Users can invite other users in-app to join their table. *(16)*
 - **FR-E3 (Could)** Each table has an event chat so players can coordinate without exchanging phone numbers. *(8)*
 - **FR-E5 (Should)** Users can send private 1:1 messages to each other in the app, without exchanging phone numbers or email. Messaging is allowed only after a friend request has been accepted. *(12, 27)*
