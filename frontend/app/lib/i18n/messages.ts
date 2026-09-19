@@ -258,7 +258,7 @@ export const en: Messages = {
   friends: {
     title: "Find friends",
     search: "Search",
-    searchPlaceholder: "Search friends by login",
+    searchPlaceholder: "Find friends",
     hint: "Type a username in the bar above to find people and add them as friends.",
     results: "Results for “{q}”",
     noResults: "No one with that login.",
@@ -777,7 +777,7 @@ export const de: Messages = {
   friends: {
     title: "Freunde finden",
     search: "Suchen",
-    searchPlaceholder: "Freunde per Login suchen",
+    searchPlaceholder: "Freunde finden",
     hint: "Tippe oben einen Benutzernamen ein, um Leute zu finden und als Freunde hinzuzufügen.",
     results: "Ergebnisse für „{q}“",
     noResults: "Niemand mit diesem Login.",

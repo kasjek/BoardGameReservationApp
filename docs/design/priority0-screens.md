@@ -185,7 +185,7 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 ┌────────────────────────────┐
 │  All Tables  New  Bookings │  ← purple menu
 ├────────────────────────────┤
-│ ( Search friends by login )│  ← under the menu, every signed-in screen
+│ ( Find friends )           │  ← under the menu, every signed-in screen
 ├────────────────────────────┤
 │ Results for “alice”        │
 │ ┌────────────────────────┐ │
