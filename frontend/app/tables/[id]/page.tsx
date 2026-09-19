@@ -245,7 +245,6 @@ export default function TableDetailPage() {
       <h2 className="mt-2 text-lg font-bold">{formatWhen(table.starts_at, table.ends_at, localeTag)}</h2>
       <div className="text-sm text-slate-500">
         {t("tableDetail.language")}: {formatGameLanguage(table, t)}
-        {table.bring_own_game ? ` · ${t("tableDetail.hostBrings")}` : ` · ${t("tableDetail.venueGame")}`}
       </div>
       {formatGameTypes(table.game_types, t) ? (
         <div className="mt-1 text-sm text-slate-500">
