@@ -57,8 +57,16 @@ export function ReportAbuseButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs font-semibold text-red-600 underline decoration-red-200 underline-offset-2"
+        className="inline-flex items-center gap-1.5 text-xs font-normal text-black"
       >
+        <svg
+          viewBox="0 0 16 16"
+          className="h-3.5 w-3.5 shrink-0 text-red-600"
+          aria-hidden
+        >
+          <path fill="currentColor" d="M3 1.5h.75v13H3z" />
+          <path fill="currentColor" d="M3.75 2h8.5L9.6 5.25 12.25 8.5H3.75z" />
+        </svg>
         {t("chats.reportAbuse")}
       </button>
       {open ? (

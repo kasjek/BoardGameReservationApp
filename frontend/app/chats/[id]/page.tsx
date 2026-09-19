@@ -87,7 +87,7 @@ export default function ChatThreadPage() {
       </button>
       {error ? <Banner kind="error">{error}</Banner> : null}
       {other ? (
-        <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="mb-3 flex items-center gap-2">
           <button
             type="button"
             className="flex min-w-0 items-center gap-2"
@@ -101,11 +101,6 @@ export default function ChatThreadPage() {
             />
             <span className="truncate text-sm font-semibold">{other.username}</span>
           </button>
-          <ReportAbuseButton
-            subjectUserId={other.id}
-            subjectUsername={other.username}
-            context="private chat"
-          />
         </div>
       ) : null}
       <div className="mb-3 space-y-2">
@@ -144,6 +139,15 @@ export default function ChatThreadPage() {
           {t("chats.send")}
         </button>
       </form>
+      {other ? (
+        <div className="mt-3">
+          <ReportAbuseButton
+            subjectUserId={other.id}
+            subjectUsername={other.username}
+            context="private chat"
+          />
+        </div>
+      ) : null}
     </Shell>
   );
 }
