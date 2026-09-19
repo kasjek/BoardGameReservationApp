@@ -31,6 +31,7 @@ const {
 const { listChats, getThread, sendMessage } = require("./chats");
 const { createReport } = require("./reports");
 const { parseDataUrl, savePhotoFile, deletePhotoFile, readPhotoFile } = require("./venue-photo");
+const { overlappingReservation, OVERLAP_DETAIL } = require("./overlap");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -681,6 +682,9 @@ async function handleApi(req, res) {
         const starts = new Date(body.starts_at);
         const ends = new Date(body.ends_at);
         if (!(starts < ends)) return send(res, 400, { detail: "Invalid time range." });
+        if (overlappingReservation(db, u.id, body.starts_at, body.ends_at)) {
+          return send(res, 409, { detail: OVERLAP_DETAIL });
+        }
         const date = body.starts_at.slice(0, 10);
         const startT = starts.toISOString().slice(11, 16);
         const endT = ends.toISOString().slice(11, 16);
@@ -812,6 +816,9 @@ async function handleApi(req, res) {
           )
           .get(tableId, u.id);
         if (existing) return send(res, 409, { detail: "Already seated." });
+        if (overlappingReservation(db, u.id, table.starts_at, table.ends_at, table.id)) {
+          return send(res, 409, { detail: OVERLAP_DETAIL });
+        }
         const reserved = db
           .prepare(`SELECT COUNT(*) AS c FROM seats WHERE table_id=? AND status='reserved'`)
           .get(tableId).c;

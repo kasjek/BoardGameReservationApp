@@ -55,14 +55,14 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 - `GET /tables` — browse/filter events (`date`, `time`, `past|future`, `game`, `minPlayers`, `maxPlayers`, `venueId`, `status`, `type` = BGG game type: strategy/family/party/thematic/…). `status=available` means joinable tables (`available`, `confirmed_unpaid`, `confirmed_paid`). *(2, 13)*
 - `GET /tables/{id}` — table details incl. game, status, seats *(2, 6, 33)*
-- `POST /tables` — create a table (venue, date, `startsAt`/`endsAt`, min/max, game + `bringOwnGame` and language, or venue game); host is a `USER`, auto-seated; starts in `requested` *(1, 4; decisions 2, 4, 6)*
+- `POST /tables` — create a table (venue, date, `startsAt`/`endsAt`, min/max, game + `bringOwnGame` and language, or venue game); host is a `USER`, auto-seated; starts in `requested`; `409` if the host already has a reserved seat that overlaps this time at any venue *(1, 4; decisions 2, 4, 6)*
 - `PATCH /tables/{id}` — edit a table (organizer own; ADMIN any) — triggers relevant notifications *(28)*
 - `POST /tables/{id}/cancel` — organizer cancels; notifies attendees by email *(22)*
 - `GET /tables/{id}/share` — external share link *(15)*
 
 ### Seats
 
-- `POST /tables/{id}/seats` — reserve a seat (`USER`-only; only allowed once status is `available` or later joinable; if full, the user is **waitlisted**; does **not** collect payment) *(2; decisions 2, 6, 7)*
+- `POST /tables/{id}/seats` — reserve a seat (`USER`-only; only allowed once status is `available` or later joinable; if full, the user is **waitlisted**; does **not** collect payment); `409` if the user already has a reserved seat that overlaps this time at any venue *(2; decisions 2, 6, 7)*
 - `POST /tables/{id}/seats/pay` — mark the current user's **reserved** seat as paid (venue-game fee only; waitlisted seats cannot pay; idempotent) *(30; decisions 1, 7)*
 - `POST /tables/{id}/seats/cancel` — cancel own seat; **>24h before** is free, **within 24h** records a late-cancellation mark; on cancel of a reserved seat the earliest waitlisted user is promoted; notifies others *(21; decision 7)*
 - `GET /tables/{id}/waitlist` — ordered waitlist for the table *(decision 7)*
