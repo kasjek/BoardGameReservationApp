@@ -223,32 +223,6 @@ export default function ProfilePage() {
         onChange={saveFavoriteCategories}
       />
 
-      <IncomingRequests incoming={incoming} onChanged={load} />
-
-      <div className="mb-4">
-        <div className="mb-2 text-sm font-bold">{t("friends.myFriends")}</div>
-        <FriendsList friends={friends} />
-      </div>
-
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          className={`card text-center ${!showUniqueTitles ? "ring-2 ring-brand" : ""}`}
-          onClick={() => setShowUniqueTitles(false)}
-        >
-          <div className="text-2xl font-bold text-brand">{gamesPlayed}</div>
-          <div className="text-xs text-slate-500">{t("profile.gamesPlayed")}</div>
-        </button>
-        <button
-          type="button"
-          className={`card text-center ${showUniqueTitles ? "ring-2 ring-brand" : ""}`}
-          onClick={() => setShowUniqueTitles(true)}
-        >
-          <div className="text-2xl font-bold text-brand">{differentGames}</div>
-          <div className="text-xs text-slate-500">{t("profile.differentGames")}</div>
-        </button>
-      </div>
-
       <div className="card mb-4">
         <div className="text-sm font-bold">{t("profile.changePassword")}</div>
         {user.has_usable_password === false ? (
@@ -294,6 +268,32 @@ export default function ProfilePage() {
 
       {error ? <Banner kind="error">{error}</Banner> : null}
       {passwordMessage ? <Banner kind="info">{passwordMessage}</Banner> : null}
+
+      <IncomingRequests incoming={incoming} onChanged={load} />
+
+      <div className="mb-4">
+        <div className="mb-2 text-sm font-bold">{t("friends.myFriends")}</div>
+        <FriendsList friends={friends} />
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          className={`card text-center ${!showUniqueTitles ? "ring-2 ring-brand" : ""}`}
+          onClick={() => setShowUniqueTitles(false)}
+        >
+          <div className="text-2xl font-bold text-brand">{gamesPlayed}</div>
+          <div className="text-xs text-slate-500">{t("profile.gamesPlayed")}</div>
+        </button>
+        <button
+          type="button"
+          className={`card text-center ${showUniqueTitles ? "ring-2 ring-brand" : ""}`}
+          onClick={() => setShowUniqueTitles(true)}
+        >
+          <div className="text-2xl font-bold text-brand">{differentGames}</div>
+          <div className="text-xs text-slate-500">{t("profile.differentGames")}</div>
+        </button>
+      </div>
 
       {showUniqueTitles ? null : (
       <div className="mb-3 flex gap-2">
