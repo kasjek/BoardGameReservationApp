@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.test import APIClient
 
-from apps.accounts.models import Role, User
+from apps.accounts.models import Friendship, Role, User
 
 
 @pytest.fixture
@@ -16,6 +16,10 @@ def mk(username, role=Role.USER):
     user.set_password("pw-testing-123")
     user.save()
     return user
+
+
+def befriend(a, b):
+    Friendship.objects.create(requester=a, addressee=b, status=Friendship.Status.ACCEPTED)
 
 
 def test_new_user_has_empty_avatar_seed(db, client):
@@ -453,6 +457,7 @@ def test_reciprocal_add_accepts_incoming(db, client):
 def test_private_chat_round_trip(db, client):
     a = mk("chat_a")
     b = mk("chat_b")
+    befriend(a, b)
     client.force_authenticate(user=a)
     assert client.get("/api/chats").data == []
     sent = client.post(f"/api/chats/{b.id}", {"body": "Hello from A"}, format="json")
@@ -476,6 +481,7 @@ def test_private_chat_round_trip(db, client):
 def test_private_chat_censors_rude_words(db, client):
     a = mk("censor_a")
     b = mk("censor_b")
+    befriend(a, b)
     client.force_authenticate(user=a)
     sent = client.post(
         f"/api/chats/{b.id}",
@@ -547,6 +553,23 @@ def test_private_chat_rejects_self_and_empty(db, client):
     other = mk("chat_other")
     assert client.post(f"/api/chats/{other.id}", {"body": "  "}, format="json").status_code == 400
     assert client.get("/api/chats/999999").status_code == 404
+
+
+def test_private_chat_requires_accepted_friendship(db, client):
+    a = mk("need_friend_a")
+    b = mk("need_friend_b")
+    client.force_authenticate(user=a)
+    blocked = client.post(f"/api/chats/{b.id}", {"body": "Hi"}, format="json")
+    assert blocked.status_code == 403
+    sent = client.post("/api/friends/requests", {"user_id": b.id}, format="json")
+    assert sent.status_code in (200, 201)
+    still = client.post(f"/api/chats/{b.id}", {"body": "Hi"}, format="json")
+    assert still.status_code == 403
+    client.force_authenticate(user=b)
+    assert client.post(f"/api/friends/requests/{sent.data['id']}/accept").status_code == 200
+    client.force_authenticate(user=a)
+    ok = client.post(f"/api/chats/{b.id}", {"body": "Hi"}, format="json")
+    assert ok.status_code == 201
 
 
 def _add_unique_games(user, n, venue=None, prefix="Cosmetic Game"):

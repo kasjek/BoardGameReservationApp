@@ -1,5 +1,5 @@
 /** Private 1:1 chats (story 12 — private messages). */
-const { publicPreview } = require("./friends");
+const { areFriends, publicPreview } = require("./friends");
 const { censorText } = require("./profanity");
 
 const MAX_BODY = 2000;
@@ -81,6 +81,12 @@ function sendMessage(db, meId, rawId, body) {
   const text = censorText(String(body || "").trim());
   if (!text) throw httpError(400, "Message cannot be empty.");
   if (text.length > MAX_BODY) throw httpError(400, "Message is too long.");
+  if (!areFriends(db, meId, other.id)) {
+    throw httpError(
+      403,
+      "You can only message people after they accept your friend request.",
+    );
+  }
   const info = db
     .prepare(
       `INSERT INTO direct_messages (sender_id, recipient_id, body, created_at)

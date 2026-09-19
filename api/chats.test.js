@@ -76,6 +76,7 @@ function tokenFor(username) {
 (async () => {
   const demo = tokenFor("demo");
   const alice = tokenFor("alice");
+  const bob = tokenFor("bob");
 
   const unauth = await api("GET", "/api/chats");
   assert(unauth.statusCode === 401, "chats require login");
@@ -94,6 +95,28 @@ function tokenFor(username) {
     body: { body: "hi" },
   });
   assert(missing.statusCode === 404, "unknown user 404");
+
+  const stranger = await api("POST", `/api/chats/${bob.user.id}`, {
+    token: demo.token,
+    body: { body: "Hi bob" },
+  });
+  assert(stranger.statusCode === 403, "cannot message someone who is not a friend");
+
+  const pending = await api("POST", "/api/friends/requests", {
+    token: demo.token,
+    body: { user_id: alice.user.id },
+  });
+  assert(pending.statusCode === 201 || pending.statusCode === 200, "friend request sent");
+  const stillPending = await api("POST", `/api/chats/${alice.user.id}`, {
+    token: demo.token,
+    body: { body: "See you at Isle of Cats?" },
+  });
+  assert(stillPending.statusCode === 403, "pending friend request cannot chat");
+
+  const accept = await api("POST", `/api/friends/requests/${pending.body.id}/accept`, {
+    token: alice.token,
+  });
+  assert(accept.statusCode === 200, "alice accepts demo");
 
   const blank = await api("POST", `/api/chats/${alice.user.id}`, {
     token: demo.token,
