@@ -40,7 +40,7 @@
 
 34. As a venue admin, I want to be able to define the days, time and number of tables available in my own location so that i can manage the capacity of my venue at any given time
 35. As a venue admin, I want to be able to accept or reject the reservation requests sent by the users so that all of us have visibility whether the event can take place (and table can be reserved with or without a requested game)
-36. As a venue admin, I want to be able to modify the description of my location and pictures, so that i can manage the online image of my business in the application
+36. As a venue admin, I want to be able to modify the description of my location and pictures, so that i can manage the online image of my business in the application. Venue users and admins upload a photo by dragging it onto a small field (or clicking to choose).
 37. As a venue admin, I want to respond to the reviews posted at my location by the users so that i can get more information about their actual experience and reasons of behind their review in case they are missing from the description itself
 38. As a venue admin, I want to define and edit the games available in my place so that people know what is available for renting when visiting
 39. As a venue admin, I want to write reviews of the players that have visited my location so that i keep track of the guests that were already visiting and how they behaved 

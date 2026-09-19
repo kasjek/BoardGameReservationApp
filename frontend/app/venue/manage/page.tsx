@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Banner, Cover, GameLink, LoadingScreen, Shell } from "../../components/ui";
 import {
@@ -61,6 +61,102 @@ function readPhotoAsDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(new Error("read"));
     reader.readAsDataURL(file);
   });
+}
+
+function PhotoDropField({
+  previewUrl,
+  alt,
+  disabled,
+  onFile,
+  t,
+}: {
+  previewUrl: string | null;
+  alt?: string;
+  disabled?: boolean;
+  onFile: (file: File | undefined) => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  function take(file: File | undefined) {
+    onFile(file);
+  }
+
+  return (
+    <div>
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled || undefined}
+        aria-label={t("venueManage.photoDrop")}
+        data-testid="venue-photo-drop"
+        onClick={() => {
+          if (!disabled) inputRef.current?.click();
+        }}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          if (!disabled) setDragOver(true);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          if (!disabled) setDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          const next = e.relatedTarget as Node | null;
+          if (next && e.currentTarget.contains(next)) return;
+          setDragOver(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          if (disabled) return;
+          take(e.dataTransfer.files?.[0]);
+        }}
+        className={`relative flex h-28 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-center transition ${
+          dragOver
+            ? "border-brand bg-violet-50"
+            : "border-slate-300 bg-slate-50 hover:border-brand hover:bg-violet-50"
+        } ${disabled ? "pointer-events-none opacity-50" : ""}`}
+      >
+        <div className="pointer-events-none absolute inset-0">
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewUrl} alt={alt || ""} className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full items-center justify-center px-3 text-xs font-semibold text-slate-500">
+              {t("venueManage.photoDrop")}
+            </span>
+          )}
+          {dragOver ? (
+            <span className="absolute inset-0 flex items-center justify-center bg-violet-100/80 text-xs font-bold text-brand">
+              {t("venueManage.photoDropActive")}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <input
+        ref={inputRef}
+        className="sr-only"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          take(file);
+        }}
+      />
+    </div>
+  );
 }
 
 function BggGamePicker({
@@ -724,23 +820,11 @@ export default function ManageVenuePage() {
           <div>
             <span className="label">{t("venueManage.photo")}</span>
             <div className="mb-2 text-xs text-slate-500">{t("venueManage.photoHint")}</div>
-            {createPhotoPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={createPhotoPreview}
-                alt=""
-                className="mb-2 h-40 w-full rounded-xl object-cover"
-              />
-            ) : null}
-            <input
-              className="block w-full text-sm"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                void onPhotoChosen(file, "create");
-              }}
+            <PhotoDropField
+              previewUrl={createPhotoPreview}
+              disabled={busy}
+              onFile={(file) => void onPhotoChosen(file, "create")}
+              t={t}
             />
           </div>
 
@@ -956,23 +1040,12 @@ export default function ManageVenuePage() {
                 <div className="mt-3">
                   <span className="label">{t("venueManage.photo")}</span>
                   <div className="mb-2 text-xs text-slate-500">{t("venueManage.photoHint")}</div>
-                  {managePhotoPreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={managePhotoPreview}
-                      alt={selectedVenue?.name || ""}
-                      className="mb-2 h-40 w-full rounded-xl object-cover"
-                    />
-                  ) : null}
-                  <input
-                    className="block w-full text-sm"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      void onPhotoChosen(file, "manage");
-                    }}
+                  <PhotoDropField
+                    previewUrl={managePhotoPreview}
+                    alt={selectedVenue?.name || ""}
+                    disabled={busy}
+                    onFile={(file) => void onPhotoChosen(file, "manage")}
+                    t={t}
                   />
                 </div>
                 <button className="btn mt-3" disabled={busy}>
