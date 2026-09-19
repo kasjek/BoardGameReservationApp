@@ -274,7 +274,8 @@ export const en: Messages = {
   },
   chats: {
     title: "Chats",
-    empty: "No private chats yet. Open someone’s profile and tap Message.",
+    empty: "No private chats yet. Add a friend, wait until they accept, then tap Message.",
+    friendsOnly: "You can only write messages after your friend request is accepted.",
     placeholder: "Write a message…",
     send: "Send",
     back: "Chats",
@@ -790,7 +791,8 @@ export const de: Messages = {
   },
   chats: {
     title: "Chats",
-    empty: "Noch keine privaten Chats. Öffne ein Profil und tippe auf Nachricht.",
+    empty: "Noch keine privaten Chats. Füge eine Freundin oder einen Freund hinzu, warte auf die Annahme und tippe dann auf Nachricht.",
+    friendsOnly: "Nachrichten sind erst möglich, nachdem die Freundschaftsanfrage angenommen wurde.",
     placeholder: "Nachricht schreiben…",
     send: "Senden",
     back: "Chats",

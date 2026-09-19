@@ -166,13 +166,15 @@ export default function PublicUserPage() {
                     }
                   }}
                 />
-                <button
-                  type="button"
-                  className="rounded-full border border-brand px-2.5 py-1 text-[11px] font-bold text-brand"
-                  onClick={() => router.push(`/chats/${profile.id}`)}
-                >
-                  {t("friends.message")}
-                </button>
+                {profile.friendship?.status === "friends" ? (
+                  <button
+                    type="button"
+                    className="rounded-full border border-brand px-2.5 py-1 text-[11px] font-bold text-brand"
+                    onClick={() => router.push(`/chats/${profile.id}`)}
+                  >
+                    {t("friends.message")}
+                  </button>
+                ) : null}
               </div>
             )}
           </div>

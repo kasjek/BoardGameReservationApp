@@ -17,6 +17,11 @@ function findPair(db, a, b) {
     .get(a, b, b, a);
 }
 
+function areFriends(db, a, b) {
+  const row = findPair(db, a, b);
+  return Boolean(row && row.status === "accepted");
+}
+
 function friendshipPayload(db, viewerId, otherId) {
   if (!viewerId) return null;
   if (viewerId === otherId) return { status: "self", request_id: null };
@@ -162,6 +167,7 @@ function rejectRequest(db, viewerId, requestId) {
 }
 
 module.exports = {
+  areFriends,
   friendshipPayload,
   publicPreview,
   searchUsers,

@@ -17,6 +17,13 @@ def _pair(a, b):
     ).first()
 
 
+def are_friends(a, b):
+    if a is None or b is None:
+        return False
+    row = _pair(a, b)
+    return row is not None and row.status == Friendship.Status.ACCEPTED
+
+
 def friendship_payload(viewer, other):
     if viewer is None or not getattr(viewer, "is_authenticated", False):
         return None

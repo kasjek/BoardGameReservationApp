@@ -1,8 +1,9 @@
 """Private 1:1 chats."""
 
 from django.db.models import Q
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
+from .friends import are_friends
 from .models import DirectMessage, User
 from .profanity import censor_text
 
@@ -70,4 +71,8 @@ def send_message(me, raw_id, body):
         raise ValidationError({"body": ["Message cannot be empty."]})
     if len(text) > MAX_BODY:
         raise ValidationError({"body": ["Message is too long."]})
+    if not are_friends(me, other):
+        raise PermissionDenied(
+            "You can only message people after they accept your friend request."
+        )
     return DirectMessage.objects.create(sender=me, recipient=other, body=text)

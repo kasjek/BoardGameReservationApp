@@ -225,7 +225,7 @@ Legend: `[ Button ]`  `( input )`  `‹ back`  `•••` overflow. Frames are 
 └────────────────────────────┘
 ```
 
-- Start a chat from a public profile (**Message**) or from a friend on your profile.
+- Start a chat from a public profile (**Message**, only after you are accepted friends) or from a friend on your profile.
 - Threads are private to the two users; email is never shown.
 - **API:** `GET /api/chats`, `GET|POST /api/chats/{userId}`.
 

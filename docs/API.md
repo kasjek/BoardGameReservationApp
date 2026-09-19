@@ -90,7 +90,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 - `GET /friends` — list accepted friends *(14)*
 - `GET /chats` — private conversations for the current user *(12)*
 - `GET /chats/{userId}` — message thread with that user *(12)*
-- `POST /chats/{userId}` — send a private message (`body`) *(12)*
+- `POST /chats/{userId}` — send a private message (`body`); both users must already be accepted friends, otherwise `403` *(12, 27)*
 - `POST /blocks` — block a user *(12)*
 - `DELETE /blocks/{userId}` — unblock
 
