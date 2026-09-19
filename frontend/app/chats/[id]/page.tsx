@@ -123,22 +123,28 @@ export default function ChatThreadPage() {
         ))}
         <div ref={bottomRef} />
       </div>
-      <form className="flex gap-2" onSubmit={send}>
-        <input
-          className="input py-2"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={t("chats.placeholder")}
-          maxLength={2000}
-        />
-        <button
-          type="submit"
-          className="shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-          disabled={sending || !draft.trim()}
-        >
-          {t("chats.send")}
-        </button>
-      </form>
+      {other?.friendship?.status === "friends" ? (
+        <form className="flex gap-2" onSubmit={send}>
+          <input
+            className="input py-2"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={t("chats.placeholder")}
+            maxLength={2000}
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            disabled={sending || !draft.trim()}
+          >
+            {t("chats.send")}
+          </button>
+        </form>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          {t("chats.friendsOnly")}
+        </div>
+      )}
       {other ? (
         <div className="mt-3">
           <ReportAbuseButton
