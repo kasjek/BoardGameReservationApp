@@ -61,11 +61,11 @@ export function ReportAbuseButton({
       >
         <svg
           viewBox="0 0 16 16"
-          className="h-3.5 w-3.5 shrink-0 text-red-600"
+          className="h-4 w-4 shrink-0 text-red-600"
           aria-hidden
         >
-          <path fill="currentColor" d="M3 1.5h.75v13H3z" />
-          <path fill="currentColor" d="M3.75 2h8.5L9.6 5.25 12.25 8.5H3.75z" />
+          <rect x="2.4" y="1.2" width="1.4" height="13.4" rx="0.3" fill="currentColor" />
+          <path fill="currentColor" d="M3.8 1.6h9.2l-2.8 3.5 2.8 3.5H3.8z" />
         </svg>
         {t("chats.reportAbuse")}
       </button>
