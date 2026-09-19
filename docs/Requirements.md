@@ -26,7 +26,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 
 ### B. Tables / events (core)
 
-- **FR-B1 (Must)** A `USER` (host) creates a table confirming: **minimum capacity**, **maximum capacity**, **date**, **time from and to**, the **game name**, and whether the host **brings the game** (if yes, its language — **English or German**; `Other` retained per story 1) **or uses a venue game** (in which case the venue must also confirm that game's availability). The organizer is seated by default. Hosting is a `USER`-only action — a `VENUE_USER` cannot host. *(1, 4, 6, 29; decisions 4, 6)*
+- **FR-B1 (Must)** A `USER` (host) creates a table confirming: **minimum capacity**, **maximum capacity**, **date**, **time from and to**, the **game name**, and whether the host **brings the game** (if yes, its language — **English or German**; `Other` retained per story 1) **or uses a venue game** (in which case the venue must also confirm that game's availability). The organizer is seated by default. Hosting is a `USER`-only action — a `VENUE_USER` cannot host. Past dates and the current day cannot be selected; the start must be at least 24 hours from now. *(1, 4, 6, 29; decisions 4, 6)*
 - **FR-B2 (Must)** Users can browse all tables offered by other users and reserve a seat at one. Reserving is a `USER`-only action — a `VENUE_USER` cannot reserve. A user cannot hold two reserved seats (including the host seat on a table they create) whose times overlap, at any venue. *(2; decision 6)*
 - **FR-B3 (Must)** Users can view table details, including the game description and picture. *(6)*
 - **FR-B4 (Must)** Users can filter events by date, time, past/future, board game name, min/max player count, and location. *(13)*

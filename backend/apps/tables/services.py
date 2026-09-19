@@ -23,6 +23,7 @@ MARK_VALIDITY = timedelta(days=30)
 # Platform booking length bounds (story 4 / story 45).
 MIN_TABLE_DURATION = timedelta(hours=1)
 MAX_TABLE_DURATION = timedelta(hours=3)
+MIN_LEAD_TIME = timedelta(hours=24)
 
 ACTIVE_TABLE_STATUSES = (
     TableStatus.REQUESTED,
@@ -90,6 +91,8 @@ def create_table(
         raise PermissionDenied("Only a USER may host a table.")
     if ends_at <= starts_at:
         raise ValidationError("ends_at must be after starts_at.")
+    if starts_at < timezone.now() + MIN_LEAD_TIME:
+        raise ValidationError("Tables must start at least 24 hours from now.")
     duration = ends_at - starts_at
     min_minutes = getattr(venue, "min_reservation_minutes", 60) or 60
     max_minutes = getattr(venue, "max_reservation_minutes", 180) or 180

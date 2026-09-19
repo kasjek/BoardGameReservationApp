@@ -141,7 +141,10 @@ function insertTable({ organizerId, venueId, title, minPlayers, maxPlayers, stat
   const alice = tokenFor("alice");
   const bob = tokenFor("bob");
   const datehouse = tokenFor("datehouse");
-  const avail = db.prepare("SELECT * FROM venue_availability WHERE venue_id=? LIMIT 1").get(venue.id);
+  const minDate = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const avail = db
+    .prepare("SELECT * FROM venue_availability WHERE venue_id=? AND date>=? LIMIT 1")
+    .get(venue.id, minDate);
   const [sh, sm] = avail.start_time.split(":").map(Number);
   const endHm = `${String(sh + 2).padStart(2, "0")}:${String(sm).padStart(2, "0")}`;
   const startsAt = `${avail.date}T${avail.start_time}:00.000Z`;

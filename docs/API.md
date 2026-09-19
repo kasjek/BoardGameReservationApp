@@ -55,7 +55,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 - `GET /tables` — browse/filter events (`date`, `time`, `past|future`, `game`, `minPlayers`, `maxPlayers`, `venueId`, `status`, `type` = BGG game type: strategy/family/party/thematic/…). `status=available` means joinable tables (`available`, `confirmed_unpaid`, `confirmed_paid`). *(2, 13)*
 - `GET /tables/{id}` — table details incl. game, status, seats *(2, 6, 33)*
-- `POST /tables` — create a table (venue, date, `startsAt`/`endsAt`, min/max, game + `bringOwnGame` and language, or venue game); host is a `USER`, auto-seated; starts in `requested`; `409` if the host already has a reserved seat that overlaps this time at any venue *(1, 4; decisions 2, 4, 6)*
+- `POST /tables` — create a table (venue, date, `startsAt`/`endsAt`, min/max, game + `bringOwnGame` and language, or venue game); host is a `USER`, auto-seated; starts in `requested`; start must be at least 24 hours from now (`400` if sooner); `409` if the host already has a reserved seat that overlaps this time at any venue *(1, 4; decisions 2, 4, 6)*
 - `PATCH /tables/{id}` — edit a table (organizer own; ADMIN any) — triggers relevant notifications *(28)*
 - `POST /tables/{id}/cancel` — organizer cancels; notifies attendees by email *(22)*
 - `GET /tables/{id}/share` — external share link *(15)*
