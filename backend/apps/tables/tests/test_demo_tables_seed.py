@@ -3,12 +3,14 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 
 from apps.accounts.models import Role
-from apps.tables.models import Table
+from apps.tables.models import SeatReservation, Table, TableStatus
 from apps.tables.seed import (
     DATE_HOUSE_DEMO_TABLES,
     HOTEL_KNORZ_DEMO_TABLES,
     KATZENTEMPEL_DEMO_TABLES,
+    PAST_PAID_TABLES,
     ensure_demo_tables,
+    ensure_past_paid_tables,
 )
 from apps.venues.models import Venue
 from apps.venues.seed import ensure_date_house_cafe, ensure_hotel_knorz, ensure_katzentempel
@@ -68,6 +70,28 @@ def test_seed_demo_tables_command():
     assert Table.objects.filter(venue__name="Hotel Knorz").count() >= len(
         HOTEL_KNORZ_DEMO_TABLES
     )
+
+
+@pytest.mark.django_db
+def test_ensure_past_paid_tables_are_completed_and_paid():
+    first = ensure_past_paid_tables()
+    second = ensure_past_paid_tables()
+    assert len(first) >= 20
+    assert len(second) == len(first)
+    assert len(PAST_PAID_TABLES) >= 20
+
+    past = Table.objects.filter(status=TableStatus.COMPLETED)
+    assert past.count() >= 20
+    assert set(past.values_list("venue__name", flat=True)) >= {
+        "Date House Cafe",
+        "Katzentempel",
+        "Hotel Knorz",
+    }
+    assert set(past.values_list("organizer__username", flat=True)) <= {"demo", "alice"}
+    unpaid = SeatReservation.objects.filter(
+        table__status=TableStatus.COMPLETED, status="reserved", paid=False
+    )
+    assert unpaid.count() == 0
 
 
 @pytest.mark.django_db
