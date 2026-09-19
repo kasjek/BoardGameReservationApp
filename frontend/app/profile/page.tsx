@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { FriendsList, IncomingRequests } from "../components/Friends";
+import { FriendsOverview } from "../components/Friends";
 import { FavoriteCategoryPicker } from "../components/FavoriteCategories";
 import {
   Avatar,
@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const [joined, setJoined] = useState<Table[]>([]);
   const [friends, setFriends] = useState<FriendUser[]>([]);
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
+  const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [rolling, setRolling] = useState(false);
@@ -121,7 +122,9 @@ export default function ProfilePage() {
       setOrganized(await tableApi.list({ organizerId: String(user.id) }));
       setJoined(await tableApi.list({ attendeeId: String(user.id) }));
       setFriends(await friendApi.list());
-      setIncoming((await friendApi.requests()).incoming);
+      const reqs = await friendApi.requests();
+      setIncoming(reqs.incoming);
+      setOutgoing(reqs.outgoing);
       setCategoryOptions((await bggApi.categories()).results);
     } catch (e) {
       setError(errorMessage(e, t));
@@ -269,12 +272,12 @@ export default function ProfilePage() {
       {error ? <Banner kind="error">{error}</Banner> : null}
       {passwordMessage ? <Banner kind="info">{passwordMessage}</Banner> : null}
 
-      <IncomingRequests incoming={incoming} onChanged={load} />
-
-      <div className="mb-4">
-        <div className="mb-2 text-sm font-bold">{t("friends.myFriends")}</div>
-        <FriendsList friends={friends} />
-      </div>
+      <FriendsOverview
+        friends={friends}
+        incoming={incoming}
+        outgoing={outgoing}
+        onChanged={load}
+      />
 
       <div className="mb-4 grid grid-cols-2 gap-2">
         <button

@@ -24,6 +24,7 @@ function FriendsInner() {
 
   const [results, setResults] = useState<FriendUser[] | null>(null);
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
+  const [outgoing, setOutgoing] = useState<FriendRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ function FriendsInner() {
     try {
       const reqs = await friendApi.requests();
       setIncoming(reqs.incoming);
+      setOutgoing(reqs.outgoing);
       if (q) setResults(await userApi.search(q));
       else setResults(null);
     } catch (e) {
@@ -53,7 +55,7 @@ function FriendsInner() {
   return (
     <Shell title={t("friends.title")}>
       {error ? <Banner kind="error">{error}</Banner> : null}
-      <IncomingRequests incoming={incoming} onChanged={load} />
+      <IncomingRequests incoming={incoming} outgoing={outgoing} onChanged={load} />
       {q ? (
         <div className="space-y-2">
           <div className="text-sm font-bold">{t("friends.results", { q })}</div>
