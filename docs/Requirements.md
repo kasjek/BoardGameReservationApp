@@ -73,7 +73,7 @@ Priorities use MoSCoW for a first release. Each requirement links to the origina
 ### G. Trust, safety & moderation
 
 - **FR-G1 (Must)** A user can block another user, preventing them from joining the blocker's tables, sending private messages, or writing to them in event chats. *(12)*
-- **FR-G2 (Should)** A user can report abusive, racist, nationalistic, exclusionary, or harassing content to the admin. *(11)*
+- **FR-G2 (Should)** A user can report abusive, racist, nationalistic, exclusionary, or harassing content to the admin. In private chat, **Report an issue** is available only after the friend request is accepted and the chat is active. *(11)*
 - **FR-G3 (Should)** A user can report a bug (with a screenshot and message) and submit feedback from any part of the app. *(18, 19)*
 - **FR-G4 (Should)** The admin can delete abusive comments, responses, posts, and pictures. *(48)*
 - **FR-G5 (Should)** The admin can block any user or venue that breaks the rules. *(49, 53)*

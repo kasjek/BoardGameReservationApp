@@ -76,6 +76,8 @@ export default function ChatThreadPage() {
   if (loading) return <LoadingScreen />;
   if (!user) return null;
 
+  const chatActive = other?.friendship?.status === "friends";
+
   return (
     <Shell title={other ? other.username : t("chats.title")}>
       <button
@@ -123,7 +125,7 @@ export default function ChatThreadPage() {
         ))}
         <div ref={bottomRef} />
       </div>
-      {other?.friendship?.status === "friends" ? (
+      {chatActive ? (
         <form className="flex gap-2" onSubmit={send}>
           <input
             className="input py-2"
@@ -145,7 +147,7 @@ export default function ChatThreadPage() {
           {t("chats.friendsOnly")}
         </div>
       )}
-      {other ? (
+      {chatActive ? (
         <div className="mt-3">
           <ReportAbuseButton
             subjectUserId={other.id}

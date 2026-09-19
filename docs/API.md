@@ -109,7 +109,7 @@ Roles referenced below: `USER`, `VENUE_USER`, `ADMIN` (ADMIN is a superset of bo
 
 ## Reports (safety, bugs, feedback)
 
-- `POST /reports` — abuse report, bug report (with screenshot), or feedback *(11, 18, 19)*
+- `POST /reports` — abuse report, bug report (with screenshot), or feedback; a private-chat abuse report is `403` until the reporter and accused are accepted friends *(11, 18, 19)*
 - `GET /admin/reports` — review queue (ADMIN) *(49)*
 - `DELETE /content/{type}/{id}` — remove abusive content (ADMIN) *(48)*
 

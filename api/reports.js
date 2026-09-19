@@ -1,4 +1,5 @@
 /** Abuse reports (story 11 / FR-G2) — persist + email admin. */
+const { areFriends } = require("./friends");
 const { sendAbuseReportEmail } = require("./mail");
 
 function httpError(status, detail) {
@@ -36,7 +37,13 @@ async function createReport(db, reporter, payload = {}) {
   const accused = db.prepare("SELECT id, username FROM users WHERE id=?").get(subjectId);
   if (!accused) throw httpError(404, "User not found.");
 
-  const context = String(payload.context || "").trim().slice(0, 200);
+  const context = String(payload.context || "").trim().slice(0, 200) || "private chat";
+  if (context === "private chat" && !areFriends(db, reporter.id, subjectId)) {
+    throw httpError(
+      403,
+      "You can only report an issue after the chat is active.",
+    );
+  }
   const createdAt = new Date().toISOString();
   const info = db
     .prepare(
@@ -50,7 +57,7 @@ async function createReport(db, reporter, payload = {}) {
     reporter: { id: reporter.id, username: reporter.username },
     accused: { id: accused.id, username: accused.username },
     issue: message,
-    context: context || "private chat",
+    context,
   });
 
   return serializeReport(row);

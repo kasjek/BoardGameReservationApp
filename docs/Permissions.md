@@ -43,6 +43,7 @@ Aligned with `docs/Vision.md`: people who **create a table**, people who **reser
 | View public profile of a user at a table | yes | yes | yes |
 | Search users by login and add friends | yes | yes | yes |
 | Private 1:1 chat with another user | yes, accepted friends only | yes, accepted friends only | yes, accepted friends only |
+| Report an issue in private chat | yes, accepted friends only | yes, accepted friends only | yes, accepted friends only |
 | Manage venue capacity / operations | no | **own venue only** | **all venues** |
 | Add / edit / delete any other resource (users, roles, venues, settings, etc.) | no | no | **yes** |
 
