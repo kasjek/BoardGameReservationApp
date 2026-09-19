@@ -652,6 +652,16 @@ def _add_unique_games(user, n, venue=None, prefix="Cosmetic Game"):
     return venue
 
 
+def test_demo_user_gets_all_cosmetics_for_qa(db):
+    from apps.accounts.cosmetics import COSMETIC_CATALOG, unlock_all_cosmetics_for_demo
+
+    demo = mk("demo")
+    assert unlock_all_cosmetics_for_demo() is True
+    demo.refresh_from_db()
+    assert demo.avatar_unlocks == [item["id"] for item in COSMETIC_CATALOG]
+    assert unlock_all_cosmetics_for_demo() is False
+
+
 def test_cosmetics_unlock_after_ten_unique_games_and_survive_roll(db, client):
     user = mk("cosmo_player")
     client.force_authenticate(user=user)

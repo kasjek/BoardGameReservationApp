@@ -125,6 +125,23 @@ def progress(different_games: int) -> dict:
     }
 
 
+def unlock_all_cosmetics_for_demo() -> bool:
+    """QA helper: give the demo user every catalog item."""
+    from .models import User
+
+    demo = User.objects.filter(username="demo").first()
+    if demo is None:
+        return False
+    all_ids = [item["id"] for item in COSMETIC_CATALOG]
+    existing = parse_unlocks(getattr(demo, "avatar_unlocks", None))
+    merged = merge_unlocks(existing, all_ids)
+    if merged == existing:
+        return False
+    demo.avatar_unlocks = merged
+    demo.save(update_fields=["avatar_unlocks"])
+    return True
+
+
 def catalog_payload(user) -> dict:
     from .profile_stats import game_stats
 

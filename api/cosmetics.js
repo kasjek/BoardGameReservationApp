@@ -136,6 +136,20 @@ function progress(differentGames) {
   };
 }
 
+/** QA helper: demo can try every catalog item without grinding 260 unique games. */
+function unlockAllForDemo(database) {
+  const demo = database.prepare("SELECT id, avatar_unlocks FROM users WHERE username='demo'").get();
+  if (!demo) return false;
+  const allIds = COSMETIC_CATALOG.map((item) => item.id);
+  const existing = parseUnlocks(demo.avatar_unlocks);
+  const merged = mergeUnlocks(existing, allIds);
+  if (merged.length === existing.length && merged.every((id, i) => id === existing[i])) {
+    return false;
+  }
+  database.prepare("UPDATE users SET avatar_unlocks=? WHERE id=?").run(JSON.stringify(merged), demo.id);
+  return true;
+}
+
 function catalogPayload({ differentGames, unlocks, equipped }) {
   const unlocked = new Set(unlocks);
   const eq = parseEquipped(equipped);
@@ -166,4 +180,5 @@ module.exports = {
   syncUnlocks,
   setEquippedSlot,
   catalogPayload,
+  unlockAllForDemo,
 };

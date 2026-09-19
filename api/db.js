@@ -165,6 +165,8 @@ function ensureDb() {
   seedIfEmpty(db);
   const { ensurePastPaidTables } = require("./past-paid-seed");
   ensurePastPaidTables(db);
+  const { unlockAllForDemo } = require("./cosmetics");
+  unlockAllForDemo(db);
   backfillGameTypes(db);
   return db;
 }
